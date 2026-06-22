@@ -2,9 +2,8 @@
 
 **Parent**: [../README.md](../README.md)
 
-Product Brief Weeks 9-10: Final deliverables before design-partner launch. CLI docs, SDK demo script, README overhaul (following strict OSS doc separation per user's standards), evaluation report publication, and design partner preparation.
+Final deliverables before design-partner launch. CLI docs, SDK demo script, README overhaul (following strict OSS doc separation per user's standards), evaluation report publication, and design partner preparation.
 
-- **Weeks:** Product Brief Week 9 (CLI, SDK, docs) + Week 10 (design partner launch, write-up)
 - **Reference:** Product Brief §9 (Build Plan Week 9-10), Blueprint §4 (Customer priority)
 - **Prerequisite:** 005-evaluation-harness (gate decision known), 006 (stable contracts), 007 (Docker)
 

@@ -6,7 +6,7 @@ Roadmap Phase 4: Run the deterministic baseline AND the Clay-equipped pipeline o
 
 - **Reference:** Roadmap PDF Phase 4 (lines 513-559), Product Brief §8 Evaluation Plan
 - **Prerequisite:** 003-clay-experiment, 004-benchmark-dataset
-- **Decision gate:** Product Brief Week 4 gate (Gate 1 in Product Brief §12)
+- **Decision gate:** decision gate (Gate 1 in Product Brief §12)
 
 > **Hard rules:**
 > 1. The same benchmark dataset is used for BOTH baseline and AI runs — identical inputs.

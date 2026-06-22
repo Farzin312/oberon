@@ -115,7 +115,7 @@ normalized = (diff_map - diff_map.min()) / (diff_map.max() - diff_map.min() + ep
 
 ## 6. Decision gate
 
-The experiment report must answer (Product Brief Week 4 gate):
+The experiment report must answer :
 1. Does Clay produce a sensible-looking change map on a clear vegetation-loss example?
 2. Does the feature-diff map correlate with NDVI delta?
 3. How long does inference take per chip (CPU)?

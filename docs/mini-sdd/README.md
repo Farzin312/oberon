@@ -50,28 +50,38 @@ docs/mini-sdd/
 | ID | Status | Description |
 |----|--------|-------------|
 | `001-data-plane-pipeline` | **DONE** — 114 tests | Full data-plane pipeline: STAC discovery → scene quality → COG read → preparation → baselines → change detection → evidence bundles → CLI |
-| `002-baseline-fixes` | **NEXT** — Ready to build | Complete pixel_delta stub, write task contract (Roadmap Phase 1), close 001 Phase 7 |
-| `003-clay-experiment` | Ready (after 002) | Product Brief Week 4: Get Clay running, produce feature-diff map on one example |
+| `002-baseline-fixes` | **NEXT** — Ready to build | Complete pixel_delta stub, write task contract, close 001 Phase 7 |
+| `003-clay-experiment` | Ready (after 002) | Get Clay running, produce feature-diff map on one example |
 | `004-benchmark-dataset` | Ready (after 003) | Collect 12-18 reviewed before/after pairs, create golden integration tests |
-| `005-evaluation-harness` | Ready (after 003+004) | Full AI vs deterministic baseline comparison; decision gate (Roadmap Phase 4) |
+| `005-evaluation-harness` | Ready (after 003+004) | Full AI vs deterministic baseline comparison; decision gate |
 | `006-model-registry-provenance` | Ready (after 002+003) | Model registry, artifact index, COG cache, API contract alignment |
 | `007-packaging-deployment` | Ready (after 002) | Docker Compose (CPU+GPU), structured logging, external reproducibility |
 | `008-rust-control-plane` | Deferred (after 006+007) | Axum API, typed job contracts, SQLite state machine, Python subprocess |
-| `009-launch-docs` | Last (after 005+006+007) | README/ARCHITECTURE/ROADMAP rewrite, SDK demo, design partner prep |
+| `009-launch-docs` | After 005+006+007 | README/ARCHITECTURE/ROADMAP rewrite, SDK demo, design partner prep |
+| `010-scene-composite` | Ready (after 001) | Cloud-masked composite when single scene insufficient (Roadmap correction #2) |
+| `011-review-workflow-monitoring` | After 008+005 | Portfolios, scheduled reruns, review states, alerts, feedback export (Roadmap Phase 8) |
+| `012-security-hardening` | After 008+011 | API auth, audit logging, resource limits, SBOM, Docker hardening (Product Brief §10) |
 
 ### Recommended build sequence
 
 ```
-002 → 003 → 004 → 005   (Core pipeline + AI evaluation)
-                  ↓
-            006 → 007   (Stability + deployment)
-                  ↓
-            008         (Control plane — defer until pipeline proven)
-                  ↓
-            009         (Launch — after evaluation results known)
+Layer 1 — Core pipeline (build first)
+  001 (DONE) → 002 → 010
+
+Layer 2 — AI evaluation (gate: does AI earn its place?)
+  003 → 004 → 005
+
+Layer 3 — Stability + deployment
+  006 → 007
+
+Layer 4 — Control plane
+  008
+
+Layer 5 — Product + launch
+  011 → 012 → 009
 ```
 
-The PDF ordering (Product Brief Weeks 0-10, Roadmap Phases 1-8) is preserved. 001 = Weeks 0-3. 002-005 = Roadmap Phases 1-4. 006-007 = Product Brief Weeks 6-8. 008 = Week 5 (deferred per Roadmap Phase 7). 009 = Weeks 9-10.
+Each layer can proceed when its prerequisites are done. Layers 2 and 3 can run in parallel after Layer 1.
 
 ### Decision gates between phases
 
@@ -79,3 +89,32 @@ The PDF ordering (Product Brief Weeks 0-10, Roadmap Phases 1-8) is preserved. 00
 - **Gate 2** (after 005): Does AI beat baseline? If no → deterministic-only default.
 - **Gate 3** (after 007): Can external user reproduce? If no → fix packaging before features.
 - **Gate 4** (after 008): Is Rust worth the complexity? If no → Python CLI as primary interface.
+- **Gate 5** (after 011): Does monitoring create enough value to justify hosting? If no → keep as OSS tool.
+
+### PDF coverage map
+
+| PDF Section | Mini-SDD |
+|---|---|
+| Roadmap Phase 1 (task contract) | 002 |
+| Roadmap Phase 2 (benchmark dataset) | 004 |
+| Roadmap Phase 3 (deterministic baseline) | 001 + 002 |
+| Roadmap Phase 4 (AI as parallel branch) | 003 + 005 |
+| Roadmap Phase 5 (local engine) | 006 |
+| Roadmap Phase 6 (reproducible) | 007 |
+| Roadmap Phase 7 (control plane) | 008 |
+| Roadmap Phase 8 (review + monitoring) | 011 |
+| Roadmap correction #2 (scene composite) | 010 |
+| Product Brief §3 (AI components 1-2) | 003 |
+| Product Brief §3 (AI components 3-4) | Deferred (post-pilot task heads) |
+| Product Brief §4 (hybrid intelligence) | 002 + 005 |
+| Product Brief §5 (API contract) | 006 + 008 |
+| Product Brief §6 (tech architecture) | 006 + 008 |
+| Product Brief §8 (evaluation) | 005 |
+| Product Brief §10 (deployment + security) | 007 + 012 |
+| Product Brief §12 (risks + gates) | README index + each mini-SDD risk register |
+| Product Brief §13 (expansion: monitoring) | 011 |
+| Blueprint §6 (scaling stages) | 008 + 011 |
+| Blueprint §8 (OSS to commercial boundary) | 009 |
+| Blueprint §10 (economics) | 006 (cache) + documented in 009 |
+| Market Strategy §3-7 (positioning + customers) | 009 |
+

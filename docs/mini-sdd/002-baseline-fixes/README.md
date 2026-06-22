@@ -4,7 +4,6 @@
 
 Close out Week 3 of the Product Brief by completing pixel_delta (the last missing deterministic baseline metric) and write the formal task contract per Roadmap PDF Phase 1. Also wraps 001 Phase 7 cleanup.
 
-- **Weeks:** Product Brief Week 3 (gap close-out)
 - **Reference:** Roadmap PDF lines 411-449 (Phase 1), 477-510 (Phase 3)
 - **Prerequisite:** 001-data-plane-pipeline complete
 

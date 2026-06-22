@@ -2,9 +2,8 @@
 
 **Parent**: [../README.md](../README.md)
 
-Product Brief Week 7: Collect a reviewed set of before/after Sentinel-2 pairs and create golden-case integration tests. Roadmap PDF Phase 2 requires this before any AI claim.
+Collect a reviewed set of before/after Sentinel-2 pairs and create golden-case integration tests. Roadmap PDF Phase 2 requires this before any AI claim.
 
-- **Week:** Product Brief Week 7
 - **Reference:** Roadmap PDF Phase 2 (lines 451-476), Product Brief §8 Evaluation
 - **Prerequisite:** 002-baseline-fixes (task contract), 003-clay-experiment (optional)
 

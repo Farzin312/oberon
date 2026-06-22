@@ -4,7 +4,6 @@
 
 Product Brief Week 6 close-out: model registry for versioned model entries, artifact index with checksums, COG session cache, and alignment check against the POST /v1/change API contract.
 
-- **Week:** Product Brief Week 6 (close-out)
 - **Reference:** Product Brief §5 (API Contract), §6 (Recommended MVP Components)
 - **Prerequisite:** 003-clay-experiment (clay_config.py exists), 002-baseline-fixes
 

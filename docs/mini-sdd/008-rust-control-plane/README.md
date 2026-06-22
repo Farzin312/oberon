@@ -2,9 +2,8 @@
 
 **Parent**: [../README.md](../README.md)
 
-Product Brief Week 5: Rust Axum control plane with typed job contracts, SQLite-backed state machine, and Python subprocess execution. This is deliberately delayed until after the pipeline contracts are stable (Roadmap PDF Phase 7 guidance: "Only after the local workflow is credible should you add the control plane").
+Rust Axum control plane with typed job contracts, SQLite-backed state machine, and Python subprocess execution. This is deliberately delayed until after the pipeline contracts are stable (Roadmap PDF Phase 7 guidance: "Only after the local workflow is credible should you add the control plane").
 
-- **Week:** Product Brief Week 5 (moved after pipeline stabilization)
 - **Reference:** Product Brief §6 (Technical Architecture), Blueprint §6, Roadmap PDF Phase 7 (lines 643-706)
 - **Prerequisite:** 006-model-registry-provenance (stable contracts), 007-packaging-deployment (Docker)
 

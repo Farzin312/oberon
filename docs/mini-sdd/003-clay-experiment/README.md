@@ -2,9 +2,8 @@
 
 **Parent**: [../README.md](../README.md)
 
-Product Brief Week 4: Get Clay v1.5 running, extract features from before/after chips, produce a feature-diff change map on one real example. This is a focused technical experiment to answer the Week 4 decision gate: "Does the foundation model add signal?"
+Get Clay v1.5 running, extract features from before/after chips, produce a feature-diff change map on one real example. This is a focused technical experiment to answer the Week 4 decision gate: "Does the foundation model add signal?"
 
-- **Week:** Product Brief Week 4
 - **Reference:** Product Brief §3 (AI Integration), Roadmap PDF Phase 4
 - **Prerequisite:** 002-baseline-fixes
 

@@ -2,9 +2,8 @@
 
 **Parent**: [../README.md](../README.md)
 
-Product Brief Week 8: Docker Compose packaging for CPU and GPU profiles, structured logging, health check, and an external reproducibility test. The Week 8 gate: "Can someone who is not you deploy the service and reproduce the benchmark?"
+Docker Compose packaging for CPU and GPU profiles, structured logging, health check, and an external reproducibility test. The Week 8 gate: "Can someone who is not you deploy the service and reproduce the benchmark?"
 
-- **Week:** Product Brief Week 8
 - **Reference:** Product Brief §10 (Deployment Profiles), Roadmap PDF Phase 6 (lines 614-639)
 - **Prerequisite:** 002-baseline-fixes (complete deterministic pipeline)
 
