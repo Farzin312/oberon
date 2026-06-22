@@ -3,7 +3,25 @@ role: library
 criticality: leaf
 description: TODO describe this subsystem.
 paths:
-  - src/oberon/cli
-
-exposes: []
-consumes: []
+- src/oberon/cli
+- examples/sdk_demo.py
+exposes:
+- name: COMPOSITE_THRESHOLD
+  kind: const
+- name: REQUIRED_BANDS
+  kind: const
+- name: analyze
+  kind: function
+- name: cli
+  kind: function
+- name: health
+  kind: function
+- name: main
+  kind: function
+- name: run_analysis
+  kind: function
+- name: load_geojson
+  kind: function
+consumes:
+- subsystem: core
+- subsystem: telemetry

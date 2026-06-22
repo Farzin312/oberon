@@ -296,3 +296,134 @@ class TestRankBySceneQuality:
         ]
         ranked = rank_by_scene_quality(candidates, max_cloud_pct=100.0, max_selected=1)
         assert ranked[0].local_valid_fraction == 0.5
+
+    def test_filters_scene_footprints_that_do_not_intersect_aoi(self):
+        """Scenes whose STAC footprint misses the AOI should not win selection on cloud score alone."""
+        aoi = {
+            "type": "Polygon",
+            "coordinates": [[
+                [-120.1, 35.0],
+                [-120.0, 35.0],
+                [-120.0, 35.1],
+                [-120.1, 35.1],
+                [-120.1, 35.0],
+            ]],
+        }
+        overlapping = CandidateScene(
+            "overlapping",
+            datetime(2026, 1, 15, 18, 30, 0, tzinfo=UTC),
+            {"type": "Polygon", "coordinates": [[
+                [-120.2, 34.9],
+                [-119.9, 34.9],
+                [-119.9, 35.2],
+                [-120.2, 35.2],
+                [-120.2, 34.9],
+            ]]},
+            (-120.2, 34.9, -119.9, 35.2),
+            {},
+            None,
+            10.0,
+        )
+        lower_cloud_but_wrong_tile = CandidateScene(
+            "wrong-tile",
+            datetime(2026, 1, 16, 18, 30, 0, tzinfo=UTC),
+            {"type": "Polygon", "coordinates": [[
+                [-118.2, 34.9],
+                [-117.9, 34.9],
+                [-117.9, 35.2],
+                [-118.2, 35.2],
+                [-118.2, 34.9],
+            ]]},
+            (-118.2, 34.9, -117.9, 35.2),
+            {},
+            None,
+            0.0,
+        )
+
+        ranked = rank_by_scene_quality(
+            [lower_cloud_but_wrong_tile, overlapping],
+            before_window=(date(2026, 1, 1), date(2026, 1, 31)),
+            after_window=(date(2026, 6, 1), date(2026, 6, 30)),
+            max_cloud_pct=100.0,
+            max_selected=1,
+            aoi_geometry=aoi,
+        )
+
+        assert [scene.candidate.stac_item_id for scene in ranked] == ["overlapping"]
+
+    def test_prefers_common_mgrs_tile_across_periods(self):
+        """Before/after selection should not mix Sentinel-2 tiles when a common tile is available."""
+        before_10 = CandidateScene(
+            "S2A_10SGD_20240619_0_L2A",
+            datetime(2024, 6, 19, 18, 30, 0, tzinfo=UTC),
+            {},
+            (0, 0, 1, 1),
+            {},
+            None,
+            12.0,
+        )
+        after_11_cleaner = CandidateScene(
+            "S2B_11SKU_20241022_0_L2A",
+            datetime(2024, 10, 22, 18, 30, 0, tzinfo=UTC),
+            {},
+            (0, 0, 1, 1),
+            {},
+            None,
+            0.0,
+        )
+        after_10_common = CandidateScene(
+            "S2B_10SGD_20241022_0_L2A",
+            datetime(2024, 10, 22, 18, 30, 0, tzinfo=UTC),
+            {},
+            (0, 0, 1, 1),
+            {},
+            None,
+            1.0,
+        )
+
+        ranked = rank_by_scene_quality(
+            [after_11_cleaner, before_10, after_10_common],
+            before_window=(date(2024, 6, 1), date(2024, 6, 30)),
+            after_window=(date(2024, 10, 1), date(2024, 10, 31)),
+            max_cloud_pct=100.0,
+            max_selected=1,
+        )
+
+        assert [(scene.period, scene.candidate.stac_item_id) for scene in ranked] == [
+            ("before", "S2A_10SGD_20240619_0_L2A"),
+            ("after", "S2B_10SGD_20241022_0_L2A"),
+        ]
+
+    def test_falls_back_to_best_cloudy_candidate_when_period_would_be_empty(self):
+        """Catalog cloud threshold should not prevent SCL/composite fallback from evaluating a period."""
+        before_clear = CandidateScene(
+            "S2A_29TNE_20240722_0_L2A",
+            datetime(2024, 7, 22, 18, 30, 0, tzinfo=UTC),
+            {},
+            (0, 0, 1, 1),
+            {},
+            None,
+            1.0,
+        )
+        after_cloudy = CandidateScene(
+            "S2B_29TNE_20241010_0_L2A",
+            datetime(2024, 10, 10, 18, 30, 0, tzinfo=UTC),
+            {},
+            (0, 0, 1, 1),
+            {},
+            None,
+            19.0,
+        )
+
+        ranked = rank_by_scene_quality(
+            [before_clear, after_cloudy],
+            before_window=(date(2024, 7, 1), date(2024, 7, 31)),
+            after_window=(date(2024, 10, 1), date(2024, 10, 31)),
+            max_cloud_pct=15.0,
+            max_selected=1,
+        )
+
+        assert [(scene.period, scene.candidate.stac_item_id) for scene in ranked] == [
+            ("before", "S2A_29TNE_20240722_0_L2A"),
+            ("after", "S2B_29TNE_20241010_0_L2A"),
+        ]

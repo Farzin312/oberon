@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import warnings
 from pathlib import Path
 
 import numpy as np
@@ -61,6 +62,21 @@ class TestRenderTrueColor:
         img = Image.open(output_path)
         arr = np.array(img)
         assert (arr == 255).all()
+        img.close()
+
+    def test_nan_pixels_do_not_warn_or_break_png(self, output_path: Path) -> None:
+        """Composite gaps may contain NaN; renderer should still write a valid PNG."""
+        red = np.array([[np.nan, 1000.0], [2000.0, 3000.0]], dtype=np.float32)
+        green = np.array([[np.nan, 1000.0], [2000.0, 3000.0]], dtype=np.float32)
+        blue = np.array([[np.nan, 1000.0], [2000.0, 3000.0]], dtype=np.float32)
+
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", RuntimeWarning)
+            result = render_true_color(red, green, blue, output_path)
+
+        assert result.exists()
+        img = Image.open(output_path)
+        assert img.size == (2, 2)
         img.close()
 
 

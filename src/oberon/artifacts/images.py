@@ -60,13 +60,18 @@ def render_change_overlay(
 def _percent_clip(band: np.ndarray, low: float = 2.0, high: float = 98.0) -> np.ndarray:
     """Clip a uint16 band to 8-bit using percentile-based linear stretch."""
     band_f = band.astype(np.float64)
-    lo = float(np.percentile(band_f, low))
-    hi = float(np.percentile(band_f, high))
+    finite = np.isfinite(band_f)
+    if not finite.any():
+        return np.zeros(band.shape, dtype=np.uint8)
+
+    values = band_f[finite]
+    lo = float(np.percentile(values, low))
+    hi = float(np.percentile(values, high))
     if hi - lo < 1.0:
         # Uniform band: map to 0 if all-dark, 255 if all-bright.
         if lo <= 0.0:
             return np.zeros(band.shape, dtype=np.uint8)
         lo = 0.0
         hi = max(lo, 1.0)
-    scaled = (band_f - lo) / (hi - lo) * 255.0
+    scaled = (np.where(finite, band_f, lo) - lo) / (hi - lo) * 255.0
     return np.clip(scaled, 0, 255).astype(np.uint8)

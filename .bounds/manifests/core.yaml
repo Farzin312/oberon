@@ -5,5 +5,54 @@ description: TODO describe this subsystem.
 paths:
 - src/oberon/core
 - src/oberon/__init__.py
-exposes: []
-consumes: []
+exposes:
+- name: BaselineResult
+  kind: class
+- name: CLAY_BANDS
+  kind: const
+- name: CandidateScene
+  kind: class
+- name: ChangeRequest
+  kind: class
+- name: EvidenceBundle
+  kind: class
+- name: Finding
+  kind: class
+- name: ModelResult
+  kind: class
+- name: PreparedPair
+  kind: class
+- name: RasterWindow
+  kind: class
+- name: SCL_CLOUD_BITS
+  kind: const
+- name: SENTINEL2_L2A_BANDS
+  kind: const
+- name: SelectedScene
+  kind: class
+- name: TRUE_COLOR_BANDS
+  kind: const
+- name: compute_baselines
+  kind: function
+- name: compute_nbr
+  kind: function
+- name: compute_ndmi
+  kind: function
+- name: compute_ndvi
+  kind: function
+- name: compute_pixel_delta
+  kind: function
+- name: deduplicate_and_rank
+  kind: function
+- name: detect_changes
+  kind: function
+- name: extract_findings
+  kind: function
+- name: polygon_area_approx_ha
+  kind: function
+- name: polygon_to_bbox
+  kind: function
+- name: threshold_change_map
+  kind: function
+- name: validate_geojson_polygon
+  kind: function

@@ -1,0 +1,15 @@
+name: config
+role: library
+criticality: leaf
+description: TODO describe this subsystem.
+paths:
+- src/oberon/config
+exposes:
+- name: ModelEntry
+  kind: class
+- name: REGISTERED_MODELS
+  kind: const
+- name: get_model_entry
+  kind: function
+- name: model_entry_to_dict
+  kind: function

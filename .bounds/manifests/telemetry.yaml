@@ -1,0 +1,15 @@
+name: telemetry
+role: library
+criticality: leaf
+description: TODO describe this subsystem.
+paths:
+- src/oberon/telemetry
+exposes:
+- name: ConsoleFormatter
+  kind: class
+- name: JSONFormatter
+  kind: class
+- name: configure_logging
+  kind: function
+- name: get_logger
+  kind: function

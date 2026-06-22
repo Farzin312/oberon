@@ -241,6 +241,17 @@ def format_report(report: ComparisonReport) -> str:
             f"{metrics['ai_precision']:.4f} | {int(metrics['count'])} |"
         )
     lines.append("")
+    lines.append("## Per-Example Results")
+    lines.append("")
+    lines.append("| Example | Holdout | Baseline | AI | Baseline Findings | AI Findings |")
+    lines.append("|---------|---------|----------|----|-------------------|-------------|")
+    for row in report.per_example:
+        lines.append(
+            f"| {row['example_id']} | {row['holdout_group']} | "
+            f"{row['baseline_outcome']} | {row['ai_outcome']} | "
+            f"{row['baseline_finding_count']} | {row['ai_finding_count']} |"
+        )
+    lines.append("")
     lines.append("## Limitations")
     lines.append("")
     for lim in report.limitations:

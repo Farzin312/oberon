@@ -38,7 +38,7 @@ def validate_outcome(
     """
     prov: dict[str, Any] = getattr(bundle, "provenance", {})
 
-    abstention_reason = prov.get("abstention_reason")
+    abstention_reason = _abstention_reason(prov)
     expected_outcome = expected["expected_outcome"]
 
     if expected_outcome == "abstention":
@@ -74,12 +74,42 @@ def validate_outcome(
 
     if finding_count > 0 and expected.get("ndvi_delta_range"):
         ndvi_min, ndvi_max = expected["ndvi_delta_range"]
-        ndvi_mean = prov.get("ndvi_delta_mean")
+        ndvi_mean = _ndvi_delta_mean(prov, findings)
         if ndvi_mean is not None:
             assert ndvi_min <= ndvi_mean <= ndvi_max, (
                 f"{example_dir.name}: NDVI delta mean {ndvi_mean} "
                 f"not in expected range [{ndvi_min}, {ndvi_max}]"
             )
+
+
+def _abstention_reason(prov: dict[str, Any]) -> str | None:
+    """Read abstention reason from current or legacy provenance shape."""
+    abstention = prov.get("abstention")
+    if isinstance(abstention, dict):
+        reason = abstention.get("reason")
+        return str(reason) if reason is not None else None
+    reason = prov.get("abstention_reason")
+    return str(reason) if reason is not None else None
+
+
+def _ndvi_delta_mean(prov: dict[str, Any], findings: object) -> float | None:
+    """Read mean NDVI delta from current finding metrics or legacy provenance."""
+    if isinstance(findings, list):
+        values = []
+        for finding in findings:
+            if not isinstance(finding, dict):
+                continue
+            metrics = finding.get("metrics", {})
+            if not isinstance(metrics, dict):
+                continue
+            ndvi = metrics.get("ndvi_delta_mean")
+            if isinstance(ndvi, int | float):
+                values.append(float(ndvi))
+        if values:
+            return sum(values) / len(values)
+
+    ndvi = prov.get("ndvi_delta_mean")
+    return float(ndvi) if isinstance(ndvi, int | float) else None
 
 
 def load_aoi(example_dir: Path) -> dict[str, Any]:

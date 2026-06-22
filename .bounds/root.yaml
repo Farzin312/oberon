@@ -4,9 +4,16 @@ languages: [python]
 enforce: "off"
 # Root-level bootstrap files (globs) — main.py, app.py, setup.py, etc.
 # Listed here, they stay exempt from `validate --fail-on-unowned`.
-entry_points: []
+entry_points:
+  - scripts/run_evaluation.py
+  - examples/sdk_demo.py
 subsystems:
+  - ai
+  - api
   - artifacts
   - cli
+  - config
   - core
   - pipeline
+  - store
+  - telemetry

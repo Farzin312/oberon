@@ -1,0 +1,88 @@
+name: ai
+role: library
+criticality: leaf
+description: TODO describe this subsystem.
+paths:
+- src/oberon/ai
+- scripts/run_evaluation.py
+exposes:
+- name: ADAPTER_VERSION
+  kind: const
+- name: AI_PROMOTION_THRESHOLD
+  kind: const
+- name: CLAY_BANDS
+  kind: const
+- name: CLAY_CHECKPOINT_PATH
+  kind: const
+- name: CLAY_CHECKPOINT_URL
+  kind: const
+- name: CLAY_CHIP_SIZE
+  kind: const
+- name: CLAY_DOLLS
+  kind: const
+- name: CLAY_DOLL_WEIGHTS
+  kind: const
+- name: CLAY_EMBEDDING_DIM
+  kind: const
+- name: CLAY_GSD
+  kind: const
+- name: CLAY_MASK_RATIO
+  kind: const
+- name: CLAY_METADATA
+  kind: const
+- name: CLAY_MODEL_SIZE
+  kind: const
+- name: CLAY_NORM_PIX_LOSS
+  kind: const
+- name: CLAY_PATCH_SIZE
+  kind: const
+- name: CLAY_RGB_INDICES
+  kind: const
+- name: CLAY_SHUFFLE
+  kind: const
+- name: CLAY_TEACHER
+  kind: const
+- name: CLAY_WAVELENGTHS
+  kind: const
+- name: ClayAdapter
+  kind: class
+- name: ComparisonReport
+  kind: class
+- name: ExampleResult
+  kind: class
+- name: MODEL_VERSION
+  kind: const
+- name: ModelAdapter
+  kind: class
+- name: compute_abstention_accuracy
+  kind: function
+- name: compute_chip_grid
+  kind: function
+- name: compute_fp_rate
+  kind: function
+- name: compute_metrics
+  kind: function
+- name: compute_precision_at_k
+  kind: function
+- name: compute_recall_at_k
+  kind: function
+- name: evaluate
+  kind: function
+- name: extract_chip
+  kind: function
+- name: format_report
+  kind: function
+- name: stitch_embeddings
+  kind: function
+- name: BENCHMARK_DIR
+  kind: const
+- name: PROJECT_ROOT
+  kind: const
+- name: discover_examples
+  kind: function
+- name: main
+  kind: function
+- name: result_to_example_result
+  kind: function
+- name: run_pipeline_on_example
+  kind: function

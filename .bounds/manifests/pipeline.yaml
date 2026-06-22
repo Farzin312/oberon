@@ -3,7 +3,33 @@ role: library
 criticality: leaf
 description: TODO describe this subsystem.
 paths:
-  - src/oberon/pipeline
-
-exposes: []
-consumes: []
+- src/oberon/pipeline
+exposes:
+- name: STAC_URL
+  kind: const
+- name: TARGET_RESOLUTION_M
+  kind: const
+- name: align_to_common_grid
+  kind: function
+- name: assess_scene
+  kind: function
+- name: build_composite
+  kind: function
+- name: build_valid_mask
+  kind: function
+- name: clear_cache
+  kind: function
+- name: compute_local_valid_fraction
+  kind: function
+- name: disable_cache
+  kind: function
+- name: enable_cache
+  kind: function
+- name: get_cache_size
+  kind: function
+- name: rank_by_scene_quality
+  kind: function
+- name: read_window
+  kind: function
+- name: search_catalog
+  kind: function

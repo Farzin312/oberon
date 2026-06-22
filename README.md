@@ -174,7 +174,7 @@ See [ROADMAP.md](ROADMAP.md) for the phased build plan and current status.
 | Layer | Status |
 |-------|--------|
 | Core pipeline (STAC -> baselines -> findings) | **Done** |
-| Clay AI experiment + evaluation harness | **Framework done** (live calibration deferred) |
+| Clay AI experiment + evaluation harness | **Gate run: AI_ties** — AI remains experimental |
 | Model registry, provenance, artifact index | **Done** |
 | Docker packaging, structured logging | **Done** |
 | Scene composite + cloud-masked mosaic | **Done** |
@@ -204,7 +204,7 @@ All code (human or AI) must pass: TDD, ruff, mypy strict, pytest, provenance che
 
 ## Status
 
-Pre-MVP. The core pipeline is functional and tested (252 tests). The AI evaluation gate (does Clay improve over the deterministic baseline?) requires live STAC access to run the calibration benchmarks. Until then, Oberon runs deterministic-first with AI as an optional experimental flag.
+Pre-MVP. The core pipeline is functional and tested. The live 005 benchmark gate was run on 2026-06-22: Clay AI tied the deterministic baseline (`precision_at_k` 0.1266 vs 0.1266, delta +0.0000), so AI is **not** promoted to the default path. Oberon remains deterministic-first with `--use-ai` as an experimental flag. The benchmark also shows high false positives and weak seasonal handling; calibration/materiality work should happen before the deferred Rust control plane.
 
 ## License
 

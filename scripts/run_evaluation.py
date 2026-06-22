@@ -99,23 +99,28 @@ def result_to_example_result(  # type: ignore[no-untyped-def]
     from oberon.ai.comparison import ExampleResult
 
     prov = getattr(bundle, "provenance", {})
-    abstention_reason = prov.get("abstention_reason")
+    abstention = prov.get("abstention")
+    abstention_reason = abstention.get("reason") if isinstance(abstention, dict) else None
     actual_outcome = "abstention" if abstention_reason is not None else "findings"
 
     findings = prov.get("findings", [])
     finding_count = len(findings) if isinstance(findings, list) else findings.get("count", 0)
 
     expected_outcome = expected["expected_outcome"]
+    expected_count = expected.get("finding_count", {})
+    min_expected = int(expected_count.get("min", 1))
+    max_expected = int(expected_count.get("max", min_expected))
 
     # Determine TP/FP/FN from expected vs actual.
     if expected_outcome == "findings" and actual_outcome == "findings":
-        tp = finding_count
-        fp = 0
-        fn = 0
+        matching_findings = _count_matching_findings(findings, expected)
+        tp = min(matching_findings, max_expected)
+        fp = (finding_count - matching_findings) + max(0, matching_findings - max_expected)
+        fn = max(0, min_expected - matching_findings)
     elif expected_outcome == "findings" and actual_outcome == "abstention":
         tp = 0
         fp = 0
-        fn = max(1, expected.get("finding_count", {}).get("min", 1))
+        fn = max(1, min_expected)
     elif expected_outcome == "abstention" and actual_outcome == "findings":
         tp = 0
         fp = finding_count
@@ -140,6 +145,29 @@ def result_to_example_result(  # type: ignore[no-untyped-def]
         abstained_correctly=abstained_correctly,
         holdout_group=holdout_group,
     )
+
+
+def _count_matching_findings(findings: object, expected: dict) -> int:  # type: ignore[type-arg]
+    """Count findings that match expected metric ranges."""
+    if not isinstance(findings, list):
+        return 0
+
+    ndvi_range = expected.get("ndvi_delta_range")
+    if not ndvi_range:
+        return len(findings)
+
+    low, high = float(ndvi_range[0]), float(ndvi_range[1])
+    count = 0
+    for finding in findings:
+        if not isinstance(finding, dict):
+            continue
+        metrics = finding.get("metrics", {})
+        if not isinstance(metrics, dict):
+            continue
+        ndvi = metrics.get("ndvi_delta_mean")
+        if isinstance(ndvi, int | float) and low <= float(ndvi) <= high:
+            count += 1
+    return count
 
 
 def main() -> int:

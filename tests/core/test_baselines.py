@@ -12,7 +12,7 @@ from __future__ import annotations
 import numpy as np
 
 from oberon.core import PreparedPair
-from oberon.core.baselines import compute_baselines, compute_pixel_delta
+from oberon.core.baselines import compute_baselines, compute_ndvi, compute_pixel_delta
 
 # ---------------------------------------------------------------------------
 # Shared fixture values for every PreparedPair built in these tests.
@@ -72,6 +72,18 @@ class TestComputeBaselines:
         assert result.ndvi_diff is None
         assert result.nbr_diff is None
         assert result.ndmi_diff is None
+
+    def test_ndvi_rejects_invalid_negative_or_near_zero_pixels(self) -> None:
+        """Invalid reflectance values should not explode outside the NDVI range."""
+        nir = np.array([[1.0, -1.0], [1.0, 0.0]], dtype=np.float32)
+        red = np.array([[-0.999, 1.0], [0.0, 0.0]], dtype=np.float32)
+
+        ndvi = compute_ndvi(nir, red)
+
+        assert np.all(np.isfinite(ndvi))
+        assert np.all((ndvi >= -1.0) & (ndvi <= 1.0))
+        assert ndvi[0, 0] == 0.0
+        assert ndvi[0, 1] == 0.0
 
     def test_all_bands_present_computes_every_diff(self) -> None:
         """With B04/B08/B11/B12 present and a usable mask, all three diffs are non-None."""

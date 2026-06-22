@@ -64,6 +64,7 @@ def run_analysis(
         before_window=request.before,
         after_window=request.after,
         max_cloud_pct=request.max_cloud_fraction * 100.0,
+        aoi_geometry=request.geometry,
     )
 
     if not scenes:

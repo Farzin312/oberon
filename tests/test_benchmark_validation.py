@@ -17,13 +17,23 @@ def _make_bundle(
     abstention_reason: str | None = None,
     finding_count: int = 0,
     ndvi_delta_mean: float | None = None,
+    nested: bool = False,
 ) -> SimpleNamespace:
     """Build a minimal object that looks like an EvidenceBundle for validation."""
     prov: dict[str, object] = {}
     if abstention_reason is not None:
-        prov["abstention_reason"] = abstention_reason
+        if nested:
+            prov["abstention"] = {"reason": abstention_reason}
+        else:
+            prov["abstention_reason"] = abstention_reason
     if finding_count > 0:
-        prov["findings"] = [{"score": 0.9} for _ in range(finding_count)]
+        if nested:
+            prov["findings"] = [
+                {"score": 0.9, "metrics": {"ndvi_delta_mean": ndvi_delta_mean}}
+                for _ in range(finding_count)
+            ]
+        else:
+            prov["findings"] = [{"score": 0.9} for _ in range(finding_count)]
     else:
         prov["findings"] = []
     if ndvi_delta_mean is not None:
@@ -100,6 +110,11 @@ class TestValidateOutcomeAbstention:
 
     def test_correct_abstention_without_substring(self) -> None:
         bundle = _make_bundle(abstention_reason="No suitable scenes")
+        expected = {"expected_outcome": "abstention"}
+        validate_outcome(bundle, expected, Path("09-test"))
+
+    def test_current_nested_abstention_shape(self) -> None:
+        bundle = _make_bundle(abstention_reason="No suitable scenes", nested=True)
         expected = {"expected_outcome": "abstention"}
         validate_outcome(bundle, expected, Path("09-test"))
 

@@ -11,13 +11,13 @@ Oberon is built in layers. Each layer must pass quality gates (ruff, mypy strict
 | Layer | Mini-SDD | Status | Tests |
 |-------|----------|--------|-------|
 | Core pipeline | 001, 002, 010 | **Done** | 118 |
-| AI experiment + evaluation | 003, 004, 005 | **Framework done** (live calibration deferred) | 82 |
+| AI experiment + evaluation | 003, 004, 005 | **Gate run: AI_ties** — AI remains experimental | 82 |
 | Stability (registry, packaging) | 006, 007 | **Done** | 95 |
 | Control plane (API contracts) | 008 | **Phase 1 (Python) done** — Rust deferred | 26 |
 | Product (launch docs) | 009 | **This phase** | - |
 | Review workflow | 011, 012 | Deferred | - |
 
-Total: 252 tests, 12 golden integration tests skipped (gated behind `--run-integration`).
+Total test count is tracked by CI; 12 golden integration tests remain skipped unless explicitly enabled.
 
 ---
 
@@ -31,15 +31,15 @@ Total: 252 tests, 12 golden integration tests skipped (gated behind `--run-integ
 | 002 | Baseline fixes | Complete pixel_delta stub, write task contract, close 001 Phase 7. |
 | 010 | Scene composite | Cloud-masked median composite when single scene insufficient. |
 
-### Layer 2: AI experiment + evaluation (FRAMEWORK DONE)
+### Layer 2: AI experiment + evaluation (GATE RUN)
 
 | ID | Title | Outcome |
 |----|-------|---------|
 | 003 | Clay experiment | Clay v1.5 adapter, tiled inference, `--use-ai` flag. Encoder-only feature extraction. |
 | 004 | Benchmark dataset | 12 reviewed before/after pairs, golden integration test harness. Phase 3 calibration deferred to live STAC run. |
-| 005 | Evaluation harness | Full AI vs deterministic comparison with decision gate. Live run (Phases 1-4) deferred to network access. |
+| 005 | Evaluation harness | Live 12-example gate run completed: AI_ties, `precision_at_k` 0.1266 for both baseline and AI, no promotion. |
 
-**Decision gate**: Does Clay improve over the deterministic NDVI/NBR baseline? This requires the live calibration run (004 Phase 3 + 005 Phases 1-4). Until then, AI runs as an experimental flag alongside the baseline.
+**Decision gate**: Clay did not improve over the deterministic NDVI/NBR baseline on the current 12-example benchmark. AI stays behind `--use-ai`; the next product work is baseline calibration, materiality filtering, and seasonal/no-change handling.
 
 ### Layer 3: Stability (DONE)
 

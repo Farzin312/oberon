@@ -14,23 +14,28 @@ _EPSILON = np.finfo(np.float32).eps
 
 def compute_ndvi(nir: np.ndarray, red: np.ndarray) -> np.ndarray:
     """Normalized Difference Vegetation Index: (NIR - R) / (NIR + R)."""
-    denom = nir + red
-    denom = np.where(np.abs(denom) < _EPSILON, _EPSILON, denom)
-    return np.asarray((nir - red) / denom)
+    return _normalized_difference(nir, red)
 
 
 def compute_nbr(nir: np.ndarray, swir2: np.ndarray) -> np.ndarray:
     """Normalized Burn Ratio: (NIR - SWIR2) / (NIR + SWIR2)."""
-    denom = nir + swir2
-    denom = np.where(np.abs(denom) < _EPSILON, _EPSILON, denom)
-    return np.asarray((nir - swir2) / denom)
+    return _normalized_difference(nir, swir2)
 
 
 def compute_ndmi(nir: np.ndarray, swir1: np.ndarray) -> np.ndarray:
     """Normalized Difference Moisture Index: (NIR - SWIR1) / (NIR + SWIR1)."""
-    denom = nir + swir1
-    denom = np.where(np.abs(denom) < _EPSILON, _EPSILON, denom)
-    return np.asarray((nir - swir1) / denom)
+    return _normalized_difference(nir, swir1)
+
+
+def _normalized_difference(a: np.ndarray, b: np.ndarray) -> np.ndarray:
+    """Compute (a - b) / (a + b), keeping invalid reflectance neutral."""
+    a_f = a.astype(np.float32, copy=False)
+    b_f = b.astype(np.float32, copy=False)
+    denom = a_f + b_f
+    valid = (a_f >= 0.0) & (b_f >= 0.0) & (denom > _EPSILON)
+    out = np.zeros_like(denom, dtype=np.float32)
+    np.divide(a_f - b_f, denom, out=out, where=valid)
+    return np.clip(out, -1.0, 1.0)
 
 
 def compute_pixel_delta(

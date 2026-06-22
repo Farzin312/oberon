@@ -201,4 +201,5 @@ class TestFormatReport:
         assert "## Decision Gate" in text
         assert "## Aggregate Metrics" in text
         assert "## Per-Holdout-Group" in text
+        assert "## Per-Example Results" in text
         assert "## Limitations" in text

@@ -1,0 +1,29 @@
+name: api
+role: library
+criticality: leaf
+description: TODO describe this subsystem.
+paths:
+- src/oberon/api
+exposes:
+- name: APIFinding
+  kind: class
+- name: ArtifactPaths
+  kind: class
+- name: ChangeRequestAPI
+  kind: class
+- name: ChangeResponse
+  kind: class
+- name: EvidenceMetrics
+  kind: class
+- name: HA_TO_M2
+  kind: const
+- name: ModelInfo
+  kind: class
+- name: ResponseStatus
+  kind: class
+- name: TimeWindow
+  kind: class
+- name: serialize_bundle_to_response
+  kind: function
+- name: serialize_findings
+  kind: function

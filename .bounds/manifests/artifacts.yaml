@@ -3,7 +3,19 @@ role: library
 criticality: leaf
 description: TODO describe this subsystem.
 paths:
-  - src/oberon/artifacts
-
-exposes: []
-consumes: []
+- src/oberon/artifacts
+exposes:
+- name: build_evidence_bundle
+  kind: function
+- name: build_provenance
+  kind: function
+- name: create_output_dir
+  kind: function
+- name: render_change_overlay
+  kind: function
+- name: render_true_color
+  kind: function
+- name: write_findings_geojson
+  kind: function
+- name: write_provenance_manifest
+  kind: function

@@ -11,6 +11,7 @@ from datetime import UTC, date, datetime
 from typing import Any
 
 from pystac_client import Client
+from shapely.geometry import shape
 
 from oberon.core import CandidateScene, ChangeRequest, SelectedScene
 
@@ -77,6 +78,7 @@ def rank_by_scene_quality(
     after_window: tuple[date, date] | None = None,
     max_cloud_pct: float = 15.0,
     max_selected: int = 3,
+    aoi_geometry: dict[str, Any] | None = None,
 ) -> list[SelectedScene]:
     """Rank candidate scenes by scene-level cloud cover, grouped by period.
 
@@ -87,10 +89,20 @@ def rank_by_scene_quality(
     splits candidates into periods automatically. Otherwise all candidates
     are ranked together with period="unknown".
 
-    ponytail: scene-level cloud % only. Phase 2 adds AOI-local valid-pixel
-    fraction via SCL for more accurate ranking.
+    When ``aoi_geometry`` is provided, drops STAC items whose footprint does
+    not actually intersect the AOI polygon. This prevents bbox/tile leakage
+    from selecting a clean scene that cannot produce overlapping pixels.
+
+    ponytail: cloud % ranking after exact footprint filter. Add SCL reads here
+    only if catalog-level ranking still picks obstructed scenes in practice.
     """
-    filtered = [c for c in candidates if c.scene_cloud_pct <= max_cloud_pct]
+    eligible = list(candidates)
+    if aoi_geometry is not None:
+        aoi_shape = shape(aoi_geometry)
+        eligible = [c for c in eligible if _scene_intersects_aoi(c, aoi_shape)]
+
+    eligible.sort(key=lambda c: c.scene_cloud_pct)
+    filtered = [c for c in eligible if c.scene_cloud_pct <= max_cloud_pct]
     filtered.sort(key=lambda c: c.scene_cloud_pct)
 
     # Group by period if windows are provided
@@ -106,9 +118,40 @@ def rank_by_scene_quality(
                 return "after"
             return "unknown"
 
+        period_pool = {
+            period: [c for c in eligible if _assign_period(c.datetime) == period]
+            for period in ("before", "after")
+        }
+        candidates_by_period = {
+            period: [c for c in filtered if _assign_period(c.datetime) == period] or period_pool[period]
+            for period in ("before", "after")
+        }
+
+        common_tiles = (
+            {_mgrs_tile(c) for c in period_pool["before"]}
+            & {_mgrs_tile(c) for c in period_pool["after"]}
+        )
+        common_tiles.discard(None)
+
+        if common_tiles:
+            tile = min(
+                common_tiles,
+                key=lambda t: (
+                    min(c.scene_cloud_pct for c in period_pool["before"] if _mgrs_tile(c) == t)
+                    + min(c.scene_cloud_pct for c in period_pool["after"] if _mgrs_tile(c) == t)
+                ),
+            )
+            candidates_by_period = {
+                period: (
+                    [c for c in period_candidates if _mgrs_tile(c) == tile and c.scene_cloud_pct <= max_cloud_pct]
+                    or [c for c in period_candidates if _mgrs_tile(c) == tile]
+                )
+                for period, period_candidates in period_pool.items()
+            }
+
         selected: list[SelectedScene] = []
         for period in ("before", "after"):
-            period_candidates = [c for c in filtered if _assign_period(c.datetime) == period]
+            period_candidates = candidates_by_period[period]
             for c in period_candidates[:max_selected]:
                 selected.append(
                     SelectedScene(
@@ -128,6 +171,20 @@ def rank_by_scene_quality(
         )
         for c in filtered[:max_selected]
     ]
+
+
+def _scene_intersects_aoi(scene: CandidateScene, aoi_shape: Any) -> bool:
+    """Return True when a candidate's STAC footprint intersects the AOI."""
+    try:
+        return bool(shape(scene.geometry).intersects(aoi_shape))
+    except Exception:
+        return False
+
+
+def _mgrs_tile(scene: CandidateScene) -> str | None:
+    """Extract the Sentinel-2 MGRS tile from Earth Search item IDs."""
+    parts = scene.stac_item_id.split("_")
+    return parts[1] if len(parts) >= 2 and len(parts[1]) == 5 else None
 
 
 def _parse_stac_item(item: Any) -> CandidateScene | None:
