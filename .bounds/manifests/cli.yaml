@@ -1,0 +1,9 @@
+name: cli
+role: library
+criticality: leaf
+description: TODO describe this subsystem.
+paths:
+  - src/oberon/cli
+
+exposes: []
+consumes: []

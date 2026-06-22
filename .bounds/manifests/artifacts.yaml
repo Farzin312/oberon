@@ -1,0 +1,9 @@
+name: artifacts
+role: library
+criticality: leaf
+description: TODO describe this subsystem.
+paths:
+  - src/oberon/artifacts
+
+exposes: []
+consumes: []

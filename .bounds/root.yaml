@@ -1,0 +1,12 @@
+version: "1"
+project: oberon
+languages: [python]
+enforce: "off"
+# Root-level bootstrap files (globs) — main.py, app.py, setup.py, etc.
+# Listed here, they stay exempt from `validate --fail-on-unowned`.
+entry_points: []
+subsystems:
+  - artifacts
+  - cli
+  - core
+  - pipeline

@@ -1,0 +1,9 @@
+name: core
+role: library
+criticality: leaf
+description: TODO describe this subsystem.
+paths:
+  - src/oberon/core
+
+exposes: []
+consumes: []

@@ -1,0 +1,9 @@
+name: pipeline
+role: library
+criticality: leaf
+description: TODO describe this subsystem.
+paths:
+  - src/oberon/pipeline
+
+exposes: []
+consumes: []
