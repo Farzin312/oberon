@@ -9,32 +9,27 @@ Execution checklist. Cross items off one at a time. All quality gates apply per 
 ---
 
 ## Phase 0 — Setup & safety
-**Status:** [⏳] IN PROGRESS
+**Status:** [x] COMPLETE
 
-- [ ] [DOC] Create `docs/mini-sdd/001-data-plane-pipeline/` with README, plan, tasks (this doc)
-- [ ] [DOC] Record locked decisions + in-scope/not-in-scope boundary (README.md)
-- [ ] [BE] Initialize bounds: `bounds init --root` then `bounds init --subsystem <name>` for each subsystem
-- [ ] [BE] Create `src/oberon/core/domain.py` with all dataclass models
-- [ ] [BE] Create `src/oberon/core/__init__.py` exports
-- [ ] [QA] Baseline: `pytest --collect-only | tail -1` recorded; `bounds validate --quick` clean
-- [ ] [BE] Create `tests/conftest.py` with shared fixtures
-- [ ] [BE] Create `tests/data/sample.geojson` — small test polygon (Costa Rica forest, ~100 ha)
+- [x] [DOC] Create `docs/mini-sdd/001-data-plane-pipeline/` with README, plan, tasks (this doc)
+- [x] [DOC] Record locked decisions + in-scope/not-in-scope boundary (README.md)
+- [x] [BE] Initialize bounds: `bounds init --root` then `bounds init --subsystem <name>` for each subsystem
+- [x] [BE] Create `src/oberon/core/domain.py` with all dataclass models
+- [x] [BE] Create `src/oberon/core/__init__.py` exports
+- [x] [QA] Baseline: `pytest --collect-only | tail -1` recorded; `bounds validate --quick` clean
+- [x] [BE] Create `tests/conftest.py` with shared fixtures
+- [x] [BE] Create `tests/data/sample.geojson` — small test polygon (Costa Rica forest, ~100 ha)
 
-> **Gate note:** All files above must be green before Phase 1 starts.
+## Phase 1 — STAC Discovery + Scene Quality
+**Status:** [x] COMPLETE
 
----
-
-## Phase 1 — STAC Discovery + Scene Quality  ⚠️ gate before Phase 2
-**Status:** [ ]
-
-- [ ] [TEST] `tests/pipeline/test_stac_discovery.py` — test that STAC query returns items intersecting AOI with `intersects` filter
-- [ ] [BE] `src/oberon/pipeline/stac_discovery.py` — STAC search function, CandidateScene model parsing
-- [ ] [TEST] `tests/core/test_geometry.py` — test geometry validation, bbox calculation from GeoJSON polygon
-- [ ] [BE] `src/oberon/core/geometry.py` — geometry helpers
-- [ ] [TEST] `tests/pipeline/test_scene_quality.py` — test local valid-pixel fraction from SCL mask
-- [ ] [BE] `src/oberon/pipeline/scene_quality.py` — quality assessment, scene ranking, best-per-period selection
-- [ ] [QA] `ruff check src/ tests/` — 0 exit; `pytest tests/pipeline/test_stac_discovery.py tests/core/test_geometry.py -v` — all pass
-- [ ] [QA] `bounds validate --quick` — clean
+- [x] [TEST] `tests/core/test_geometry.py` — 15 tests covering validation, bbox, area (edge cases: bowtie, empty coords, missing type, negative lon)
+- [x] [BE] `src/oberon/core/geometry.py` — geometry validation, bbox, planar area approximation
+- [x] [TEST] `tests/pipeline/test_stac_discovery.py` — 16 tests: search API params, item parsing, empty results, connection errors, missing fields, quality ranking, period split, cloud filtering
+- [x] [BE] `src/oberon/pipeline/stac_discovery.py` — STAC search via pystac-client, scene-level quality ranking with period split
+- [x] [TEST] `tests/pipeline/test_scene_quality.py` — 10 tests: SCL mask analysis (all-clear, all-cloud, 50/50, empty array, custom bits), scene-proxy bridge
+- [x] [BE] `src/oberon/pipeline/scene_quality.py` — SCL valid-fraction computation (pure NumPy), scene quality bridge stub (deferred to Phase 2 for full AOI-local via COG)
+- [x] [QA] `ruff check src/ tests/` — 0 exit; 41 tests green; `bounds validate` clean (17 files owned)
 
 ---
 
@@ -122,10 +117,10 @@ Execution checklist. Cross items off one at a time. All quality gates apply per 
 
 ### Progress
 
-<!-- Keep current — the at-a-glance state. -->
-
 **Started:** 2026-06-21
-**Phases complete:** 0 (in progress — scaffolding docs complete, source code pending)
-**Key commits:** (none yet)
-**Test baseline:** (to be recorded)
-**What remains:** Phases 1-7 above
+**Phases complete:** 1 (Setup + STAC Discovery + Scene Quality)
+**Key commits:** `5d41071` (initial scaffolding), `...` (Phase 1 implementation)
+**Test baseline:** 41 tests, 0 failures, 0 warnings
+**Lint:** ruff 0 exit
+**Bounds:** 17 files owned, 4 subsystems, validate clean
+**What remains:** Phases 2-7 (COG reading, preparation, baselines, evidence, CLI, verify, cleanup)

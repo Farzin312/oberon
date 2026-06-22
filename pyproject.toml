@@ -11,11 +11,12 @@ requires-python = ">=3.12"
 dependencies = [
     "rasterio>=1.4",
     "numpy>=1.26",
-    "pystac-client>=1.0",
+    "pystac-client>=0.8",
     "shapely>=2.0",
-    "geopandas>=1.0",
+    "geopandas>=0.14",
     "click>=8.0",
     "pydantic>=2.0",
+    "scipy>=1.12",
 ]
 
 [project.optional-dependencies]
@@ -69,3 +70,12 @@ warn_unused_configs = true
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-v --tb=short"
+
+[dependency-groups]
+dev = [
+    "mypy>=2.1.0",
+    "pre-commit>=4.6.0",
+    "pytest>=9.1.1",
+    "pytest-cov>=7.1.0",
+    "ruff>=0.15.18",
+]

@@ -6,7 +6,6 @@ import numpy as np
 
 from oberon.core import BaselineResult, PreparedPair
 
-
 # Small epsilon to avoid division by zero.
 _EPSILON = np.finfo(np.float32).eps
 

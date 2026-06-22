@@ -2,13 +2,15 @@
 
 from __future__ import annotations
 
-from shapely.geometry import shape, mapping
-from shapely import wkt
+from shapely.geometry import shape
 
 
 def validate_geojson_polygon(geometry: dict) -> bool:
     """Check that a GeoJSON-like dict is a valid Polygon or MultiPolygon."""
     if geometry.get("type") not in ("Polygon", "MultiPolygon"):
+        return False
+    coords = geometry.get("coordinates")
+    if not coords or not coords[0]:
         return False
     try:
         geom = shape(geometry)

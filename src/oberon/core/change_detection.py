@@ -5,8 +5,7 @@ from __future__ import annotations
 import numpy as np
 from scipy import ndimage as ndi
 
-from oberon.core import BaselineResult, Finding
-
+from oberon.core import Finding
 
 # Default threshold: |NDVI change| > 0.15 is considered significant.
 _DEFAULT_NDVI_THRESHOLD = 0.15

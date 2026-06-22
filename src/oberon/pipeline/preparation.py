@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from oberon.core import PreparedPair, RasterWindow
 
-
 TARGET_RESOLUTION_M = 10
 
 

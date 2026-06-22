@@ -7,7 +7,7 @@ update all consumers.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import date, datetime
 from pathlib import Path
 
@@ -120,5 +120,5 @@ TRUE_COLOR_BANDS = ["B04", "B03", "B02"]
 CLAY_BANDS = ["B02", "B03", "B04", "B05", "B06", "B07", "B08", "B8A", "B11", "B12"]
 """10-band subset used by Clay v1.5 for inference."""
 
-SCL_CLOUD_BITS = {1, 3, 7, 8, 9, 10}
+SCL_CLOUD_BITS = {1, 3, 7, 8, 9, 10, 11}
 """SCL values that indicate invalid/obstructed pixels (saturated, cloud shadow, cloud, cirrus, snow/ice)."""

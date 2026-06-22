@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from oberon.core import BaselineResult, ChangeRequest, EvidenceBundle, Finding
+from oberon.core import ChangeRequest, EvidenceBundle
 
 
 def run_analysis(request: ChangeRequest, output_dir: Path) -> EvidenceBundle:

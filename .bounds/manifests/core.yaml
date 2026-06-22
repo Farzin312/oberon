@@ -3,7 +3,7 @@ role: library
 criticality: leaf
 description: TODO describe this subsystem.
 paths:
-  - src/oberon/core
-
+- src/oberon/core
+- src/oberon/__init__.py
 exposes: []
 consumes: []
