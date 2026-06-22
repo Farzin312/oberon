@@ -33,59 +33,154 @@ Execution checklist. Cross items off one at a time. All quality gates apply per 
 
 ---
 
-## Phase 2 — COG Reading + Preparation  ⚠️ gate before Phase 3
+## Phase 2 — COG Reading + Preparation
 **Status:** [ ]
 
-- [ ] [TEST] `tests/pipeline/test_cog_reader.py` — test windowed read returns correct bands and shape
-- [ ] [BE] `src/oberon/pipeline/cog_reader.py` — COG range read, band extraction, nodata handling
-- [ ] [TEST] `tests/pipeline/test_preparation.py` — test SCL masking, reprojection, resampling, alignment
-- [ ] [BE] `src/oberon/pipeline/preparation.py` — mask composite construction, reproject/resample, CRS alignment
-- [ ] [QA] `ruff check src/ tests/` — 0 exit; full phase tests green
-- [ ] [QA] `bounds validate --quick` — clean
-- [ ] [DOC] `bounds calibrate --dump-baseline` for modified subsystems
+**COG reader — windowed reads from cloud-optimized GeoTIFFs**
 
-> **Gate note:** Assert created arrays are same CRS, same shape, same bounds. If not, the preparation is broken.
+- [ ] [TEST] `tests/pipeline/test_cog_reader.py` — test `read_window` returns dict of band arrays with correct keys and shapes for a mocked COG window
+- [ ] [TEST] `tests/pipeline/test_cog_reader.py` — test 404 COG URL raises `FileNotFoundError` with scene ID
+- [ ] [TEST] `tests/pipeline/test_cog_reader.py` — test missing band in assets returns partial dict (available bands only)
+- [ ] [TEST] `tests/pipeline/test_cog_reader.py` — test empty band list raises `ValueError`
+- [ ] [TEST] `tests/pipeline/test_cog_reader.py` — test buffer_pixels=1 adds correct padding to window dimensions
+- [ ] [BE] `src/oberon/pipeline/cog_reader.py` — implement `read_window(scene, aoi_geom, bands, buffer=1) -> RasterWindow`
+
+**SCL masking — composite mask from Scene Classification Layer**
+
+- [ ] [TEST] `tests/pipeline/test_preparation.py` — test `build_valid_mask` combines SCL invalid bits + nodata (0) correctly
+- [ ] [TEST] `tests/pipeline/test_preparation.py` — test missing SCL falls back to nodata-only mask with warning flag
+- [ ] [TEST] `tests/pipeline/test_preparation.py` — test all-pixels-obstructed returns `(all_false_mask, "AOI fully obstructed")`
+- [ ] [BE] `src/oberon/pipeline/preparation.py` — implement `build_valid_mask(window) -> tuple[mask, reason]`
+
+**Preparation — reproject, resample, crop**
+
+- [ ] [TEST] `tests/pipeline/test_preparation.py` — test `align_to_common_grid` returns before/after with same shape, same CRS
+- [ ] [TEST] `tests/pipeline/test_preparation.py` — test before/after from different CRS reprojected correctly to centroid UTM zone
+- [ ] [TEST] `tests/pipeline/test_preparation.py` — test intersection bounds cropping (crops to overlap region)
+- [ ] [TEST] `tests/pipeline/test_preparation.py` — test resampled dimension < 10px returns PreparedPair with is_usable=False
+- [ ] [TEST] `tests/pipeline/test_preparation.py` — test 20m bands bilinearly upsampled to 10m (shape matches 10m bands)
+- [ ] [TEST] `tests/pipeline/test_preparation.py` — test SCL band nearest-neighbor resampled (not bilinear)
+- [ ] [BE] `src/oberon/pipeline/preparation.py` — implement `align_to_common_grid(before, after, target_crs, target_resolution=10) -> PreparedPair`
+- [ ] [BE] `src/oberon/pipeline/preparation.py` — add `PreparedPair.is_usable` property (>= 30% valid)
+
+**Quality bridge upgrade**
+
+- [ ] [BE] `src/oberon/pipeline/scene_quality.py` — upgrade `assess_scene` to use `read_window` for SCL when COG reader exists
+
+**QA gate**
+
+- [ ] [QA] `ruff check src/ tests/` — 0 exit; Phase 2 tests green
+- [ ] [QA] `bounds validate --quick` — clean
+- [ ] [DOC] Update `AGENTS.md` with COG URL pattern gotcha if discovered
+
+> **Gate note:** All prepared arrays must have the same CRS, the same shape, and the same bounds. If any differ, the transformation is broken.
 
 ---
 
-## Phase 3 — Baseline Analytics  ⚠️ gate before Phase 4
+## Phase 3 — Baseline Analytics + Change Detection
 **Status:** [ ]
 
-- [ ] [TEST] `tests/core/test_baselines.py` — test NDVI, NBR, NDMI computation with known inputs (e.g., all-zeros -> 0, all-NIR high -> 1)
-- [ ] [BE] `src/oberon/core/baselines.py` — index computation on aligned arrays, division-by-zero guard
-- [ ] [TEST] `tests/core/test_change_detection.py` — test thresholding, connected components, area calculation
-- [ ] [BE] `src/oberon/core/change_detection.py` — threshold diff maps → binary mask → connected components → Finding list
-- [ ] [TEST] `tests/core/test_baselines.py` — test abstention: masked arrays with < 30% valid pixels return abstention
-- [ ] [BE] `src/oberon/core/baselines.py` — abstention logic in BaselineResult
-- [ ] [QA] `ruff check src/ tests/` — 0 exit; full phase tests green
+**Baseline computation — complete wiring of stubs**
+
+- [ ] [TEST] `tests/core/test_baselines.py` — test `compute_all` returns abstention when `pair.is_usable` is False
+- [ ] [TEST] `tests/core/test_baselines.py` — test all bands present computes NDVI + NBR + NDMI + abstention check
+- [ ] [TEST] `tests/core/test_baselines.py` — test missing SWIR bands (B11, B12) produces NDMI=None, NBR=None gracefully
+- [ ] [TEST] `tests/core/test_baselines.py` — test all-zero arrays produce NDVI of 0.0 (NIR=0, Red=0 → division guard = epsilon)
+- [ ] [TEST] `tests/core/test_baselines.py` — test NIR-saturated values (10000) produce NDVI near 0.0 with Red near 10000
+- [ ] [TEST] `tests/core/test_baselines.py` — test fully masked pair returns `BaselineResult(abstain=True)`
+- [ ] [BE] `src/oberon/core/baselines.py` — wire `compute_all(pair) -> BaselineResult` using existing compute_* functions
+
+**Change detection — complete wiring of stubs**
+
+- [ ] [TEST] `tests/core/test_change_detection.py` — test `extract_findings` with no change mask returns empty list
+- [ ] [TEST] `tests/core/test_change_detection.py` — test single connected component produces one Finding with correct area
+- [ ] [TEST] `tests/core/test_change_detection.py` — test multiple components with only one above min_pixels returns 1 Finding
+- [ ] [TEST] `tests/core/test_change_detection.py` — test component below min_change_area (49px) is filtered out
+- [ ] [TEST] `tests/core/test_change_detection.py` — test `deduplicate_and_rank` returns findings sorted by score descending
+- [ ] [TEST] `tests/core/test_change_detection.py` — test `deduplicate_and_rank` with 25 findings caps at max_findings=20
+- [ ] [TEST] `tests/core/test_change_detection.py` — test geometry is valid GeoJSON Polygon (exterior ring)
+- [ ] [TEST] `tests/core/test_change_detection.py` — test all-zero scores returns empty result
+- [ ] [BE] `src/oberon/core/change_detection.py` — implement `_component_to_geojson_polygon` using shapely `convex_hull` (replaces bbox polygon)
+- [ ] [BE] `src/oberon/core/change_detection.py` — implement `deduplicate_and_rank(findings, max_findings=20) -> list[Finding]`
+- [ ] [BE] `src/oberon/core/change_detection.py` — wire all functions into a combined `detect_changes(pair, threshold, min_pixels) -> list[Finding]`
+
+**QA gate**
+
+- [ ] [QA] `ruff check src/ tests/` — 0 exit; Phase 3 tests green
 - [ ] [QA] `bounds validate --quick` — clean
 
 ---
 
-## Phase 4 — Evidence Bundles + Provenance  ⚠️ gate before Phase 5
+## Phase 4 — Evidence Bundles + Provenance
 **Status:** [ ]
 
-- [ ] [TEST] `tests/artifacts/test_images.py` — test true-color composite from B04/B03/B02, test overlay rendering
-- [ ] [BE] `src/oberon/artifacts/images.py` — PNG composite generation, change overlay on before image
-- [ ] [TEST] `tests/artifacts/test_geojson.py` — test valid GeoJSON FeatureCollection output
-- [ ] [BE] `src/oberon/artifacts/geojson.py` — Finding list → GeoJSON FeatureCollection file
-- [ ] [TEST] `tests/core/test_provenance.py` — test manifest contains all required fields
-- [ ] [BE] `src/oberon/artifacts/provenance.py` — provenance dict construction, JSON output
+**True-color imagery**
+
+- [ ] [TEST] `tests/artifacts/test_images.py` — test `render_true_color` produces a valid PNG at output path
+- [ ] [TEST] `tests/artifacts/test_images.py` — test all-zero bands produce valid PNG (0 → 0 after 2% clip)
+- [ ] [TEST] `tests/artifacts/test_images.py` — test all-10000 bands produce valid PNG (10000 → 255 after 98% clip)
+- [ ] [TEST] `tests/artifacts/test_images.py` — test `render_change_overlay` produces PNG with red overlay on before image
+- [ ] [BE] `src/oberon/artifacts/images.py` — implement `render_true_color(red, green, blue, path) -> Path` using PIL/Pillow
+- [ ] [BE] `src/oberon/artifacts/images.py` — implement `render_change_overlay(before_rgb, change_mask, path) -> Path`
+
+**GeoJSON findings**
+
+- [ ] [TEST] `tests/artifacts/test_geojson.py` — test `write_findings_geojson` produces valid GeoJSON FeatureCollection
+- [ ] [TEST] `tests/artifacts/test_geojson.py` — test empty findings list produces FeatureCollection with 0 features (valid GeoJSON)
+- [ ] [TEST] `tests/artifacts/test_geojson.py` — test each feature has geometry + all required properties
+- [ ] [TEST] `tests/artifacts/test_geojson.py` — test findings in different CRS are reprojected to EPSG:4326
+- [ ] [BE] `src/oberon/artifacts/geojson.py` — implement `write_findings_geojson(findings, path, out_crs="EPSG:4326") -> Path`
+
+**Provenance manifest**
+
+- [ ] [TEST] `tests/core/test_provenance.py` — test `build_provenance` manifest contains all required fields from the schema
+- [ ] [TEST] `tests/core/test_provenance.py` — test abstention case produces manifest with abstention populated and no findings
+- [ ] [TEST] `tests/core/test_provenance.py` — test empty findings produces valid manifest with empty_findings flag
+- [ ] [TEST] `tests/core/test_provenance.py` — test manifest includes software versions for all key deps
+- [ ] [BE] `src/oberon/artifacts/provenance.py` — implement `build_provenance(findings, bundle, request, scenes) -> dict`
+
+**Output directory management**
+
+- [ ] [BE] `src/oberon/artifacts/__init__.py` — add `create_output_dir(path: Path) -> Path` that creates dir and returns it
+- [ ] [BE] `src/oberon/artifacts/__init__.py` — add `build_evidence_bundle(findings, pair, request, scenes, output_dir) -> EvidenceBundle`
+
+**QA gate**
+
+- [ ] [QA] `ruff check src/ tests/` — 0 exit; Phase 4 tests green
 - [ ] [QA] `bounds validate --quick` — clean
+- [ ] [QA] Manual inspection: output PNG is valid, GeoJSON is valid JSON
 
 ---
 
-## Phase 5 — CLI Wiring
+## Phase 5 — CLI Wiring + Pipeline Orchestration
 **Status:** [ ]
 
-- [ ] [TEST] `tests/cli/test_analyze.py` — test CLI runs end-to-end with mock STAC and synthetic arrays
-- [ ] [BE] `src/oberon/cli/main.py` — click group + `analyze` command with all options
-- [ ] [BE] `src/oberon/cli/orchestrator.py` — pipeline orchestration: call stages, handle abstention, write output
-- [ ] [BE] `src/oberon/core/__init__.py` — update exports to include all public models
-- [ ] [BE] `src/oberon/pipeline/__init__.py` — update exports
-- [ ] [BE] `src/oberon/artifacts/__init__.py` — update exports
+**Full pipeline orchestration**
+
+- [ ] [BE] `src/oberon/cli/orchestrator.py` — implement `run_analysis(request, output_dir) -> EvidenceBundle` following the orchestration flow in plan.md §6.3
+- [ ] [BE] `src/oberon/cli/orchestrator.py` — handle each abstention path: "No suitable scenes found", "Missing before/after scene", "Insufficient valid pixels", abstention in baselines
+- [ ] [BE] `src/oberon/cli/orchestrator.py` — handle STAC connection error, invalid polygon, COG read failure with descriptive messages
+
+**CLI command**
+
+- [ ] [TEST] `tests/cli/test_analyze.py` — test `oberon analyze --help` shows all options
+- [ ] [TEST] `tests/cli/test_analyze.py` — test `oberon analyze` with invalid date format exits with error code 1
+- [ ] [TEST] `tests/cli/test_analyze.py` — test `oberon analyze` with missing --aoi flag shows required error
+- [ ] [TEST] `tests/cli/test_analyze.py` — test end-to-end with mocked STAC + synthetic COG + expected output
+- [ ] [BE] `src/oberon/cli/main.py` — complete click `analyze` command: option definitions, type validation, error handling, call orchestrator
+
+**Export cleanup**
+
+- [ ] [BE] `src/oberon/core/__init__.py` — verify all public models are exported
+- [ ] [BE] `src/oberon/pipeline/__init__.py` — add exports for pipeline functions
+- [ ] [BE] `src/oberon/artifacts/__init__.py` — add exports for artifact functions
 - [ ] [QA] `python -m oberon.cli analyze --help` — works, shows all options
 - [ ] [BE] `uv lock` — lock all dependencies
+
+**QA gate**
+
+- [ ] [QA] `ruff check src/ tests/` — 0 exit
+- [ ] [QA] `pytest tests/cli/ -v` — all pass
 
 ---
 
@@ -93,24 +188,25 @@ Execution checklist. Cross items off one at a time. All quality gates apply per 
 **Status:** [ ]
 
 - [ ] [QA] `ruff check src/ tests/` — 0 exit
-- [ ] [QA] `mypy src/` — all type-checked (use `# type: ignore` only for unavoidable Rasterio/NumPy signature issues)
-- [ ] [QA] `pytest tests/ -v --tb=short` — all tests pass, ≥ baseline count
+- [ ] [QA] `mypy src/` — 0 exit (allow `# type: ignore` on Rasterio/NumPy signatures only)
+- [ ] [QA] `pytest tests/ -v --tb=short` — all tests pass, track baseline count
 - [ ] [QA] `bounds preflight --ci` — green (no boundary violations, no orphan exports)
-- [ ] [QA] Manual check: all `# ponytail:` comments present and correct
+- [ ] [QA] Manual check: all `# ponytail:` comments name the ceiling and upgrade path
 - [ ] [DOC] `docs/architecture/SYSTEM_DESIGN.md` — verify matches actual implementation
 - [ ] [DOC] `docs/architecture/DATA_FLOW.md` — verify matches actual pipeline order
-- [ ] [DOC] `AGENTS.md` — update gotchas with any discoveries from implementation
+- [ ] [DOC] `AGENTS.md` — update gotchas with discoveries from COG URLs, CRS handling, abstention edge cases
 - [ ] [DOC] `bounds calibrate --dump-baseline` — re-baseline all manifests
 
 ---
 
-## Phase 7 — Cleanup & doc sync (END)
+## Phase 7 — Cleanup & Documentation (END)
 **Status:** [ ]
 
-- [ ] [BE] DRY sweep: check for duplicated masking logic, repeated CRS handling, shared constants
+- [ ] [BE] DRY sweep: check for duplicated masking logic across cog_reader, preparation, scene_quality; extract shared constants to `core/__init__.py`
 - [ ] [DOC] Update mini-SDD tasks.md — all checkboxes crossed, progress summary written
 - [ ] [DOC] Final docs review: CLAUDE.md, AGENTS.md, README.md, CONTRIBUTING.md — all current
-- [ ] [BE] Squash commits into clean history for the feature branch
+- [ ] [DOC] Verify EvidenceBundle output shape matches forward-compatible `/v1/change` API response
+- [ ] [BE] Squash feature commits into clean history
 - [ ] [DOC] Write phase-end summary in Progress section below
 
 ---
@@ -119,8 +215,10 @@ Execution checklist. Cross items off one at a time. All quality gates apply per 
 
 **Started:** 2026-06-21
 **Phases complete:** 1 (Setup + STAC Discovery + Scene Quality)
-**Key commits:** `5d41071` (initial scaffolding), `...` (Phase 1 implementation)
+**Key commits:** `5d41071` (scaffolding), `b0a64f6` (Phase 1 implementation)
 **Test baseline:** 41 tests, 0 failures, 0 warnings
 **Lint:** ruff 0 exit
 **Bounds:** 17 files owned, 4 subsystems, validate clean
-**What remains:** Phases 2-7 (COG reading, preparation, baselines, evidence, CLI, verify, cleanup)
+**Last plan update:** All phases 2-7 fully scoped with data contracts, abstention rules, edge cases, and bite-sized TDD tasks (2026-06-21)
+**Next phase:** Phase 2 — COG Reading + Preparation
+**What's needed:** Clear context, fresh agent picks up Phase 2 from tasks.md
