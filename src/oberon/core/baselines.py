@@ -77,8 +77,9 @@ def compute_baselines(pair: PreparedPair) -> BaselineResult:
         ndmi_after = compute_ndmi(nir_after, pair.after["B11"])
         ndmi_diff = np.where(pair.mask, ndmi_after - ndmi_before, np.nan)
 
+    # Shared "valid in BOTH" mask -> before/after valid counts are identical by construction.
     valid_before = int(pair.mask.sum())
-    valid_after = int(pair.mask.sum())
+    valid_after = valid_before
 
     # Abstention check: insufficient valid pixels
     total = pair.mask.size
@@ -99,7 +100,9 @@ def compute_baselines(pair: PreparedPair) -> BaselineResult:
         ndvi_diff=ndvi_diff,
         nbr_diff=nbr_diff,
         ndmi_diff=ndmi_diff,
-        pixel_delta_magnitude=None,  # requires all-bands stacked
+        # ponytail: pixel_delta needs all bands stacked (H, W, B); ceiling is
+        # per-band Euclidean magnitude; upgrade path: stack bands in align_to_common_grid.
+        pixel_delta_magnitude=None,
         valid_pixels_before=valid_before,
         valid_pixels_after=valid_after,
     )

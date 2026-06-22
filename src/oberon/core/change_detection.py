@@ -4,8 +4,9 @@ from __future__ import annotations
 
 import numpy as np
 from scipy import ndimage as ndi
+from shapely.geometry import MultiPoint, mapping
 
-from oberon.core import Finding
+from oberon.core import Finding, PreparedPair
 
 # Default threshold: |NDVI change| > 0.15 is considered significant.
 _DEFAULT_NDVI_THRESHOLD = 0.15
@@ -52,44 +53,44 @@ def extract_findings(
 
         area_ha = pixel_count * pixel_area_ha
         # Approximate score from the component's mean NDVI delta
-        score = 1.0
+        score = 0.0
+        mean_delta = 0.0
         if ndvi_diff is not None:
             mean_delta = float(np.nanmean(np.where(component, ndvi_diff, np.nan)))
             # ponytail: linear score normalized to [0, 1]; calibrate against
             # labeled examples when evaluation dataset exists.
             score = min(abs(mean_delta) / 0.5, 1.0)
 
-            findings.append(
-                Finding(
-                    geometry=_component_to_geojson_polygon(labeled, i, component),
-                    score=score,
-                    area_ha=area_ha,
-                    ndvi_delta_mean=mean_delta,
-                    nbr_delta_mean=0.0,
-                    valid_pixels_in_finding=pixel_count,
-                )
+        findings.append(
+            Finding(
+                geometry=_component_to_geojson_polygon(component),
+                score=score,
+                area_ha=area_ha,
+                ndvi_delta_mean=mean_delta,
+                nbr_delta_mean=0.0,
+                valid_pixels_in_finding=pixel_count,
             )
+        )
 
     return findings
 
 
-def _component_to_geojson_polygon(
-    labeled: np.ndarray,
-    label_id: int,
-    component: np.ndarray,
-) -> dict:
+def _component_to_geojson_polygon(component: np.ndarray) -> dict:
     """Convert a connected component to a GeoJSON Polygon.
 
-    ponytail: bounding-box polygon instead of exact concave hull.
-    Switch to shapely `Polygon` with `convex_hull` for accurate boundaries.
+    Builds a convex hull around the component's pixel coordinates. Falls back
+    to an axis-aligned bbox when the hull is degenerate (collinear or single
+    pixel — shapely then returns a LineString or Point, not a Polygon).
+
+    ponytail: convex hull, not concave hull or exact footprint. Degenerate
+    fallback to bbox; upgrade path: buffer degenerate hulls by half a pixel
+    so all components yield a true Polygon.
     """
-    rows, cols = np.where(component)
+    rows, cols = np.nonzero(component)
     min_row, max_row = int(rows.min()), int(rows.max())
     min_col, max_col = int(cols.min()), int(cols.max())
 
-    # Returns a unit bbox polygon in pixel coordinates —
-    # the caller must transform to geographic CRS.
-    return {
+    bbox = {
         "type": "Polygon",
         "coordinates": [[
             [min_col, min_row],
@@ -99,3 +100,55 @@ def _component_to_geojson_polygon(
             [min_col, min_row],
         ]],
     }
+
+    points = list(zip(cols.tolist(), rows.tolist(), strict=True))
+    hull = MultiPoint(points).convex_hull
+    if hull.geom_type != "Polygon":
+        # Degenerate hull (LineString / Point for collinear / single-pixel comps).
+        return bbox
+    geom = mapping(hull)
+    if geom.get("type") != "Polygon":
+        return bbox
+    return geom
+
+
+def deduplicate_and_rank(
+    findings: list[Finding],
+    max_findings: int = 20,
+) -> list[Finding]:
+    """Filter, sort, and cap findings.
+
+    Drops findings with score <= 0.0 (including all-zero inputs -> empty),
+    sorts the remainder by score descending, and caps to max_findings.
+    Does not mutate the input list or its objects.
+
+    ponytail: no geometric IoU dedup yet; ceiling is overlapping neighbours
+    within a tolerance; upgrade path: pairwise shapely intersection-over-union.
+    """
+    if not findings:
+        return []
+    kept = [f for f in findings if f.score > 0.0]
+    # ponytail: build a new list to avoid mutating the caller's input order.
+    ranked = sorted(kept, key=lambda f: f.score, reverse=True)
+    return ranked[:max_findings]
+
+
+def detect_changes(
+    pair: PreparedPair,
+    threshold: float = _DEFAULT_NDVI_THRESHOLD,
+    min_pixels: int = _MIN_CHANGE_PIXELS,
+) -> list[Finding]:
+    """Thin orchestrator: baseline -> threshold -> extract -> rank.
+
+    Abstains (returns []) when the pair is not usable, the baseline abstained,
+    or no NDVI difference could be computed.
+    """
+    # Local import avoids a module-load cycle with baselines.
+    from oberon.core.baselines import compute_baselines
+
+    baseline = compute_baselines(pair)
+    if not pair.is_usable or baseline.abstain or baseline.ndvi_diff is None:
+        return []
+    change_mask = threshold_change_map(baseline.ndvi_diff, threshold)
+    findings = extract_findings(change_mask, baseline.ndvi_diff, min_pixels)
+    return deduplicate_and_rank(findings)

@@ -71,45 +71,48 @@ Execution checklist. Cross items off one at a time. All quality gates apply per 
 
 **QA gate**
 
-- [ ] [QA] `ruff check src/ tests/` — 0 exit; Phase 2 tests green
-- [ ] [QA] `bounds validate --quick` — clean
-- [ ] [DOC] Update `AGENTS.md` with COG URL pattern gotcha if discovered
+- [x] [QA] `ruff check src/ tests/` — 0 exit; Phase 2 tests green
+- [~] [QA] `bounds validate --quick` — clean (bounds CLI not in PATH — skipped; see Progress)
+- [ ] [DOC] Update `AGENTS.md` with COG URL pattern gotcha if discovered (deferred to Phase 6 doc sweep)
 
 > **Gate note:** All prepared arrays must have the same CRS, the same shape, and the same bounds. If any differ, the transformation is broken.
 
 ---
 
 ## Phase 3 — Baseline Analytics + Change Detection
-**Status:** [ ]
+**Status:** [x] COMPLETE — 80 tests green, ruff 0 exit
 
 **Baseline computation — complete wiring of stubs**
 
-- [ ] [TEST] `tests/core/test_baselines.py` — test `compute_all` returns abstention when `pair.is_usable` is False
-- [ ] [TEST] `tests/core/test_baselines.py` — test all bands present computes NDVI + NBR + NDMI + abstention check
-- [ ] [TEST] `tests/core/test_baselines.py` — test missing SWIR bands (B11, B12) produces NDMI=None, NBR=None gracefully
-- [ ] [TEST] `tests/core/test_baselines.py` — test all-zero arrays produce NDVI of 0.0 (NIR=0, Red=0 → division guard = epsilon)
-- [ ] [TEST] `tests/core/test_baselines.py` — test NIR-saturated values (10000) produce NDVI near 0.0 with Red near 10000
-- [ ] [TEST] `tests/core/test_baselines.py` — test fully masked pair returns `BaselineResult(abstain=True)`
-- [ ] [BE] `src/oberon/core/baselines.py` — wire `compute_all(pair) -> BaselineResult` using existing compute_* functions
+> Note: the task list originally named the entry point `compute_all`; the de-facto contract (plan.md §6.3 orchestrator pseudocode) is `compute_baselines`, which already existed and passed all six tests unchanged.
+
+- [x] [TEST] `tests/core/test_baselines.py` — test `compute_baselines` returns abstention when `pair.is_usable` is False
+- [x] [TEST] `tests/core/test_baselines.py` — test all bands present computes NDVI + NBR + NDMI + abstention check
+- [x] [TEST] `tests/core/test_baselines.py` — test missing SWIR bands (B11, B12) produces NDMI=None, NBR=None gracefully
+- [x] [TEST] `tests/core/test_baselines.py` — test all-zero arrays produce NDVI of 0.0 (NIR=0, Red=0 → division guard = epsilon)
+- [x] [TEST] `tests/core/test_baselines.py` — test NIR-saturated values (10000) produce NDVI near 0.0 with Red near 10000
+- [x] [TEST] `tests/core/test_baselines.py` — test fully masked pair returns `BaselineResult(abstain=True)`
+- [x] [BE] `src/oberon/core/baselines.py` — `compute_baselines(pair) -> BaselineResult` verified (no code change needed)
 
 **Change detection — complete wiring of stubs**
 
-- [ ] [TEST] `tests/core/test_change_detection.py` — test `extract_findings` with no change mask returns empty list
-- [ ] [TEST] `tests/core/test_change_detection.py` — test single connected component produces one Finding with correct area
-- [ ] [TEST] `tests/core/test_change_detection.py` — test multiple components with only one above min_pixels returns 1 Finding
-- [ ] [TEST] `tests/core/test_change_detection.py` — test component below min_change_area (49px) is filtered out
-- [ ] [TEST] `tests/core/test_change_detection.py` — test `deduplicate_and_rank` returns findings sorted by score descending
-- [ ] [TEST] `tests/core/test_change_detection.py` — test `deduplicate_and_rank` with 25 findings caps at max_findings=20
-- [ ] [TEST] `tests/core/test_change_detection.py` — test geometry is valid GeoJSON Polygon (exterior ring)
-- [ ] [TEST] `tests/core/test_change_detection.py` — test all-zero scores returns empty result
-- [ ] [BE] `src/oberon/core/change_detection.py` — implement `_component_to_geojson_polygon` using shapely `convex_hull` (replaces bbox polygon)
-- [ ] [BE] `src/oberon/core/change_detection.py` — implement `deduplicate_and_rank(findings, max_findings=20) -> list[Finding]`
-- [ ] [BE] `src/oberon/core/change_detection.py` — wire all functions into a combined `detect_changes(pair, threshold, min_pixels) -> list[Finding]`
+- [x] [TEST] `tests/core/test_change_detection.py` — test `extract_findings` with no change mask returns empty list
+- [x] [TEST] `tests/core/test_change_detection.py` — test single connected component produces one Finding with correct area
+- [x] [TEST] `tests/core/test_change_detection.py` — test multiple components with only one above min_pixels returns 1 Finding
+- [x] [TEST] `tests/core/test_change_detection.py` — test component below min_change_area (49px) is filtered out
+- [x] [TEST] `tests/core/test_change_detection.py` — test `deduplicate_and_rank` returns findings sorted by score descending
+- [x] [TEST] `tests/core/test_change_detection.py` — test `deduplicate_and_rank` with 25 findings caps at max_findings=20
+- [x] [TEST] `tests/core/test_change_detection.py` — test geometry is valid GeoJSON Polygon (exterior ring)
+- [x] [TEST] `tests/core/test_change_detection.py` — test all-zero scores returns empty result
+- [x] [BE] `src/oberon/core/change_detection.py` — `_component_to_geojson_polygon` now uses shapely `convex_hull` (bbox fallback for degenerate hulls)
+- [x] [BE] `src/oberon/core/change_detection.py` — implemented `deduplicate_and_rank(findings, max_findings=20) -> list[Finding]`
+- [x] [BE] `src/oberon/core/change_detection.py` — wired `detect_changes(pair, threshold, min_pixels) -> list[Finding]`
+- [x] [BE] `src/oberon/core/change_detection.py` — fixed bug: `findings.append` was nested inside `if ndvi_diff is not None:` (findings dropped when ndvi_diff None)
 
 **QA gate**
 
-- [ ] [QA] `ruff check src/ tests/` — 0 exit; Phase 3 tests green
-- [ ] [QA] `bounds validate --quick` — clean
+- [x] [QA] `ruff check src/ tests/` — 0 exit; Phase 3 tests green (80 passed)
+- [~] [QA] `bounds validate --quick` — clean (bounds CLI not in PATH — skipped; see Progress)
 
 ---
 
@@ -216,11 +219,11 @@ Execution checklist. Cross items off one at a time. All quality gates apply per 
 ### Progress
 
 **Started:** 2026-06-21
-**Phases complete:** 1—2 (Setup + STAC Discovery + Scene Quality + COG Reading + Preparation)
-**Key commits:** `5d41071` (scaffolding), `b0a64f6` (Phase 1 implementation)
-**Test baseline:** 64 tests, 0 failures, 0 warnings (up from 41)
+**Phases complete:** 1—3 (Setup + STAC/Quality + COG/Preparation + Baselines + Change Detection)
+**Key commits:** `5d41071` (scaffolding), `b0a64f6` (Phase 1), `4ad0579` (Phase 2 scene-quality SCL bridge)
+**Test baseline:** 80 tests, 0 failures, 0 warnings (up from 64)
 **Lint:** ruff 0 exit
 **Bounds:** bounds CLI not in PATH — skipped
-**Last plan update:** Phase 2 complete — COG reader, SCL masking, align_to_common_grid, intersection cropping, quality bridge upgrade all implemented
-**Next phase:** Phase 3 — Baseline Analytics + Change Detection
-**What's needed:** Clear context, fresh agent picks up Phase 3 from tasks.md
+**Last plan update:** Phase 3 complete — `compute_baselines` verified (6 tests, no code change); `change_detection` bug fixed (`findings.append` wrongly nested), added `deduplicate_and_rank` + `detect_changes`, switched to shapely `convex_hull` geometry (10 tests). Review-agent PASS, scope-complete.
+**Next phase:** Phase 4 — Evidence Bundles + Provenance (images, GeoJSON, manifest)
+**What's needed:** Phase 3 changes currently uncommitted on `main` (README targets branch `feat/001-data-plane-pipeline`) — decide commit/branch before Phase 4
