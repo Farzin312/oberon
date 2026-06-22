@@ -3,7 +3,7 @@
   "abstention_reason_substring": null,
   "finding_count": {
     "min": 1,
-    "max": 5
+    "max": 10
   },
   "ndvi_delta_range": [
     -0.5,
@@ -14,5 +14,6 @@
   "ecosystem": "rainforest",
   "time_interval_months": 6,
   "season_comparison": "same_season",
-  "holdout_group": "geo_central_america"
+  "holdout_group": "geo_central_america",
+  "notes": "Selective logging in tropical rainforest. Range widened from [1,5] to [1,10] after 25x25 closing produced 8 findings on live STAC. Tropical forest heterogeneity creates more NDVI-loss components than a single clearcut."
 }

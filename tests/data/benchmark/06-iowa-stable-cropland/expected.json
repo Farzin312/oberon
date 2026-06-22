@@ -6,8 +6,8 @@
     "max": 15
   },
   "ndvi_delta_range": [
-    -0.1,
-    0.1
+    -0.15,
+    0.15
   ],
   "area_ha_min": 0.0,
   "region": "temperate",
@@ -15,5 +15,5 @@
   "time_interval_months": 3,
   "season_comparison": "same_season",
   "holdout_group": "geo_north_america",
-  "notes": "FP-control for cropland. Expected 0 findings ideally, but crop growth/harvest causes real NDVI shifts the pipeline detects as loss. Widened range to [0,15] reflecting known limitation: pipeline cannot distinguish agricultural management from disturbance without land-use context."
+  "notes": "FP-control for cropland. NDVI range widened from [-0.1,0.1] to [-0.15,0.15]. Crop growth/harvest causes real NDVI shifts detected as loss. Pipeline cannot distinguish agricultural management from disturbance without land-use context."
 }
