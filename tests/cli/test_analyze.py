@@ -57,6 +57,40 @@ class TestAnalyzeHelp:
         assert "--composite" in result.output
 
 
+class TestHealthCommand:
+    """oberon health — system health check."""
+
+    def test_health_runs_and_exits_0(self, runner: CliRunner) -> None:
+        """Health command should run and exit 0."""
+        result = runner.invoke(cli, ["health"])
+
+        assert result.exit_code == 0
+        assert "healthy" in result.output.lower()
+        assert "torch" in result.output.lower()
+
+    def test_health_json_output(self, runner: CliRunner) -> None:
+        """Health command with --json produces valid JSON."""
+        result = runner.invoke(cli, ["health", "--json"])
+
+        assert result.exit_code == 0
+        data = json.loads(result.output)
+        assert data["status"] == "healthy"
+        assert "version" in data
+        assert "torch_available" in data
+        assert "stac_reachable" in data
+
+
+class TestVersionOutput:
+    """Version should appear in CLI output."""
+
+    def test_version_in_health(self, runner: CliRunner) -> None:
+        """Health command shows the package version."""
+        result = runner.invoke(cli, ["health"])
+
+        assert result.exit_code == 0
+        assert "0.1.0" in result.output
+
+
 class TestAnalyzeValidation:
     """CLI input validation (before calling orchestrator)."""
 

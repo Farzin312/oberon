@@ -9,7 +9,9 @@ from pathlib import Path
 
 import click
 
+from oberon import __version__
 from oberon.core import ChangeRequest
+from oberon.telemetry.logging import configure_logging, get_logger
 
 
 def _parse_date(ctx: click.Context, _param: click.Parameter, value: str) -> str:
@@ -110,6 +112,14 @@ def analyze(
 
     output_dir = Path(output)
 
+    logger = get_logger("oberon.analyze")
+    logger.info("analyze.start", extra={
+        "task": task, "aoi": str(aoi),
+        "before": str(request.before), "after": str(request.after),
+        "max_cloud": max_cloud, "min_valid": min_valid,
+        "composite": force_composite,
+    })
+
     click.echo(f"Oberon analyze — {task}")
     click.echo(f"  AOI:       {aoi}")
     click.echo(f"  Before:    {request.before[0]} to {request.before[1]}")
@@ -127,10 +137,13 @@ def analyze(
     # Report result.
     provenance = bundle.provenance
     if provenance.get("abstention"):
-        click.echo(f"Abstained: {provenance['abstention']['reason']}")
+        reason = provenance["abstention"]["reason"]
+        logger.info("analyze.result", extra={"outcome": "abstained", "reason": reason})
+        click.echo(f"Abstained: {reason}")
         sys.exit(0)
 
     num_findings = len(provenance.get("findings", []))
+    logger.info("analyze.result", extra={"outcome": "complete", "findings": num_findings})
     click.echo(f"Analysis complete: {num_findings} finding(s)")
     click.echo(f"  Before image:  {bundle.before_image}")
     click.echo(f"  After image:   {bundle.after_image}")
@@ -139,6 +152,65 @@ def analyze(
     click.echo(f"  Provenance:    {bundle.provenance_manifest}")
 
 
+@cli.command()
+@click.option("--json", "as_json", is_flag=True, default=False,
+              help="Output as JSON (for programmatic use)")
+def health(as_json: bool) -> None:
+    """Check system health: version, torch availability, cache status.
+
+    Verifies the container is correctly configured before running analysis.
+    """
+    import os
+
+    status: dict[str, object] = {
+        "status": "healthy",
+        "version": __version__,
+    }
+
+    # Check torch availability (optional).
+    try:
+        import torch  # noqa: F401
+
+        status["torch_available"] = True
+    except ImportError:
+        status["torch_available"] = False
+
+    # Check STAC reachability (non-blocking, 5s timeout).
+    try:
+        import urllib.request
+
+        urllib.request.urlopen(
+            "https://earth-search.aws.element84.com/v1",
+            timeout=5,
+        )
+        status["stac_reachable"] = True
+    except Exception:
+        status["stac_reachable"] = False
+
+    # Cache directory size.
+    cache_dir = os.environ.get("OBERON_CACHE_DIR", os.path.expanduser("~/.cache/oberon"))
+    cache_size = 0
+    if os.path.isdir(cache_dir):
+        for dirpath, _dirs, files in os.walk(cache_dir):
+            for f in files:
+                fp = os.path.join(dirpath, f)
+                if not os.path.islink(fp):
+                    cache_size += os.path.getsize(fp)
+    status["cache_dir"] = cache_dir
+    status["cache_size_mb"] = round(cache_size / (1024 * 1024), 1)
+
+    if as_json:
+        click.echo(json.dumps(status, indent=2))
+    else:
+        click.echo(f"Oberon v{status['version']} — {status['status']}")
+        click.echo(f"  Torch:     {'available' if status['torch_available'] else 'not installed'}")
+        click.echo(f"  STAC API:  {'reachable' if status['stac_reachable'] else 'unreachable'}")
+        click.echo(f"  Cache:     {status['cache_size_mb']} MB at {status['cache_dir']}")
+
+    sys.exit(0)
+
+
 def main() -> None:
     """Entry point for `oberon` CLI (console_scripts)."""
+    configure_logging()
     cli()

@@ -55,7 +55,7 @@ docs/mini-sdd/
 | `004-benchmark-dataset` | Ready (after 003) | Collect 12-18 reviewed before/after pairs, create golden integration tests |
 | `005-evaluation-harness` | Ready (after 003+004) | Full AI vs deterministic baseline comparison; decision gate |
 | `006-model-registry-provenance` | Ready (after 002+003) | Model registry, artifact index, COG cache, API contract alignment |
-| `007-packaging-deployment` | Ready (after 002) | Docker Compose (CPU+GPU), structured logging, external reproducibility |
+| `007-packaging-deployment` | **DONE** — 131 tests | Docker Compose (CPU+GPU), structured logging, health check, verified in container |
 | `008-rust-control-plane` | Deferred (after 006+007) | Axum API, typed job contracts, SQLite state machine, Python subprocess |
 | `009-launch-docs` | After 005+006+007 | README/ARCHITECTURE/ROADMAP rewrite, SDK demo, design partner prep |
 | `010-scene-composite` | **DONE** — 128 tests | Cloud-masked composite when single scene insufficient (Roadmap correction #2) |

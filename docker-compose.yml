@@ -1,0 +1,37 @@
+services:
+  # CPU profile (default).
+  oberon:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    entrypoint: ["oberon"]
+    command: ["--help"]
+    volumes:
+      - ./input:/input:ro
+      - ./output:/output
+      - ./cache:/root/.cache/oberon
+    environment:
+      - OBERON_CACHE_DIR=/root/.cache/oberon
+    profiles: ["", "cpu"]
+
+  # GPU profile — torch + Clay.
+  oberon-gpu:
+    build:
+      context: .
+      dockerfile: Dockerfile.gpu
+    entrypoint: ["oberon"]
+    command: ["--help"]
+    volumes:
+      - ./input:/input:ro
+      - ./output:/output
+      - ./cache:/root/.cache/oberon
+    environment:
+      - OBERON_CACHE_DIR=/root/.cache/oberon
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    profiles: ["gpu"]

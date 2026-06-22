@@ -20,20 +20,73 @@ AOI (GeoJSON polygon) + before/after date windows
 
 ## Status
 
-Pre-MVP. First milestone: walking vertical slice that accepts one polygon and produces one reviewable vegetation-change result. See [docs/mini-sdd/001-data-plane-pipeline/](docs/mini-sdd/001-data-plane-pipeline/) for current work.
+Pre-MVP. Core pipeline (001), baseline fixes + task contract (002), and scene composite (010) are complete. 131 tests pass. See [docs/mini-sdd/README.md](docs/mini-sdd/README.md) for the build roadmap.
 
 ## Quick start
+
+### Local (uv)
 
 ```bash
 # Install
 uv sync
 
 # Analyze an area of interest
-python -m oberon.cli analyze \
+oberon analyze \
   --aoi path/to/polygon.geojson \
   --before 2026-01-01 --after 2026-06-01 \
   --task vegetation_disturbance
+
+# Check system health
+oberon health
+
+# Force cloud-masked composite (merge up to 3 scenes per period)
+oberon analyze --aoi path/to/polygon.geojson \
+  --before 2026-01-01 --after 2026-06-01 --composite
 ```
+
+### Docker (CPU)
+
+```bash
+# Build
+docker build -t oberon:cpu .
+
+# Check health
+docker run --rm oberon:cpu health
+
+# Run analysis with mounted input/output
+docker run --rm \
+  -v "$PWD/input:/input:ro" \
+  -v "$PWD/output:/output" \
+  oberon:cpu analyze \
+    --aoi /input/polygon.geojson \
+    --before 2026-01-01 --after 2026-06-01 \
+    -o /output
+```
+
+### Docker Compose
+
+```bash
+# CPU profile (default)
+docker compose run --rm oberon analyze \
+  --aoi /input/polygon.geojson \
+  --before 2026-01-01 --after 2026-06-01 \
+  -o /output
+
+# GPU profile (requires nvidia-docker runtime)
+docker compose --profile gpu run --rm oberon-gpu health
+```
+
+### Volume mounts
+
+| Mount | Purpose |
+|-------|---------|
+| `./input` | GeoJSON AOI files (read-only) |
+| `./output` | Analysis artifacts (PNG, GeoJSON, provenance) |
+| `./cache` | STAC response cache (speeds repeated runs) |
+
+### Structured logging
+
+Oberon emits structured JSON logs to stderr by default. Set `OBERON_LOG_FORMAT=console` for human-readable output during development.
 
 ## Documentation
 
