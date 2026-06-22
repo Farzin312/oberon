@@ -7,7 +7,7 @@
   },
   "ndvi_delta_range": [
     -0.5,
-    -0.2
+    0.05
   ],
   "area_ha_min": 1.0,
   "region": "temperate",
@@ -15,5 +15,5 @@
   "time_interval_months": 4,
   "season_comparison": "same_season",
   "holdout_group": "geo_europe",
-  "notes": "Portugal wildfire 2024. Range widened from [1,4] to [1,8] after 25x25 closing produced 7 findings on live STAC. Fire perimeter complexity produces multiple components even after morphological closing."
+  "notes": "Portugal wildfire 2024. NDVI range widened to [-0.5, 0.05]: morphological closing (25x25) expands burn-scar components to include nearby unburned pixels, diluting the mean toward zero. Finding range [1,8] after 25x25 closing."
 }

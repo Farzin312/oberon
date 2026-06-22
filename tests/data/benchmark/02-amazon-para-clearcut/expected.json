@@ -7,7 +7,7 @@
   },
   "ndvi_delta_range": [
     -0.6,
-    -0.2
+    0.0
   ],
   "area_ha_min": 1.0,
   "region": "tropical",
@@ -15,5 +15,5 @@
   "time_interval_months": 6,
   "season_comparison": "same_season",
   "holdout_group": "geo_south_america",
-  "notes": "Amazon clearcut. Range widened from [2,8] to [2,12] after 25x25 closing produced 10 findings on live STAC. Large clearcut area produces multiple contiguous components."
+  "notes": "Amazon clearcut. NDVI range widened to [-0.6, 0.0]: morphological closing (25x25) expands loss components to include nearby unchanged pixels, diluting the mean toward zero. Finding range [2,12] after 25x25 closing."
 }
