@@ -46,11 +46,11 @@
 - [ ] [DOC] All partner docs reference Blueprint §4 org research
 
 ## Phase 5 — PDF vaulting
-**Status:** [x] DONE
+**Status:** [x] CANCELLED — private business strategy docs, not suitable for public repo
 
-- [x] [DOC] Copy Desktop/Oberon PDFs to `docs/planning/` directory
-- [x] [DOC] Add README.md to docs/planning/ referencing each PDF
-- [x] [QA] PDFs committed, not .gitignored, accessible from repo
+- [~] [DOC] PDFs removed from repo. Product Brief, Blueprint, Build Roadmap, and
+      Market Strategy contain private go-to-market strategy, competitive positioning,
+      and named customer research. These stay on Desktop only, not in a public OSS repo.
 
 ## Phase 6 — QA gate
 **Status:** [ ]
@@ -67,5 +67,5 @@
 
 _Phase 0 (README/ARCHITECTURE/ROADMAP) done. Phase 1 (CLI polish + docs) done.
 Phase 2 (SDK example) done. Phase 3 (public reports) done except EVALUATION_REPORT
-(deferred to 005 live run). Phase 5 (PDF vaulting) done.
-Phase 4 (design partner prep) deferred - requires user input on partner strategy._
+(deferred to 005 live run). Phase 5 (PDF vaulting) cancelled — private business
+docs stay off the public repo. Phase 4 (design partner prep) deferred._

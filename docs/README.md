@@ -2,7 +2,7 @@
 
 **Parent**: [README.md](../README.md)
 
-**Children**: [DEVELOPMENT_SCOPE](DEVELOPMENT_SCOPE.md) · [CONTRIBUTING](CONTRIBUTING.md) · [TESTING_GUIDE](TESTING_GUIDE.md) · [SPEC_DRIVEN_DEVELOPMENT](SPEC_DRIVEN_DEVELOPMENT.md) · [GLOSSARY](GLOSSARY.md) · [mini-sdd/](mini-sdd/README.md) · [architecture/](architecture/README.md) · [sdd/](sdd/README.md) · [planning/](planning/README.md)
+**Children**: [DEVELOPMENT_SCOPE](DEVELOPMENT_SCOPE.md) · [CONTRIBUTING](CONTRIBUTING.md) · [TESTING_GUIDE](TESTING_GUIDE.md) · [SPEC_DRIVEN_DEVELOPMENT](SPEC_DRIVEN_DEVELOPMENT.md) · [GLOSSARY](GLOSSARY.md) · [mini-sdd/](mini-sdd/README.md) · [architecture/](architecture/README.md) · [sdd/](sdd/README.md) · [api/](api/cli.md)
 
 Documentation index for the Oberon project. Every doc declares its **Parent** — the index above it. Only index/catalog pages list **Children**.
 
@@ -16,4 +16,4 @@ Documentation index for the Oberon project. Every doc declares its **Parent** �
 | [mini-sdd/](mini-sdd/README.md) | Bounded-change documentation sets |
 | [architecture/](architecture/README.md) | System design and subsystem docs |
 | [sdd/](sdd/README.md) | Spec-Driven Development artifacts |
-| [planning/](planning/README.md) | Roadmaps, milestones, decisions |
+| [api/](api/cli.md) | CLI reference and usage examples |
