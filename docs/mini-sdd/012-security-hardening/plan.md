@@ -1,6 +1,6 @@
-# Plan — Security Hardening + Production Safeguards
+# Plan — Security Hardening + FastAPI Server (Python)
 
-**Parent**: [../README.md](./README.md)
+**Parent**: [./README.md](./README.md)
 
 ---
 
@@ -8,138 +8,86 @@
 
 | Area | Current state | Source |
 |---|---|---|
-| Auth | None — open API | Rust API (008) |
-| Audit log | Structured logs only | `structlog` output |
-| Resource limits | Job timeout (300s) only | orchestrator.py |
-| Docker constraints | None | docker-compose.yml |
-| SBOM | None | N/A |
-| License records | pyproject.toml has license field only | repo root |
+| HTTP server | None — CLI only | `cli/main.py` |
+| Auth | None | N/A |
+| Input validation | DONE — AOI cap, file size limit, geometry validation, cloud fraction range | `orchestrator.py`, `contracts.py`, `main.py` |
+| Rate limiting | DONE — STAC timeout + retry | `stac_discovery.py` |
+| Audit log | Structured JSON logging to stdout | `telemetry/logging.py` |
 
 ---
 
-## 2. Execution order
+## 2. Architecture
 
-1. **Phase 0 — API key auth** — middleware + key storage
-2. **Phase 1 — Audit logging** — append-only table + export
-3. **Phase 2 — Resource limits** — AOI size, band count, timeout enforcement
-4. **Phase 3 — Docker hardening** — resource constraints, non-root user
-5. **Phase 4 — SBOM + licenses** — syft, LICENSES.md
-6. **Phase 5 — Documentation** — deployment security guide
+### 2.1 Module layout
 
----
-
-## 3. Architecture
-
-### 3.1 API key auth (Rust middleware)
-
-```rust
-// Middleware: extract X-API-Key header, validate against SQLite
-async fn auth_middleware(req: Request, next: Next) -> Response {
-    let key = req.headers().get("X-API-Key")?;
-    let user = validate_key(key)?;  // SELECT FROM api_keys WHERE key_hash = ?
-    req.extensions().insert(user);
-    next.run(req).await
-}
+```
+src/oberon/server/
+    __init__.py
+    app.py              (FastAPI app factory, route definitions)
+    auth.py             (API key middleware, key hashing)
+    audit.py            (Audit log middleware, SQLite append-only)
+    schemas.py          (Pydantic models for API requests/responses — reuse api/contracts.py)
 ```
 
-Keys stored as SHA-256 hashes. Created via CLI: `oberon auth create-key --user "name"`.
+### 2.2 API surface
 
-### 3.2 Audit log
+| Endpoint | Method | Auth | Purpose |
+|---|---|---|---|
+| `/v1/health` | GET | None | Health check |
+| `/v1/change` | POST | Required | Run change analysis |
+| `/v1/jobs/{id}` | GET | Required | Get job status |
+| `/v1/audit/export` | GET | Required | Export audit log |
+
+### 2.3 Auth flow
+
+```
+Request → middleware extracts X-API-Key header
+       → SHA-256(key) looked up in api_keys table
+       → If valid: attach user to request state
+       → If invalid: 401 Unauthorized
+       → If missing: 401 Unauthorized
+```
+
+Key creation: `oberon auth create-key --user "name"` → prints key once.
+
+### 2.4 SQLite schema (shared with 011)
 
 ```sql
-CREATE TABLE audit_log (
+CREATE TABLE IF NOT EXISTS api_keys (
+    key_hash TEXT PRIMARY KEY,
+    user_name TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    last_used TEXT
+);
+
+CREATE TABLE IF NOT EXISTS audit_log (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     timestamp TEXT NOT NULL,
     method TEXT NOT NULL,
     path TEXT NOT NULL,
-    user_id TEXT,
+    user_name TEXT,
     status_code INTEGER NOT NULL,
     duration_ms INTEGER NOT NULL,
     request_body_hash TEXT
 );
 ```
 
-Export: `GET /v1/audit/export?from=2026-01-01&to=2026-06-30` → JSON array.
+---
 
-### 3.3 Resource limits
+## 3. Execution order
 
-| Limit | Default | Configurable |
-|---|---|---|
-| Max AOI area | 100 km² | Yes, per portfolio |
-| Max bands requested | 11 (all S-2) | No |
-| Job timeout | 300s | Yes |
-| Concurrent jobs per user | 3 | Yes |
-| Max polygons per portfolio | 1000 | Yes |
-| Max findings returned | 50 | Yes |
-
-Enforced in Rust API before job creation.
-
-### 3.4 Docker hardening
-
-```yaml
-# docker-compose.yml additions
-services:
-  oberon-api:
-    deploy:
-      resources:
-        limits:
-          cpus: '2'
-          memory: 4G
-    user: "1000:1000"   # non-root
-    read_only: true
-    tmpfs:
-      - /tmp
-    security_opt:
-      - no-new-privileges:true
-```
-
-### 3.5 SBOM
-
-```dockerfile
-# In Dockerfile
-RUN syft dir:/app -o spdx-json > /sbom.spdx.json
-```
+1. **Phase 1 — FastAPI skeleton** — app factory, health endpoint, uvicorn entry point
+2. **Phase 2 — API key auth** — middleware, key creation/hashing, `oberon auth create-key`
+3. **Phase 3 — Audit logging** — middleware, SQLite table, export endpoint
+4. **Phase 4 — POST /v1/change** — wire to orchestrator with async job execution
+5. **Phase 5 — Docker hardening** — non-root user, resource limits, security_opt
 
 ---
 
-## 4. Exact changes
-
-### 4.1 Rust control plane
-- `src/auth/mod.rs` — API key middleware
-- `src/auth/keys.rs` — key creation, validation, hashing
-- `src/routes/audit.rs` — audit export endpoint
-- `src/middleware/limits.rs` — request validation against limits
-- `src/models/limits.rs` — ResourceLimits struct
-
-### 4.2 Database
-- `migrations/004_api_keys.sql`
-- `migrations/005_audit_log.sql`
-
-### 4.3 Infrastructure
-- `Dockerfile` — add non-root user, syft SBOM step
-- `docker-compose.yml` — resource constraints, security_opt
-- `LICENSES.md` — manual inventory of all dependencies
-
-### 4.4 Python CLI
-- `src/oberon/cli/main.py` — add `oberon auth create-key` subcommand
-
----
-
-## 5. Risk register
+## 4. Risk register
 
 | Risk | Mitigation |
 |---|---|
-| Auth breaks existing API consumers | Phase 0: allow `OBERON_AUTH_DISABLED=1` env var for local dev |
-| Audit table grows unbounded | Document retention policy (90 days default); add cleanup job |
-| Resource limits reject legitimate use | All limits configurable; document how to raise |
-| SBOM incomplete for Python deps | Use `pip-licenses` for Python layer; syft for Docker layer; document gap |
-| Non-root Docker breaks file permissions | Volume mount ownership documented in README |
-
----
-
-## 6. End-phase cleanup
-
-- `docs/deployment/security-guide.md` — comprehensive security configuration
-- Update README.md with auth setup instructions
-- Update AGENTS.md with security testing notes
-- All open-source core features work WITHOUT auth (auth is middleware, not core)
+| FastAPI adds heavy dependency | Optional `[server]` extra. Core CLI has no FastAPI dependency. |
+| Long-running analysis blocks event loop | Run pipeline in thread pool or subprocess, return job ID |
+| Auth breaks existing CLI users | CLI never requires auth. Auth only on HTTP layer. |

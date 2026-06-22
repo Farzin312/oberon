@@ -1,19 +1,20 @@
-# 011 — Review Workflow + Monitoring System
+# 011 — Review Workflow + Monitoring System (Python/SQLite)
 
 **Parent**: [../README.md](../README.md)
 
-Roadmap PDF Phase 8 (lines 708-734): Transform Oberon from a one-off query API into an operational monitoring product. This is where Oberon becomes "a product rather than an analysis endpoint." It includes portfolios of polygons, scheduled reruns, ranked finding queues, and human review states (approve/reject/uncertain).
+Transforms Oberon from a one-off analysis CLI into an operational monitoring product. Users register portfolios of polygons, schedule recurring analysis, and review findings with human judgment (approve/reject/uncertain).
 
-Product Brief Section 13 expansion: "Users register areas, schedules, and task thresholds. Oberon runs new-observation checks and sends evidence-backed alerts."
+Gate 4 decision (008): Rust control plane is deferred indefinitely. Python CLI is the primary interface. This mini-SDD builds the monitoring layer in pure Python with SQLite (stdlib `sqlite3`), no HTTP server required.
 
-- **Reference:** Roadmap PDF Phase 8, Product Brief §13 Phase 4 (Monitoring and Alerting)
-- **Prerequisite:** 008-rust-control-plane (job system, persistence), 005-evaluation-harness (validated pipeline)
+- **Reference:** Product Brief §13 (Monitoring and Alerting), Roadmap Phase 8
+- **Prerequisite:** Pipeline validated (005 gate run), calibration complete (013 + 014 DONE)
 
 > **Hard rules:**
 > 1. Review states are part of the product data model, not UI-only. A finding is incomplete until reviewed.
 > 2. Scheduled monitoring is idempotent — re-running for the same area+date produces the same job, not a duplicate.
 > 3. Feedback (approve/reject/uncertain) is stored and exportable for future model calibration.
 > 4. Alerts are evidence-backed. No alert without a finding, no finding without evidence.
+> 5. No new dependencies. SQLite via stdlib `sqlite3`. JSON via stdlib. CLI via click.
 
 ---
 
@@ -21,11 +22,12 @@ Product Brief Section 13 expansion: "Users register areas, schedules, and task t
 
 | # | Decision | Choice |
 |---|----------|--------|
-| 1 | Review states | `pending`, `approved`, `rejected`, `uncertain` |
-| 2 | Portfolio model | Named groups of polygons + schedule + task + thresholds |
-| 3 | Scheduling | SQLite-based job scheduler in Rust control plane (008) |
-| 4 | Alert delivery | Webhook (configurable URL) + in-app notification. No email/SMS at this stage. |
-| 5 | Feedback export | JSON + CSV export of all review decisions with provenance links |
+| 1 | Storage | SQLite via stdlib `sqlite3`. Database at `~/.oberon/oberon.db` (override: `OBERON_DB_PATH`). |
+| 2 | Review states | `pending`, `approved`, `rejected`, `uncertain` |
+| 3 | Portfolio model | Named groups of polygons + schedule + task + thresholds |
+| 4 | Scheduling | `oberon monitor run --portfolio <id>` CLI command. Cron-based scheduling external (system cron, systemd timer). Oberon does not run a daemon. |
+| 5 | Alert delivery | Webhook (configurable URL). No email/SMS at this stage. |
+| 6 | Feedback export | `oberon portfolio export-feedback` → JSON + CSV |
 
 ---
 
@@ -33,23 +35,16 @@ Product Brief Section 13 expansion: "Users register areas, schedules, and task t
 
 ### IN SCOPE
 - Portfolio model (named polygon groups with schedules)
-- Scheduled reruns (cron-like: monthly, quarterly, custom)
-- Finding review states + review notes
-- Alert webhook when new material change detected
-- Historical comparison (compare current findings to previous run)
+- SQLite schema + migrations
+- `oberon portfolio` CLI subcommands (create, list, add-polygon, run, status)
+- Finding review states + review notes (`oberon review` subcommands)
+- Webhook alert when new material change detected
 - Feedback export (JSON/CSV for model calibration)
 
 ### NOT in scope
-- Web dashboard UI (API + CLI only)
+- HTTP API server (deferred to 012)
+- Web dashboard UI (CLI only)
 - Email/SMS alerts (webhook only)
 - Multi-tenant isolation (single deployment)
-- Automated retraining from feedback (separate future work)
-- Field verification workflow (out of scope — that's the human's job)
-
----
-
-## Risk warnings
-
-- This mini-SDD transitions Oberon from "tool" to "product." Only proceed after the pipeline is validated (005 gate passed) and the control plane exists (008 complete).
-- Scheduled jobs that hit live STAC APIs will incur real latency. Rate limiting and backoff are essential.
-- Review fatigue: if the system produces too many false positives, users stop reviewing. Precision matters more than recall for operational monitoring.
+- Automated retraining from feedback
+- Built-in scheduler daemon (use system cron)
