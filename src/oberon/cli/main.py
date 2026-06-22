@@ -52,6 +52,8 @@ def cli() -> None:
               help="Minimum valid pixel fraction (default: 0.30)")
 @click.option("--composite", "force_composite", is_flag=True, default=False,
               help="Force cloud-masked composite mode (merge up to 3 scenes per period)")
+@click.option("--use-ai", "use_ai", is_flag=True, default=False,
+              help="Run Clay v1.5 feature extraction alongside deterministic baseline")
 def analyze(
     aoi: str,
     before: str,
@@ -63,6 +65,7 @@ def analyze(
     max_cloud: float,
     min_valid: float,
     force_composite: bool,
+    use_ai: bool,
 ) -> None:
     """Analyze a land area for vegetation change between two date windows.
 
@@ -132,7 +135,7 @@ def analyze(
     # Run the pipeline.
     from oberon.cli.orchestrator import run_analysis
 
-    bundle = run_analysis(request, output_dir, force_composite=force_composite)
+    bundle = run_analysis(request, output_dir, force_composite=force_composite, use_ai=use_ai)
 
     # Report result.
     provenance = bundle.provenance

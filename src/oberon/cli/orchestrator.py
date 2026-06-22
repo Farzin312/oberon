@@ -5,7 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 
 from oberon.artifacts import build_evidence_bundle
-from oberon.core import ChangeRequest, EvidenceBundle
+from oberon.core import ChangeRequest, EvidenceBundle, PreparedPair
 from oberon.core.baselines import compute_baselines
 from oberon.core.change_detection import (
     deduplicate_and_rank,
@@ -40,6 +40,7 @@ def run_analysis(
     output_dir: Path,
     *,
     force_composite: bool = False,
+    use_ai: bool = False,
 ) -> EvidenceBundle:
     """Run the full analysis pipeline for a change request.
 
@@ -125,6 +126,11 @@ def run_analysis(
     )
     findings = deduplicate_and_rank(raw_findings)
 
+    # ----- Phase 3b: Optional AI branch (parallel to baseline) -----
+    ai_info: dict[str, object] | None = None
+    if use_ai:
+        ai_info = _run_ai_branch(pair, before_scenes[0].candidate.stac_item_id)
+
     # ----- Phase 4: Evidence bundles -----
     # Record source scene metadata for provenance.
     source_info: dict[str, object] = {
@@ -137,6 +143,9 @@ def run_analysis(
         source_info["before_composite_method"] = "median"
     if use_composite_after and len(after_scenes) > 1:
         source_info["after_composite_method"] = "median"
+
+    if ai_info is not None:
+        source_info["ai"] = ai_info
 
     bundle = build_evidence_bundle(findings, pair, output_dir, source_info=source_info)
 
@@ -158,3 +167,73 @@ def _abstention_result(reason: str, output_dir: Path) -> EvidenceBundle:
         bounds=(0.0, 0.0, 0.0, 0.0),
     )
     return build_evidence_bundle([], empty_pair, output_dir, abstention_reason=reason)
+
+
+def _run_ai_branch(pair: PreparedPair, scene_id: str) -> dict[str, object] | None:
+    """Run the Clay AI branch if torch is available.
+
+    Returns a dict with adapter_version, model_version, chip_count, and
+    abstention info. Returns None if torch is not installed (graceful skip).
+    """
+    try:
+        import numpy as np
+
+        from oberon.ai.clay_adapter import ClayAdapter
+        from oberon.ai.clay_config import CLAY_BANDS, CLAY_CHIP_SIZE
+        from oberon.ai.tiled_inference import compute_chip_grid, extract_chip, stitch_embeddings
+    except ImportError:
+        return {"abstain": True, "abstain_reason": "torch or clay not installed"}
+
+    # Check all required bands are present.
+    missing = [b for b in CLAY_BANDS if b not in pair.before or b not in pair.after]
+    if missing:
+        return {"abstain": True, "abstain_reason": f"Missing bands for Clay: {missing}"}
+
+    try:
+        adapter = ClayAdapter(device="cpu")
+
+        # Determine chip grid.
+        ref_shape = next(iter(pair.before.values())).shape
+        origins = compute_chip_grid(ref_shape[0], ref_shape[1], CLAY_CHIP_SIZE)
+
+        before_embeddings: list[np.ndarray] = []
+        after_embeddings: list[np.ndarray] = []
+
+        for top, left in origins:
+            before_chip = extract_chip(pair.before, top, left, CLAY_CHIP_SIZE)
+            after_chip = extract_chip(pair.after, top, left, CLAY_CHIP_SIZE)
+
+            # Stack bands into (H, W, B) array in CLAY_BANDS order.
+            before_stack = np.stack([before_chip[b] for b in CLAY_BANDS], axis=-1)
+            after_stack = np.stack([after_chip[b] for b in CLAY_BANDS], axis=-1)
+
+            before_feat = adapter.extract_features(before_stack, {"month": 6})
+            after_feat = adapter.extract_features(after_stack, {"month": 6})
+
+            before_embeddings.append(before_feat)
+            after_embeddings.append(after_feat)
+
+        # Compute per-chip feature diffs, then stitch.
+        diffs = np.array([
+            adapter.compute_feature_diff(b, a)
+            for b, a in zip(before_embeddings, after_embeddings, strict=True)
+        ])
+
+        diff_map = stitch_embeddings(
+            diffs.reshape(-1, 1), origins,
+            ref_shape[0], ref_shape[1], CLAY_CHIP_SIZE,
+            patch_grid=int(np.sqrt(before_embeddings[0].shape[0])),
+        )[:, :, 0]
+
+        score_map = ClayAdapter.normalize_diff_map(diff_map)
+
+        return {
+            "adapter_version": adapter.version,
+            "model_version": "clay-v1.5-large",
+            "chip_count": len(origins),
+            "change_score_mean": float(np.nanmean(score_map)),
+            "change_score_max": float(np.nanmax(score_map)),
+            "abstain": False,
+        }
+    except Exception as exc:
+        return {"abstain": True, "abstain_reason": f"Clay inference failed: {exc}"}

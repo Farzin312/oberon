@@ -55,6 +55,7 @@ class TestAnalyzeHelp:
         assert "--max-cloud" in result.output
         assert "--min-valid" in result.output
         assert "--composite" in result.output
+        assert "--use-ai" in result.output
 
 
 class TestHealthCommand:

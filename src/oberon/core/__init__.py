@@ -113,6 +113,24 @@ class Finding:
 
 
 @dataclass
+class ModelResult:
+    """Output of optional AI model inference — parallel to BaselineResult.
+
+    feature_diff_map and change_score_map are NOT probabilities.
+    They are uncalibrated distance scores. Never label them as
+    confidence in code, docs, or UI.
+    """
+
+    feature_diff_map: np.ndarray | None  # (H, W) float32
+    change_score_map: np.ndarray | None  # (H, W) float32, normalized 0-1
+    adapter_version: str
+    model_version: str
+    chip_count: int
+    abstain: bool = False
+    abstain_reason: str | None = None
+
+
+@dataclass
 class EvidenceBundle:
     """Packaged output artifacts for a single analysis run."""
 
