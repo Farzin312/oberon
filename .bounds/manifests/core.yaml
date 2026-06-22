@@ -58,5 +58,9 @@ exposes:
   kind: function
 - name: NDVI_THRESHOLD
   kind: const
+- name: SeasonalAssessment
+  kind: class
+- name: compute_change_spatial_variance
+  kind: function
 - name: validate_geojson_polygon
   kind: function

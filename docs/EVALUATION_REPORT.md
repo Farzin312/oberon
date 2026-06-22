@@ -16,13 +16,13 @@ Three calibration changes were applied to reduce false positives:
 
 ## Known Limitations (honest)
 
-1. **Seasonal vs fire overlap:** Seasonal senescence (08-Finland) and large real fires (12-California) have similar negative-direction mask coverage on small AOIs. A single coverage threshold cannot perfectly separate them. Spatial variance analysis (uniform vs patchy change) would improve this but was out of scope for 013.
+1. **Seasonal vs fire overlap:** Seasonal senescence (08-Finland) and large real fires (12-California) have similar negative-direction mask coverage on small AOIs. A single coverage threshold cannot perfectly separate them. **Spatial variance analysis (014) addresses this**: the coefficient of variation (CV) of per-pixel NDVI loss distinguishes uniform seasonal patterns (low CV) from patchy disturbance (high CV). Abstention requires BOTH uniform CV AND broad coverage.
 
 2. **Scene availability:** Examples 03-borneo-palm-oil and 05-borneo-stable-forest have only 25% valid pixels due to persistent cloud cover. This is a scene selection / composite issue, not a calibration issue.
 
 3. **Cloud-edge artifacts:** Example 09-costa-rica-cloud-wet produces spurious findings from cloud-edge pixels. Local cloud quality assessment (beyond scene-level SCL) would improve this.
 
-4. **Fragmentation:** Large disturbance events on big AOIs may still produce max-20 findings. The 15x15 closing kernel (150m) helps but fires with complex perimeters still fragment.
+4. **Agricultural detection:** Example 06-iowa-stable-cropland flags real crop-management NDVI loss. Cannot distinguish from disturbance without land-use context.
 
 5. **Benchmark size:** 12 examples is a technical benchmark, not statistically powered. Threshold calibration against this dataset risks overfitting.
 

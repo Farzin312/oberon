@@ -160,3 +160,18 @@ much coarser native resolution and are not fetched by the COG reader.
 
 SCL_CLOUD_BITS = {1, 3, 7, 8, 9, 10, 11}
 """SCL values that indicate invalid/obstructed pixels (saturated, cloud shadow, cloud, cirrus, snow/ice)."""
+
+
+@dataclass(frozen=True)
+class SeasonalAssessment:
+    """Result of spatial-variance analysis on the change mask.
+
+    Distinguishes seasonal senescence (uniform NDVI loss) from real
+    disturbance (patchy, concentrated change) using the coefficient
+    of variation of per-pixel NDVI loss values.
+    """
+
+    cv: float              # coefficient of variation (std/|mean|) of NDVI loss
+    coverage: float        # fraction of valid pixels flagged as change
+    is_uniform: bool       # cv < 0.3 (uniform = likely seasonal)
+    should_abstain: bool   # is_uniform AND coverage > 0.5

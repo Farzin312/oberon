@@ -302,3 +302,119 @@ class TestMorphologicalClosing:
         closed = apply_morphological_closing(mask, kernel_size=25)
         # The interior hole should be filled (core region all True).
         assert closed[20:30, 20:30].all(), "Hole in middle should be filled after closing"
+
+
+# ---------------------------------------------------------------------------
+# compute_change_spatial_variance (014 seasonal detection)
+# ---------------------------------------------------------------------------
+
+
+class TestComputeChangeSpatialVariance:
+    """compute_change_spatial_variance(): distinguish seasonal vs disturbance."""
+
+    def test_uniform_loss_high_coverage_abstains(self) -> None:
+        """Uniform NDVI loss covering >50% of valid pixels should abstain.
+
+        Simulates seasonal senescence: every changed pixel has the same
+        NDVI loss value (CV=0), and coverage is >50%.
+        """
+        from oberon.core.change_detection import compute_change_spatial_variance
+
+        h, w = 30, 30
+        valid = np.ones((h, w), dtype=bool)
+        change = np.ones((h, w), dtype=bool)  # 100% coverage
+        ndvi_diff = np.full((h, w), -0.2, dtype=np.float32)  # uniform loss
+
+        result = compute_change_spatial_variance(change, ndvi_diff, valid)
+        assert result is not None
+        assert result.cv == pytest.approx(0.0, abs=1e-6)
+        assert result.is_uniform
+        assert result.should_abstain
+        assert result.coverage > 0.5
+
+    def test_patchy_loss_does_not_abstain(self) -> None:
+        """Patchy NDVI loss (high variance) should NOT abstain.
+
+        Simulates real disturbance: some pixels have large loss, others
+        have small loss -> high CV -> not uniform.
+        """
+        from oberon.core.change_detection import compute_change_spatial_variance
+
+        h, w = 30, 30
+        valid = np.ones((h, w), dtype=bool)
+        change = np.ones((h, w), dtype=bool)
+        ndvi_diff = np.full((h, w), -0.2, dtype=np.float32)
+        # Inject high variance: half the pixels have much larger loss
+        ndvi_diff[:15, :] = -0.5
+        ndvi_diff[15:, :] = -0.05
+
+        result = compute_change_spatial_variance(change, ndvi_diff, valid)
+        assert result is not None
+        assert not result.is_uniform
+        assert not result.should_abstain
+
+    def test_uniform_loss_low_coverage_no_abstain(self) -> None:
+        """Uniform NDVI loss covering <50% should annotate, not abstain.
+
+        Uniform pattern (low CV) but concentrated in a small area:
+        could be a small uniform disturbance. Annotate but don't abstain.
+        """
+        from oberon.core.change_detection import compute_change_spatial_variance
+
+        h, w = 50, 50
+        valid = np.ones((h, w), dtype=bool)
+        change = np.zeros((h, w), dtype=bool)
+        change[10:20, 10:20] = True  # 100/2500 = 4% coverage
+        ndvi_diff = np.where(change, -0.3, 0.0).astype(np.float32)
+
+        result = compute_change_spatial_variance(change, ndvi_diff, valid)
+        assert result is not None
+        assert result.is_uniform
+        assert not result.should_abstain
+        assert result.coverage < 0.5
+
+    def test_too_few_changed_pixels_returns_none(self) -> None:
+        """Fewer than 50 changed pixels returns None (insufficient statistics)."""
+        from oberon.core.change_detection import compute_change_spatial_variance
+
+        h, w = 30, 30
+        valid = np.ones((h, w), dtype=bool)
+        change = np.zeros((h, w), dtype=bool)
+        change[0:7, 0:7] = True  # 49 pixels
+        ndvi_diff = np.full((h, w), -0.3, dtype=np.float32)
+
+        result = compute_change_spatial_variance(change, ndvi_diff, valid)
+        assert result is None
+
+    def test_near_zero_mean_loss_returns_low_cv(self) -> None:
+        """When mean loss is ~0 (mixed gains and losses), CV is 0 (uniform).
+
+        Edge case: threshold catches both +0.2 and -0.2 in absolute mode,
+        mean ~0. Should be treated as uniform (can't determine direction).
+        """
+        from oberon.core.change_detection import compute_change_spatial_variance
+
+        h, w = 30, 30
+        valid = np.ones((h, w), dtype=bool)
+        change = np.ones((h, w), dtype=bool)
+        ndvi_diff = np.full((h, w), 1e-8, dtype=np.float32)  # near-zero
+
+        result = compute_change_spatial_variance(change, ndvi_diff, valid)
+        assert result is not None
+        assert result.cv == pytest.approx(0.0, abs=1e-6)
+
+    def test_valid_mask_restricts_pixels(self) -> None:
+        """Only valid pixels should be counted toward coverage and variance."""
+        from oberon.core.change_detection import compute_change_spatial_variance
+
+        h, w = 30, 30
+        valid = np.ones((h, w), dtype=bool)
+        valid[15:, :] = False  # bottom half invalid
+        change = np.ones((h, w), dtype=bool)
+        ndvi_diff = np.full((h, w), -0.2, dtype=np.float32)
+
+        result = compute_change_spatial_variance(change, ndvi_diff, valid)
+        assert result is not None
+        # Coverage should be based on valid pixels only
+        # changed_valid = 450 (top half), total_valid = 450
+        assert result.coverage == pytest.approx(1.0)

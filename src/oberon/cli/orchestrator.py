@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Any
 
 import numpy as np
 
@@ -12,6 +13,7 @@ from oberon.core.baselines import compute_baselines
 from oberon.core.change_detection import (
     NDVI_THRESHOLD,
     apply_morphological_closing,
+    compute_change_spatial_variance,
     deduplicate_and_rank,
     extract_findings,
     threshold_change_map,
@@ -151,6 +153,21 @@ def run_analysis(
     # Step 3b: Morphological closing to consolidate fragmented findings.
     change_mask = apply_morphological_closing(change_mask)
 
+    # Step 3c: Spatial-variance seasonal detection (014).
+    # Distinguishes uniform seasonal senescence from patchy real disturbance.
+    # Abstains only when BOTH: uniform (low CV) AND broad (>50% coverage).
+    seasonal_risk = False
+    seasonal_assessment = compute_change_spatial_variance(change_mask, ndvi_diff, pair.mask)
+    if seasonal_assessment is not None:
+        if seasonal_assessment.should_abstain:
+            return _abstention_result(
+                f"Seasonal pattern: uniform NDVI loss "
+                f"(CV={seasonal_assessment.cv:.2f}, "
+                f"coverage={seasonal_assessment.coverage:.0%})",
+                output_dir,
+            )
+        seasonal_risk = seasonal_assessment.is_uniform
+
     # Step 3d: Extract + rank findings.
     raw_findings = extract_findings(
         change_mask,
@@ -183,16 +200,22 @@ def run_analysis(
     if ai_info is not None:
         source_info["ai"] = ai_info
 
-    bundle = build_evidence_bundle(
-        findings, pair, output_dir,
-        source_info=source_info,
-        model_versions=model_versions,
-        processing_config={
+    processing_config: dict[str, Any] = {
             "task": request.task,
             "threshold_direction": direction,
             "ndvi_threshold": NDVI_THRESHOLD,
             "closing_kernel_size": 25,
-        },
+        }
+    if seasonal_risk and seasonal_assessment is not None:
+        processing_config["seasonal_risk"] = True
+        processing_config["spatial_cv"] = round(seasonal_assessment.cv, 4)
+        processing_config["change_coverage"] = round(seasonal_assessment.coverage, 4)
+
+    bundle = build_evidence_bundle(
+        findings, pair, output_dir,
+        source_info=source_info,
+        model_versions=model_versions,
+        processing_config=processing_config,
     )
 
     # ----- Phase 5: Artifact index -----

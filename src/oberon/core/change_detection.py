@@ -8,7 +8,7 @@ import numpy as np
 from scipy import ndimage as ndi
 from shapely.geometry import MultiPoint, mapping
 
-from oberon.core import Finding, PreparedPair
+from oberon.core import Finding, PreparedPair, SeasonalAssessment
 
 # Default threshold: |NDVI change| > 0.15 is considered significant.
 NDVI_THRESHOLD = 0.15
@@ -32,6 +32,54 @@ def _direction_for_task(task: str) -> str:
     Unknown tasks fall back to "absolute" (backwards compatible).
     """
     return _TASK_DIRECTIONS.get(task, "absolute")
+
+
+# Thresholds for spatial-variance seasonal detection (014).
+# CV < 0.3 = uniform change (likely seasonal senescence).
+# Coverage > 0.5 = broad change (majority of AOI).
+# Abstain only when BOTH: uniform AND broad.
+_SEASONAL_CV_THRESHOLD = 0.3
+_SEASONAL_COVERAGE_THRESHOLD = 0.5
+_MIN_PIXELS_FOR_VARIANCE = 50
+
+
+def compute_change_spatial_variance(
+    change_mask: np.ndarray,
+    ndvi_diff: np.ndarray,
+    valid_mask: np.ndarray,
+) -> SeasonalAssessment | None:
+    """Assess whether a change mask represents seasonal vs real disturbance.
+
+    Seasonal senescence produces uniform NDVI loss (low spatial variance,
+    low coefficient of variation). Real disturbance (fire, clearing) produces
+    patchy, concentrated change (high CV).
+
+    Returns None if there are too few changed pixels (<50) for reliable
+    statistics.
+    """
+    changed = change_mask & valid_mask
+    n_changed = int(np.count_nonzero(changed))
+    if n_changed < _MIN_PIXELS_FOR_VARIANCE:
+        return None
+
+    changed_values = ndvi_diff[changed]
+    mean_loss = float(np.mean(changed_values))
+    std_loss = float(np.std(changed_values))
+
+    cv = std_loss / abs(mean_loss) if abs(mean_loss) > 1e-6 else 0.0
+
+    total_valid = int(np.count_nonzero(valid_mask))
+    coverage = n_changed / total_valid if total_valid > 0 else 0.0
+
+    is_uniform = cv < _SEASONAL_CV_THRESHOLD
+    should_abstain = is_uniform and coverage > _SEASONAL_COVERAGE_THRESHOLD
+
+    return SeasonalAssessment(
+        cv=cv,
+        coverage=coverage,
+        is_uniform=is_uniform,
+        should_abstain=should_abstain,
+    )
 
 
 def apply_morphological_closing(

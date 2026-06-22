@@ -62,6 +62,7 @@ docs/mini-sdd/
 | `011-review-workflow-monitoring` | After 008+005 | Portfolios, scheduled reruns, review states, alerts, feedback export (Roadmap Phase 8) |
 | `012-security-hardening` | After 008+011 | API auth, audit logging, resource limits, SBOM, Docker hardening (Product Brief §10) |
 | `013-baseline-calibration` | **DONE** — 12/12 golden, 277 unit tests | Signed threshold (veg_disturbance = NDVI loss only), morphological closing (25x25), cross-season annotation. Golden tests 1/12 -> 12/12. Known limitations: seasonal-vs-fire overlap (needs spatial variance), cloud-edge artifacts. |
+| `014-spatial-variance-seasonal-detection` | **DONE** — 287 unit tests | Spatial-variance seasonal detection: CV of NDVI loss distinguishes uniform seasonal senescence from patchy real disturbance. Abstains only when uniform AND broad. Annotates seasonal_risk in provenance otherwise. |
 
 ### Recommended build sequence
 
