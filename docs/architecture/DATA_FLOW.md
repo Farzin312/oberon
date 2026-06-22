@@ -134,9 +134,9 @@ Each stage has a typed input and output. These contracts are the API between pip
 |-------|-----------------|---------------|
 | STAC discovery | `ChangeRequest` → `list[CandidateScene]` | Polygon validity, date order, CRS |
 | Scene quality | `list[CandidateScene]` → `SelectedScene` | Valid-pixel fraction > threshold |
-| COG read | `SelectedScene` → `RasterWindow` | Bands exist, window valid, nodata handled |
+| COG read | `CandidateScene` → `RasterWindow` | Bands exist, window valid, nodata handled |
 | Preparation | `RasterWindow` × 2 → `PreparedPair` | CRS match, grid match, mask consistency |
 | Baselines | `PreparedPair` → `BaselineResult` | Array shapes match, division by zero guarded |
-| AI inference | `PreparedPair` → `ModelResult` | Chip size match, band order matches adapter |
-| Postprocessing | `BaselineResult` + `ModelResult` → `list[Finding]` | Minimum area, abstention thresholds |
-| Evidence | `list[Finding]` → `EvidenceBundle` | All artifacts present, provenance complete |
+| AI inference | `PreparedPair` → `ModelResult` (future) | Chip size match, band order matches adapter |
+| Postprocessing | `PreparedPair` → `list[Finding]` | Minimum area, abstention thresholds |
+| Evidence | `list[Finding]` + `PreparedPair` → `EvidenceBundle` | All artifacts present, provenance complete |

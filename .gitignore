@@ -9,6 +9,9 @@ build/
 .venv/
 venv/
 *.so
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
 
 # IDE
 .vscode/

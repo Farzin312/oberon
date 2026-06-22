@@ -8,6 +8,7 @@ for preliminary ranking; Phase 2 adds AOI-local quality assessment.
 from __future__ import annotations
 
 from datetime import UTC, date, datetime
+from typing import Any
 
 from pystac_client import Client
 
@@ -17,6 +18,22 @@ STAC_URL = "https://earth-search.aws.element84.com/v1"
 
 # Sentinel-2 L2A band names to COG asset keys.
 _BAND_NAMES = ["B01", "B02", "B03", "B04", "B05", "B06", "B07", "B08", "B8A", "B11", "B12"]
+
+# Earth Search STAC uses descriptive asset keys; map them to internal band names.
+# See https://earth-search.aws.element84.com/ for the canonical asset key list.
+_STAC_TO_INTERNAL: dict[str, str] = {
+    "coastal": "B01",
+    "blue": "B02",
+    "green": "B03",
+    "red": "B04",
+    "rededge1": "B05",
+    "rededge2": "B06",
+    "rededge3": "B07",
+    "nir": "B08",
+    "nir08": "B8A",
+    "swir16": "B11",
+    "swir22": "B12",
+}
 
 
 def search_catalog(request: ChangeRequest, limit: int = 50) -> list[CandidateScene]:
@@ -113,7 +130,7 @@ def rank_by_scene_quality(
     ]
 
 
-def _parse_stac_item(item) -> CandidateScene | None:
+def _parse_stac_item(item: Any) -> CandidateScene | None:
     """Parse a pystac.Item into a CandidateScene.
 
     Returns None if required fields are missing.
@@ -134,15 +151,15 @@ def _parse_stac_item(item) -> CandidateScene | None:
     if geometry is None:
         return None
 
-    # Extract per-band COG URLs and find the SCL URL
+    # Extract per-band COG URLs using the descriptive-key mapping.
     assets_map: dict[str, str] = {}
     scl_url: str | None = None
-    for band_name in _BAND_NAMES:
-        asset = item.assets.get(band_name)
+    for stac_key, internal_name in _STAC_TO_INTERNAL.items():
+        asset = item.assets.get(stac_key)
         if asset is not None:
-            assets_map[band_name] = str(asset.href)
+            assets_map[internal_name] = str(asset.href)
 
-    scl_asset = item.assets.get("SCL")
+    scl_asset = item.assets.get("scl")
     if scl_asset is not None:
         scl_url = str(scl_asset.href)
 
@@ -152,7 +169,7 @@ def _parse_stac_item(item) -> CandidateScene | None:
         stac_item_id=item.id,
         datetime=item_dt,
         geometry=geometry,
-        bbox=tuple(bbox),  # type: ignore[arg-type]
+        bbox=(float(bbox[0]), float(bbox[1]), float(bbox[2]), float(bbox[3])),
         assets=assets_map,
         scl_url=scl_url,
         scene_cloud_pct=cloud_pct,

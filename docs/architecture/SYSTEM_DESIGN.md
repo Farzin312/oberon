@@ -72,7 +72,7 @@ Accounts, auth, billing, alerts, enterprise — not built during MVP.
 └────────────────────┬────────────────────────────────┘
                      │
 ┌────────────────────▼────────────────────────────────┐
-│              Orchestrator (oberon.pipeline)          │
+│              Orchestrator (oberon.cli)               │
 │         calls stages in order, manages state         │
 └──┬───────┬───────┬──────┬───────┬──────┬───────────┘
    │       │       │      │       │      │

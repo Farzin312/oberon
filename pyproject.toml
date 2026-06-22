@@ -41,7 +41,7 @@ homepage = "https://github.com/farzin/oberon"
 repository = "https://github.com/farzin/oberon"
 
 [project.scripts]
-oberon = "oberon.cli:main"
+oberon = "oberon.cli.main:main"
 
 [build-system]
 requires = ["hatchling"]

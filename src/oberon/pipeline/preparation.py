@@ -163,7 +163,7 @@ def align_to_common_grid(
             return PreparedPair(
                 before={}, after={},
                 mask=np.array([[]], dtype=bool).reshape(0, 0),
-                crs=out_crs, transform=(), bounds=(),
+                crs=out_crs, transform=(), bounds=(0.0, 0.0, 0.0, 0.0),
             )
 
         from rasterio.transform import from_bounds as transform_from_bounds
@@ -174,7 +174,7 @@ def align_to_common_grid(
         return PreparedPair(
             before={}, after={},
             mask=np.array([[]], dtype=bool).reshape(0, 0),
-            crs=out_crs, transform=(), bounds=(),
+            crs=out_crs, transform=(), bounds=(0.0, 0.0, 0.0, 0.0),
         )
     else:
         # Fallback: use before window's shape as-is (no geographic bounds available).
@@ -257,5 +257,5 @@ def align_to_common_grid(
         mask=mask_reproj,
         crs=out_crs,
         transform=tuple(dst_affine),
-        bounds=(),
+        bounds=(0.0, 0.0, 0.0, 0.0),
     )

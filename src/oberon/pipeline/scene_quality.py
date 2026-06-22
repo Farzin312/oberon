@@ -8,6 +8,8 @@ the scene-level cloud-percentage proxy.
 
 from __future__ import annotations
 
+from typing import Any
+
 import numpy as np
 import rasterio
 from rasterio.errors import RasterioIOError
@@ -51,7 +53,7 @@ def compute_local_valid_fraction(
     return float((~invalid).sum() / total)
 
 
-def assess_scene(scene: CandidateScene, aoi_geometry: dict) -> float:
+def assess_scene(scene: CandidateScene, aoi_geometry: dict[str, Any]) -> float:
     """Assess the local valid-pixel quality of a scene over the AOI.
 
     Reads the SCL band from the scene's COG and computes the valid-pixel

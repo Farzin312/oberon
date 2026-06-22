@@ -46,6 +46,10 @@ Mark shortcuts: `# ponytail: <name of ceiling>, <upgrade path if throughput matt
 - **Idempotent stages** — running the same stage twice with the same inputs must not corrupt state or create conflicting results. Stable IDs + input/output checksums.
 - **COG reads are windowed** — never download an entire scene. Read only the AOI-bounded window.
 - **Scene-level cloud % is not local quality** — always compute quality over the AOI polygon, not the whole scene.
+- **Pillow required for PNG output** — `render_true_color` and `render_change_overlay` need Pillow. Added as core dependency in pyproject.toml.
+- **CLI exits 0 for abstention** — abstention (no suitable scenes, insufficient pixels) is a valid analysis result, not an error. Exit code 0, message prefixed with "Abstained:".
+- **Default date windows are 30 days** — `--before` window defaults to 30-day lookback from the given date. `--after` window defaults to a single day (30 days if `--after-start` is set).
+- **mypy strictness** — Some dict types are `dict[str, Any]` for GeoJSON geometry dicts (mixed-type shapes). Use `cast()` for narrowing, not `# type: ignore`.
 
 ## Build/test commands
 

@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 from shapely.geometry import shape
 
 
-def validate_geojson_polygon(geometry: dict) -> bool:
+def validate_geojson_polygon(geometry: dict[str, Any]) -> bool:
     """Check that a GeoJSON-like dict is a valid Polygon or MultiPolygon."""
     if geometry.get("type") not in ("Polygon", "MultiPolygon"):
         return False
@@ -19,13 +21,14 @@ def validate_geojson_polygon(geometry: dict) -> bool:
         return False
 
 
-def polygon_to_bbox(geometry: dict) -> tuple[float, float, float, float]:
+def polygon_to_bbox(geometry: dict[str, Any]) -> tuple[float, float, float, float]:
     """Return (west, south, east, north) bounding box from a GeoJSON geometry."""
     geom = shape(geometry)
-    return geom.bounds  # type: ignore[no-any-return]
+    w, s, e, n = (float(x) for x in geom.bounds)
+    return (w, s, e, n)
 
 
-def polygon_area_approx_ha(geometry: dict) -> float:
+def polygon_area_approx_ha(geometry: dict[str, Any]) -> float:
     """Approximate area in hectares using a simple lat/lon planar estimate.
 
     ponytail: planar approximation only, accurate to ~5% at mid-latitudes.
@@ -37,4 +40,4 @@ def polygon_area_approx_ha(geometry: dict) -> float:
     height_deg = bounds[3] - bounds[1]
     # Rough deg² → km² at equator: 1° ≈ 111km
     area_km2 = width_deg * height_deg * 111 * 111
-    return area_km2 * 100  # km² → ha
+    return float(area_km2 * 100)  # km² → ha

@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Any
+
 import numpy as np
 import rasterio
 from affine import Affine
@@ -18,7 +20,7 @@ _GEO_CRS = "EPSG:4326"
 
 def read_window(
     scene: CandidateScene,
-    aoi_geometry: dict,
+    aoi_geometry: dict[str, Any],
     bands: list[str],
     buffer_pixels: int = 1,
 ) -> RasterWindow:
@@ -132,6 +134,6 @@ def read_window(
         data=data,
         crs=crs,
         transform=tuple(_transform) if _transform is not None else (),
-        bounds=win_bounds,  # type: ignore[arg-type]
+        bounds=win_bounds,
         scl_mask=scl_mask,
     )

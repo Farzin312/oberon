@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from typing import Any, cast
+
 import numpy as np
 from scipy import ndimage as ndi
 from shapely.geometry import MultiPoint, mapping
@@ -28,7 +30,7 @@ def threshold_change_map(
     """
     if diff_map is None:
         return None
-    return np.abs(np.nan_to_num(diff_map, nan=0.0)) > threshold
+    return np.asarray(np.abs(np.nan_to_num(diff_map, nan=0.0)) > threshold)
 
 
 def extract_findings(
@@ -75,7 +77,7 @@ def extract_findings(
     return findings
 
 
-def _component_to_geojson_polygon(component: np.ndarray) -> dict:
+def _component_to_geojson_polygon(component: np.ndarray) -> dict[str, Any]:
     """Convert a connected component to a GeoJSON Polygon.
 
     Builds a convex hull around the component's pixel coordinates. Falls back
@@ -106,7 +108,7 @@ def _component_to_geojson_polygon(component: np.ndarray) -> dict:
     if hull.geom_type != "Polygon":
         # Degenerate hull (LineString / Point for collinear / single-pixel comps).
         return bbox
-    geom = mapping(hull)
+    geom: dict[str, Any] = cast(dict[str, Any], mapping(hull))
     if geom.get("type") != "Polygon":
         return bbox
     return geom
@@ -128,7 +130,7 @@ def deduplicate_and_rank(
     if not findings:
         return []
     kept = [f for f in findings if f.score > 0.0]
-    # ponytail: build a new list to avoid mutating the caller's input order.
+    # Avoid mutating the caller's input list order.
     ranked = sorted(kept, key=lambda f: f.score, reverse=True)
     return ranked[:max_findings]
 
@@ -150,5 +152,5 @@ def detect_changes(
     if not pair.is_usable or baseline.abstain or baseline.ndvi_diff is None:
         return []
     change_mask = threshold_change_map(baseline.ndvi_diff, threshold)
-    findings = extract_findings(change_mask, baseline.ndvi_diff, min_pixels)
+    findings = extract_findings(cast(np.ndarray, change_mask), baseline.ndvi_diff, min_pixels)
     return deduplicate_and_rank(findings)

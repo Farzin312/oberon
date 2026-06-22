@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import numpy as np
+
 from oberon.core import EvidenceBundle, Finding, PreparedPair
 
 from .geojson import write_findings_geojson
@@ -53,18 +55,15 @@ def build_evidence_bundle(
 
     # Overlay: need a before RGB image and the change mask.
     if has_rgb_before:
-        import numpy as np
-
         before_rgb_8bit = _stack_true_color_8bit(b_bands["B04"], b_bands["B03"], b_bands["B02"])
         # Build a change mask from finding geometries (or use the pair mask
-        # as fallback if no findings — ponytail: full mask as highlight).
+        # as fallback if no findings — shows full AOI as highlighted).
         from oberon.core.baselines import compute_baselines
         from oberon.core.change_detection import threshold_change_map
 
         baseline = compute_baselines(pair)
-        change_mask = threshold_change_map(baseline.ndvi_diff) if baseline.ndvi_diff is not None else np.zeros(pair.mask.shape, dtype=bool)
-        if change_mask is None:
-            change_mask = np.zeros(pair.mask.shape, dtype=bool)
+        raw_mask = threshold_change_map(baseline.ndvi_diff) if baseline.ndvi_diff is not None else np.ones(pair.mask.shape, dtype=bool)
+        change_mask = raw_mask if raw_mask is not None else np.ones(pair.mask.shape, dtype=bool)
 
         render_change_overlay(before_rgb_8bit, change_mask, overlay_path)
 
@@ -88,9 +87,8 @@ def build_evidence_bundle(
     return bundle
 
 
-def _stack_true_color_8bit(red, green, blue):
+def _stack_true_color_8bit(red: np.ndarray, green: np.ndarray, blue: np.ndarray) -> np.ndarray:
     """Stack three uint16 bands into an (H, W, 3) uint8 array with percent clip."""
-    import numpy as np
 
     from .images import _percent_clip
 

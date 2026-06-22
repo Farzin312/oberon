@@ -86,6 +86,10 @@ def analyze(
         sys.exit(1)
 
     geometry = geojson.get("geometry") or geojson
+    # Handle FeatureCollection: extract the first feature's geometry.
+    if geojson.get("type") == "FeatureCollection" and geojson.get("features"):
+        feat = geojson["features"][0]
+        geometry = feat.get("geometry") or feat
     if not isinstance(geometry, dict) or "type" not in geometry:
         click.echo("Error: AOI file must contain a GeoJSON Feature or Geometry with a 'type' field",
                    err=True)

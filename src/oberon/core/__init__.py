@@ -10,6 +10,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import date, datetime
 from pathlib import Path
+from typing import Any
 
 import numpy as np
 
@@ -18,7 +19,7 @@ import numpy as np
 class ChangeRequest:
     """A user's request to analyze an area of interest for change."""
 
-    geometry: dict  # GeoJSON Polygon geometry dict
+    geometry: dict[str, Any]  # GeoJSON Polygon geometry dict
     before: tuple[date, date]  # (from, to) date window
     after: tuple[date, date]
     task: str = "vegetation_disturbance"
@@ -33,7 +34,7 @@ class CandidateScene:
 
     stac_item_id: str
     datetime: datetime
-    geometry: dict
+    geometry: dict[str, Any]
     bbox: tuple[float, float, float, float]
     assets: dict[str, str]  # band name -> COG URL
     scl_url: str | None
@@ -102,7 +103,7 @@ class BaselineResult:
 class Finding:
     """A single detected change region with metrics."""
 
-    geometry: dict  # GeoJSON Polygon
+    geometry: dict[str, Any]  # GeoJSON Polygon
     score: float
     area_ha: float
     ndvi_delta_mean: float
@@ -120,7 +121,7 @@ class EvidenceBundle:
     overlay_image: Path
     findings_geojson: Path
     provenance_manifest: Path
-    provenance: dict
+    provenance: dict[str, Any]
 
 
 SENTINEL2_L2A_BANDS = ["B01", "B02", "B03", "B04", "B05", "B06", "B07", "B08", "B8A", "B11", "B12"]

@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import platform
 from pathlib import Path
+from typing import Any
 
 import numpy as np
 
@@ -16,7 +17,7 @@ def build_provenance(
     bundle: EvidenceBundle,
     oberon_version: str = "0.1.0",
     abstention_reason: str | None = None,
-) -> dict:
+) -> dict[str, Any]:
     """Construct the provenance dictionary for a set of findings.
 
     This is product data, not logging. It records every detail needed
@@ -35,7 +36,7 @@ def build_provenance(
             },
         })
 
-    provenance: dict = {
+    provenance: dict[str, Any] = {
         "oberon_version": oberon_version,
         "artifacts": {
             "before_image": bundle.before_image.name if bundle.before_image else None,
@@ -54,16 +55,15 @@ def build_provenance(
     return provenance
 
 
-def write_provenance_manifest(provenance: dict, output_path: Path) -> Path:
+def write_provenance_manifest(provenance: dict[str, Any], output_path: Path) -> Path:
     """Write the provenance manifest as pretty-printed JSON."""
     with open(output_path, "w") as f:
         json.dump(provenance, f, indent=2, default=str)
     return output_path
 
 
-def _collect_software_versions(oberon_version: str) -> dict:
+def _collect_software_versions(oberon_version: str) -> dict[str, str]:
     """Record runtime versions for reproducibility."""
-
     versions: dict[str, str] = {
         "oberon": oberon_version,
         "python": platform.python_version(),
