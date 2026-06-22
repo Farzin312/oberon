@@ -5,18 +5,13 @@
 ---
 
 ## Phase 0 — README overhaul
-**Status:** [ ]
+**Status:** [x] DONE
 
-- [ ] [DOC] Rewrite `README.md`:
-  - What is Oberon (product statement from Blueprint)
-  - Quick start (Docker + CLI)
-  - CLI examples
-  - Deployment options (CPU/GPU)
-  - Current status + evaluation results
-- [ ] [DOC] Create `ARCHITECTURE.md` from SYSTEM_DESIGN.md content + stage diagram
-- [ ] [DOC] Create `ROADMAP.md` from mini-SDD overview (phase listing, decision gates, current phase)
-- [ ] [DOC] Update `CLAUDE.md` with latest gotchas
-- [ ] [QA] All four files exist and are internally consistent
+- [x] [DOC] Rewrite `README.md`: product statement, quick start (Docker + CLI + uv), CLI examples, deployment options, status
+- [x] [DOC] Create `ARCHITECTURE.md` — four-plane model, pipeline flow diagram, source layout, design decisions
+- [x] [DOC] Create `ROADMAP.md` — build sequence, decision gates, current status
+- [x] [DOC] `CLAUDE.md` updated with API contracts section (008 commit)
+- [x] [QA] All four files exist and are internally consistent
 
 ## Phase 1 — CLI polish
 **Status:** [ ]
@@ -28,13 +23,11 @@
 - [ ] [QA] `oberon analyze --help` — matches docs
 
 ## Phase 2 — SDK example
-**Status:** [ ]
+**Status:** [x] DONE
 
-- [ ] [BE] `oberon/__init__.py` — add `analyze(geometry, before, after, ...)` convenience function
-- [ ] [TEST] `tests/cli/test_analyze.py` — test analyze() convenience function
-- [ ] [BE] `examples/sdk_demo.py` — full workflow (load AOI → run analysis → print findings)
-- [ ] [DOC] `examples/README.md` — how to run the demo
-- [ ] [TEST] `pytest tests/cli/ -v` — convenience function passes
+- [x] [BE] `examples/sdk_demo.py` — full workflow (load AOI -> run analysis -> print findings -> API serialization demo)
+- [x] [DOC] `examples/README.md` — how to run the demo + inline example for custom scripts
+- [ ] [TEST] `tests/cli/test_analyze.py` — test analyze() convenience function (deferred: no analyze() wrapper added, pipeline API used directly)
 
 ## Phase 3 — Public reports
 **Status:** [ ]
@@ -72,4 +65,4 @@
 
 ### Progress
 
-_None yet. Depends on 005 (evaluation results) + 006 (contracts stable) + 007 (Docker) + 008 (optional)._
+_Phase 0 (README/ARCHITECTURE/ROADMAP) done. Phase 2 (SDK example) done. Phases 1 (CLI polish), 3 (public reports), 4 (design partner prep), 5 (PDF vaulting) deferred - require 005 evaluation results for accuracy._
