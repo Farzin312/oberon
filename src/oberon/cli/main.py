@@ -242,7 +242,7 @@ def analyze(
     output_dir = Path(output)
 
     logger = get_logger("oberon.analyze")
-    logger.info("analyze.start", extra={
+    logger.info("job.started", extra={
         "task": request.task, "aoi": str(aoi or request_file),
         "before": str(request.before), "after": str(request.after),
         "max_cloud": max_cloud, "min_valid": min_valid,
@@ -277,7 +277,7 @@ def analyze(
     reason = abstention["reason"] if (abstention and isinstance(abstention, dict)) else ""
 
     if is_abstained:
-        logger.info("analyze.result", extra={"outcome": "abstained", "reason": reason})
+        logger.info("job.abstained", extra={"outcome": "abstained", "reason": reason})
 
     if as_json:
         from oberon.api.serialization import serialize_bundle_to_response
@@ -288,7 +288,7 @@ def analyze(
         click.echo(f"Abstained: {reason}")
     else:
         num_findings = len(provenance.get("findings", []))
-        logger.info("analyze.result", extra={"outcome": "complete", "findings": num_findings})
+        logger.info("job.completed", extra={"outcome": "complete", "findings": num_findings})
         click.echo(f"Analysis complete: {num_findings} finding(s)")
         click.echo(f"  Before image:  {bundle.before_image}")
         click.echo(f"  After image:   {bundle.after_image}")

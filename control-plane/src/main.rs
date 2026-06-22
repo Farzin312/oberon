@@ -3,7 +3,9 @@ mod middleware;
 
 use anyhow::Result;
 use clap::{Parser, Subcommand};
-use oberon_control_plane::{config, db};
+use oberon_control_plane::{config, db, telemetry};
+use tower_http::trace::TraceLayer;
+use tracing::info;
 
 #[derive(Parser)]
 #[command(name = "oberon", version, about = "Oberon control plane server")]
@@ -37,6 +39,8 @@ enum AuthAction {
 
 #[tokio::main]
 async fn main() -> Result<()> {
+    telemetry::init();
+
     let cli = Cli::parse();
     let config = config::Config::default();
 
@@ -44,16 +48,25 @@ async fn main() -> Result<()> {
         Commands::Serve { host } => {
             let db = db::open(&config.db_path)?;
 
+            info!(
+                bind_addr = %host,
+                db_path = %config.db_path.display(),
+                auth_mode = if config.auth_disabled { "disabled" } else { "enabled" },
+                python_path = %config.python_path,
+                "startup"
+            );
+
             let app = routes::build_app(
                 db,
                 config.auth_disabled,
                 config.python_path.clone(),
                 config.dashboard_dir.clone(),
-            );
+            )
+            .layer(TraceLayer::new_for_http());
 
-            let addr = host.parse::<std::net::SocketAddr>()
+            let addr = host
+                .parse::<std::net::SocketAddr>()
                 .unwrap_or("0.0.0.0:8000".parse().unwrap());
-            println!("Oberon control plane listening on http://{addr}");
             let listener = tokio::net::TcpListener::bind(addr).await?;
             axum::serve(listener, app).await?;
         }
@@ -75,11 +88,8 @@ async fn main() -> Result<()> {
     Ok(())
 }
 
-fn create_api_key(
-    db: &db::Db,
-    user_name: &str,
-) -> Result<String> {
-    use sha2::{Sha256, Digest};
+fn create_api_key(db: &db::Db, user_name: &str) -> Result<String> {
+    use sha2::{Digest, Sha256};
 
     // Generate a random key (oberon_<32 hex chars>).
     let raw = uuid::Uuid::new_v4().to_string();

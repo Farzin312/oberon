@@ -4,6 +4,7 @@ criticality: leaf
 description: TODO describe this subsystem.
 paths:
 - src/oberon/api
+- dashboard
 exposes:
 - name: APIFinding
   kind: class

@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Oberon — Earth Observation Monitor</title>
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="app">
+    <aside id="sidebar">
+        <header>
+            <h1>Oberon</h1>
+            <p class="tagline">Earth Observation Monitor</p>
+        </header>
+        <section id="portfolio-section">
+            <h2>Portfolios</h2>
+            <button id="new-portfolio-btn" class="btn-primary">+ New Portfolio</button>
+            <div id="portfolio-list"></div>
+        </section>
+    </aside>
+    <main id="main">
+        <div id="map"></div>
+        <div id="detail-panel" class="hidden">
+            <button id="close-detail" class="btn-close">&times;</button>
+            <h2 id="detail-title"></h2>
+            <div id="detail-content"></div>
+        </div>
+    </main>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="app.js"></script>
+</body>
+</html>

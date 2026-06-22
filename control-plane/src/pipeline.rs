@@ -2,6 +2,7 @@ use anyhow::{Result, anyhow, bail};
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use tokio::fs;
+use tracing::{error, info};
 
 use crate::models::ChangeRequestAPI;
 
@@ -49,8 +50,14 @@ pub async fn run_pipeline(
             .output()
     })
     .await
-    .map_err(|e| anyhow!("subprocess task failed: {e}"))?
-    .map_err(|e| anyhow!("failed to spawn python: {e}"))?;
+    .map_err(|e| {
+        error!(job_id = %job_id, error = %e, "pipeline.spawn_error");
+        anyhow!("subprocess task failed: {e}")
+    })?
+    .map_err(|e| {
+        error!(job_id = %job_id, error = %e, "pipeline.spawn_error");
+        anyhow!("failed to spawn python: {e}")
+    })?;
 
     // Clean up request file.
     let _ = std::fs::remove_file(&request_path);
@@ -58,6 +65,12 @@ pub async fn run_pipeline(
     if !result.status.success() {
         let stderr = String::from_utf8_lossy(&result.stderr);
         let stdout = String::from_utf8_lossy(&result.stdout);
+        error!(
+            job_id = %job_id,
+            exit_code = ?result.status.code(),
+            stderr = %stderr.chars().take(500).collect::<String>(),
+            "pipeline.spawn_error"
+        );
         bail!(
             "pipeline failed (exit {:?}): stderr={stderr}; stdout={stdout}",
             result.status.code()
@@ -67,7 +80,10 @@ pub async fn run_pipeline(
     // Parse the --json stdout for status.
     let stdout = String::from_utf8_lossy(&result.stdout);
     let response: serde_json::Value = serde_json::from_str(&stdout)
-        .map_err(|e| anyhow!("failed to parse pipeline JSON output: {e}"))?;
+        .map_err(|e| {
+            error!(job_id = %job_id, error = %e, "pipeline.spawn_error");
+            anyhow!("failed to parse pipeline JSON output: {e}")
+        })?;
 
     let status = response
         .get("status")
@@ -82,6 +98,7 @@ pub async fn run_pipeline(
         .unwrap_or(0);
 
     if status == "abstained" {
+        info!(job_id = %job_id, "job.abstained");
         return Ok(JobResult {
             status: "abstained".into(),
             findings_count: 0,
@@ -90,6 +107,7 @@ pub async fn run_pipeline(
         });
     }
 
+    info!(job_id = %job_id, status = %status, findings_count, "job.completed");
     Ok(JobResult {
         status: "completed".into(),
         findings_count,

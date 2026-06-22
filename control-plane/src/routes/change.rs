@@ -4,10 +4,12 @@ use axum::response::{IntoResponse, Json as AxumJson};
 use serde_json::json;
 use uuid::Uuid;
 use chrono::Utc;
+use tracing::{error, info};
 
 use super::AppState;
 use oberon_control_plane::db;
 use oberon_control_plane::models::{ChangeRequestAPI, Run};
+use oberon_control_plane::telemetry::{self, Timer};
 
 pub async fn post_change(
     State(state): State<AppState>,
@@ -29,14 +31,23 @@ pub async fn post_change(
         completed_at: None,
     };
     db::create_run(&state.db, &run)
-        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+        .map_err(|e| {
+            error!(operation = "create_run", error = %e, "db.error");
+            (StatusCode::INTERNAL_SERVER_ERROR, e.to_string())
+        })?;
+
+    info!(job_id = %job_id, "job.created");
 
     // Spawn the pipeline in background.
     let db = state.db.clone();
     let python_path = state.python_path.clone();
     let jid = job_id.clone();
+    let metrics = state.job_metrics.clone();
 
     tokio::spawn(async move {
+        let _guard = metrics.start();
+        let timer = Timer::start();
+
         // Update status to running.
         let _ = db::update_run_status(&db, &jid, "running", 0, None, None);
 
@@ -53,16 +64,41 @@ pub async fn post_change(
                 );
                 // Store output_dir for artifact serving.
                 let _ = db::update_run_output_dir(&db, &jid, &result.output_dir.to_string_lossy());
+
+                let output_mb = telemetry::dir_size_mb(&result.output_dir);
+                let peak_rss_mb = telemetry::child_peak_rss_mb();
+                let duration_ms = timer.elapsed_ms();
+
+                if result.status == "completed" {
+                    info!(
+                        job_id = %jid,
+                        findings_count = result.findings_count,
+                        duration_ms,
+                        output_mb = format!("{output_mb:.1}"),
+                        peak_rss_mb,
+                        "job.completed"
+                    );
+                } else if result.status == "abstained" {
+                    info!(
+                        job_id = %jid,
+                        duration_ms,
+                        output_mb = format!("{output_mb:.1}"),
+                        peak_rss_mb,
+                        "job.abstained"
+                    );
+                }
             }
             Err(e) => {
                 let now = Utc::now().to_rfc3339();
+                let duration_ms = timer.elapsed_ms();
                 let _ = db::update_run_status(
-                    &db,
-                    &jid,
-                    "failed",
-                    0,
-                    Some(&e.to_string()),
-                    Some(&now),
+                    &db, &jid, "failed", 0, Some(&e.to_string()), Some(&now),
+                );
+                error!(
+                    job_id = %jid,
+                    error = %e,
+                    duration_ms,
+                    "job.failed"
                 );
             }
         }

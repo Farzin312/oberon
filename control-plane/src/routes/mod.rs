@@ -23,6 +23,7 @@ pub struct AppState {
     pub auth_disabled: bool,
     pub python_path: String,
     pub dashboard_dir: PathBuf,
+    pub job_metrics: oberon_control_plane::telemetry::JobMetrics,
 }
 
 pub fn build_app(
@@ -36,6 +37,7 @@ pub fn build_app(
         auth_disabled,
         python_path,
         dashboard_dir,
+        job_metrics: oberon_control_plane::telemetry::JobMetrics::default(),
     };
 
     // Routes that require auth.
