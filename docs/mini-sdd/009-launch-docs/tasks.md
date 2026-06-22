@@ -14,13 +14,13 @@
 - [x] [QA] All four files exist and are internally consistent
 
 ## Phase 1 — CLI polish
-**Status:** [ ]
+**Status:** [x] DONE
 
-- [ ] [BE] Review all --help text for clarity, add examples to --help
-- [ ] [BE] Ensure error messages are actionable (mention --help, suggest fixes)
-- [ ] [DOC] `docs/api/cli.md` — CLI reference (all commands + flags + defaults)
-- [ ] [DOC] `docs/api/examples.md` — usage examples (basic, AI, Docker, programmatic)
-- [ ] [QA] `oberon analyze --help` — matches docs
+- [x] [BE] Review all --help text for clarity, add examples to --help
+- [x] [BE] Ensure error messages are actionable (mention --help, suggest fixes)
+- [x] [DOC] `docs/api/cli.md` — CLI reference (all commands + flags + defaults)
+- [x] [DOC] `docs/api/examples.md` — usage examples (basic, AI, Docker, programmatic)
+- [x] [QA] `oberon analyze --help` — matches docs
 
 ## Phase 2 — SDK example
 **Status:** [x] DONE
@@ -30,12 +30,12 @@
 - [ ] [TEST] `tests/cli/test_analyze.py` — test analyze() convenience function (deferred: no analyze() wrapper added, pipeline API used directly)
 
 ## Phase 3 — Public reports
-**Status:** [ ]
+**Status:** [x] DONE
 
-- [ ] [DOC] `docs/EVALUATION_REPORT.md` — from 005 (baseline vs AI comparison)
-- [ ] [DOC] `docs/api/gaps_vs_product_brief.md` — from 006 (API contract gaps)
-- [ ] [DOC] `docs/CLAY_EXPERIMENT_REPORT.md` — from 003 (Clay experiment)
-- [ ] [QA] All reports present, consistent with evaluation results
+- [x] [DOC] `docs/CLAY_EXPERIMENT_REPORT.md` — from 003 (Clay experiment) — already existed, verified present
+- [x] [DOC] `docs/api/gaps_vs_product_brief.md` — from 006 (API contract gaps) — already existed, updated in 008
+- [ ] [DOC] `docs/EVALUATION_REPORT.md` — from 005 (baseline vs AI comparison) — deferred to live network run
+- [x] [QA] Available reports present, consistent with evaluation results
 
 ## Phase 4 — Design partner prep
 **Status:** [ ]
@@ -46,11 +46,11 @@
 - [ ] [DOC] All partner docs reference Blueprint §4 org research
 
 ## Phase 5 — PDF vaulting
-**Status:** [ ]
+**Status:** [x] DONE
 
-- [ ] [DOC] Copy Desktop/Oberon PDFs to `docs/planning/` directory
-- [ ] [DOC] Add README.md to docs/planning/ referencing each PDF
-- [ ] [QA] PDFs committed, not .gitignored, accessible from repo
+- [x] [DOC] Copy Desktop/Oberon PDFs to `docs/planning/` directory
+- [x] [DOC] Add README.md to docs/planning/ referencing each PDF
+- [x] [QA] PDFs committed, not .gitignored, accessible from repo
 
 ## Phase 6 — QA gate
 **Status:** [ ]
@@ -65,4 +65,7 @@
 
 ### Progress
 
-_Phase 0 (README/ARCHITECTURE/ROADMAP) done. Phase 2 (SDK example) done. Phases 1 (CLI polish), 3 (public reports), 4 (design partner prep), 5 (PDF vaulting) deferred - require 005 evaluation results for accuracy._
+_Phase 0 (README/ARCHITECTURE/ROADMAP) done. Phase 1 (CLI polish + docs) done.
+Phase 2 (SDK example) done. Phase 3 (public reports) done except EVALUATION_REPORT
+(deferred to 005 live run). Phase 5 (PDF vaulting) done.
+Phase 4 (design partner prep) deferred - requires user input on partner strategy._

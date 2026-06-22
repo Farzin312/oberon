@@ -57,7 +57,7 @@ docs/mini-sdd/
 | `006-model-registry-provenance` | **DONE** — 226 tests | Model registry, artifact index, provenance enrichment, COG cache, --json/--cache flags, API gap doc |
 | `007-packaging-deployment` | **DONE** — 131 tests | Docker Compose (CPU+GPU), structured logging, health check, verified in container |
 | `008-rust-control-plane` | **Phase 1+4 (Python) DONE** — 262 tests | Axum API, typed job contracts, SQLite state machine, Python subprocess. Python-side API contracts + serialization + CLI --request/--json wiring complete. Rust control plane deferred. |
-| `009-launch-docs` | **Phase 0+2 DONE** — README, ARCHITECTURE, ROADMAP, SDK example | README/ARCHITECTURE/ROADMAP rewrite, SDK demo. CLI polish, reports, partner prep deferred to 005 evaluation results. |
+| `009-launch-docs` | **Phase 0+1+2+3+5 DONE** — all docs + CLI ref + examples + PDFs vaulted | README/ARCHITECTURE/ROADMAP rewrite, CLI polish + reference docs, SDK demo, reports verified, PDFs vaulted. Phase 4 (partner prep) + EVALUATION_REPORT deferred. |
 | `010-scene-composite` | **DONE** — 128 tests | Cloud-masked composite when single scene insufficient (Roadmap correction #2) |
 | `011-review-workflow-monitoring` | After 008+005 | Portfolios, scheduled reruns, review states, alerts, feedback export (Roadmap Phase 8) |
 | `012-security-hardening` | After 008+011 | API auth, audit logging, resource limits, SBOM, Docker hardening (Product Brief §10) |

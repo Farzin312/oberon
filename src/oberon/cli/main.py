@@ -44,12 +44,15 @@ def _build_request(
     """
     if request_file:
         if aoi:
-            raise click.UsageError("--request cannot be used together with --aoi/--before/--after.")
+            raise click.UsageError(
+                "--request cannot be used with --aoi/--before/--after. Choose one input mode."
+            )
         return _request_from_file(request_file)
 
     if not aoi or not before or not after:
         raise click.UsageError(
-            "Either --request <path> or --aoi + --before + --after is required."
+            "Provide either --request <path> or --aoi <path> --before <date> --after <date>. "
+            "Run 'oberon analyze --help' for examples."
         )
     return _request_from_flags(aoi, before, after, before_start, after_start, task, max_cloud, min_valid)
 
@@ -193,6 +196,14 @@ def analyze(
     Two input modes:
     - Flag mode: --aoi polygon.geojson --before 2026-01-01 --after 2026-06-01
     - Request mode: --request request.json (reads ChangeRequestAPI JSON)
+
+    Examples:
+
+      oberon analyze --aoi aoi.geojson --before 2026-01-01 --after 2026-06-01
+
+      oberon analyze --aoi aoi.geojson --before 2026-01-01 --after 2026-06-01 --json
+
+      oberon analyze --request request.json --composite --use-ai -o output/
     """
     request = _build_request(
         request_file, aoi, before, after, before_start, after_start,
