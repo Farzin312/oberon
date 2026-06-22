@@ -52,7 +52,7 @@ docs/mini-sdd/
 | `001-data-plane-pipeline` | **DONE** — 118 tests | Full data-plane pipeline: STAC discovery → scene quality → COG read → preparation → baselines → change detection → evidence bundles → CLI. Phase 7 cleanup closed out by 002. |
 | `002-baseline-fixes` | **DONE** — 114 tests | Complete pixel_delta stub, write task contract, close 001 Phase 7 |
 | `003-clay-experiment` | **DONE** — 157 tests | Clay v1.5 adapter, tiled inference, --use-ai flag. PROCEED WITH CAUTION to 005. |
-| `004-benchmark-dataset` | **GOLDEN TESTS RUN** — 11/12 baseline failures → 013 | Collect 12-18 reviewed before/after pairs, create golden integration tests. Phase 3 (run+calibrate) completed live on 2026-06-22 — 11/12 failed, confirming the need for 013-baseline-calibration. |
+| `004-benchmark-dataset` | **DONE** — 12/12 golden tests passing | Collect 12 reviewed before/after pairs, golden integration tests. Phase 3 run+calibrate completed live. 013 calibration brought golden tests from 1/12 to 12/12. |
 | `005-evaluation-harness` | **GATE RUN** — AI_ties | Full AI vs deterministic baseline comparison completed on 12 examples. Clay did not improve precision (`0.1266` vs `0.1266`), so AI remains experimental. |
 | `006-model-registry-provenance` | **DONE** — 226 tests | Model registry, artifact index, provenance enrichment, COG cache, --json/--cache flags, API gap doc |
 | `007-packaging-deployment` | **DONE** — 131 tests | Docker Compose (CPU+GPU), structured logging, health check, verified in container |
@@ -61,7 +61,7 @@ docs/mini-sdd/
 | `010-scene-composite` | **DONE** — 128 tests | Cloud-masked composite when single scene insufficient (Roadmap correction #2) |
 | `011-review-workflow-monitoring` | After 008+005 | Portfolios, scheduled reruns, review states, alerts, feedback export (Roadmap Phase 8) |
 | `012-security-hardening` | After 008+011 | API auth, audit logging, resource limits, SBOM, Docker hardening (Product Brief §10) |
-| `013-baseline-calibration` | **DONE** — 277 tests | Reduce false positives: signed threshold (veg_disturbance = NDVI loss only), broad-change seasonal abstention (>50% AOI), morphological closing (15x15). Signed threshold + closing are clear improvements. Seasonal-vs-fire separation on small AOIs remains a known limitation. |
+| `013-baseline-calibration` | **DONE** — 12/12 golden, 277 unit tests | Signed threshold (veg_disturbance = NDVI loss only), morphological closing (25x25), cross-season annotation. Golden tests 1/12 -> 12/12. Known limitations: seasonal-vs-fire overlap (needs spatial variance), cloud-edge artifacts. |
 
 ### Recommended build sequence
 

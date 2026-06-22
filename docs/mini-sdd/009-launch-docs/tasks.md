@@ -34,7 +34,7 @@
 
 - [x] [DOC] `docs/CLAY_EXPERIMENT_REPORT.md` — from 003 (Clay experiment) — already existed, verified present
 - [x] [DOC] `docs/api/gaps_vs_product_brief.md` — from 006 (API contract gaps) — already existed, updated in 008
-- [ ] [DOC] `docs/EVALUATION_REPORT.md` — from 005 (baseline vs AI comparison) — deferred to live network run
+- [x] [DOC] `docs/EVALUATION_REPORT.md` — from 005 + 013 calibration results
 - [x] [QA] Available reports present, consistent with evaluation results
 
 ## Phase 4 — Design partner prep
@@ -66,6 +66,6 @@
 ### Progress
 
 _Phase 0 (README/ARCHITECTURE/ROADMAP) done. Phase 1 (CLI polish + docs) done.
-Phase 2 (SDK example) done. Phase 3 (public reports) done except EVALUATION_REPORT
-(deferred to 005 live run). Phase 5 (PDF vaulting) cancelled — private business
-docs stay off the public repo. Phase 4 (design partner prep) deferred._
+Phase 2 (SDK example) done. Phase 3 (public reports) done — EVALUATION_REPORT
+written in 013. Phase 5 (PDF vaulting) cancelled. Phase 4 (design partner prep)
+deferred. Phase 6 (QA gate) partially done — gates pass but final commit not tagged._

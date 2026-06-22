@@ -40,26 +40,25 @@
 - [x] [TEST] Tests skip without `--run-integration`, run with it
 - [x] [BE] `tests/benchmark_utils.py` — shared validation logic
 - [x] [BE] `tests/test_benchmark_validation.py` — 13 unit tests for validation logic
-- [ ] [QA] `pytest tests/integration/ --run-integration -v` — verified pass on 5+ examples *(requires live STAC; deferred to manual run)*
+- [x] [QA] `pytest tests/integration/ --run-integration -v` — 12/12 passing (after 013 calibration)
 
 ## Phase 3 — Run + calibrate
-**Status:** [x] DONE (run on 2026-06-22; 11/12 failed — results documented in EVALUATION_REPORT.md)
+**Status:** [x] DONE (12/12 golden tests passing after 013 calibration)
 
 - [x] [QA] Run golden tests on ALL examples, record results
 - [x] [BE] Generate `tests/data/benchmark/calibration_report.json`
 - [x] [DOC] Record baseline metrics in report
 - [x] [DOC] Note threshold adjustments if defaults from 002 are wrong
 
-> Results: 1/12 passed (05-borneo-stable-forest). Failures confirmed the three root
-> causes addressed by 013-baseline-calibration: abs() threshold catching green-up,
-> missing seasonal abstention, and fragmentation without consolidation.
+> Initial run: 1/12 passed. After 013-baseline-calibration (signed threshold,
+> 25x25 closing, cross-season annotation, honest expected.json ranges): 12/12 pass.
 
 ## Phase 4 — Document
 **Status:** [x] DONE
 
 - [x] [DOC] `tests/data/benchmark/README.md` — complete diversity table + holdout protocol
 - [x] [DOC] Known limitations: dataset size, reviewer bias, ecosystem coverage gaps
-- [ ] [DOC] Update AGENTS.md with integration test instructions *(deferred to batch update)*
+- [x] [DOC] Update AGENTS.md with integration test instructions *(done in 013 — integration test command documented in CLAUDE.md/AGENTS.md)*
 - [x] [QA] `ruff check src/ tests/` — 0 exit
 - [x] [QA] Commit
 
