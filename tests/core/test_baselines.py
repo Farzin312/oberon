@@ -12,7 +12,7 @@ from __future__ import annotations
 import numpy as np
 
 from oberon.core import PreparedPair
-from oberon.core.baselines import compute_baselines
+from oberon.core.baselines import compute_baselines, compute_pixel_delta
 
 # ---------------------------------------------------------------------------
 # Shared fixture values for every PreparedPair built in these tests.
@@ -167,3 +167,75 @@ class TestComputeBaselines:
 
         assert result.abstain is True
         assert result.ndvi_diff is None
+
+
+# ---------------------------------------------------------------------------
+# compute_pixel_delta
+# ---------------------------------------------------------------------------
+
+class TestComputePixelDelta:
+    """compute_pixel_delta(): Euclidean magnitude across matching bands."""
+
+    def test_three_band_synthetic_input(self) -> None:
+        """Per-pixel Euclidean magnitude of (after - before) across 3 matching bands."""
+        before = {
+            "B02": np.array([[0, 0], [3, 0]], dtype=np.float32),
+            "B03": np.array([[0, 0], [0, 4]], dtype=np.float32),
+            "B04": np.array([[0, 0], [0, 0]], dtype=np.float32),
+        }
+        after = {
+            "B02": np.array([[3, 0], [0, 0]], dtype=np.float32),
+            "B03": np.array([[4, 0], [0, 0]], dtype=np.float32),
+            "B04": np.array([[0, 0], [0, 0]], dtype=np.float32),
+        }
+        mask = np.ones((2, 2), dtype=bool)
+        delta = compute_pixel_delta(before, after, mask)
+
+        # Pixel (0,0): sqrt((3-0)^2 + (4-0)^2 + 0) = 5
+        assert delta.shape == (2, 2)
+        assert np.isclose(delta[0, 0], 5.0)
+        # Pixel (0,1): no change -> 0
+        assert np.isclose(delta[0, 1], 0.0)
+        # Pixel (1,0): sqrt((0-3)^2 + 0 + 0) = 3
+        assert np.isclose(delta[1, 0], 3.0)
+        # Pixel (1,1): sqrt(0 + (0-4)^2 + 0) = 4
+        assert np.isclose(delta[1, 1], 4.0)
+
+    def test_nan_where_mask_is_false(self) -> None:
+        """Pixels where mask=False must be NaN."""
+        before = {"B04": np.ones((2, 2), dtype=np.float32)}
+        after = {"B04": np.zeros((2, 2), dtype=np.float32)}
+        mask = np.array([[True, False], [True, False]], dtype=bool)
+        delta = compute_pixel_delta(before, after, mask)
+
+        assert np.isnan(delta[0, 1])
+        assert np.isnan(delta[1, 1])
+        assert not np.isnan(delta[0, 0])
+        assert not np.isnan(delta[1, 0])
+
+    def test_empty_band_dict_returns_zeros(self) -> None:
+        """No matching bands -> output is all zeros (not NaN)."""
+        before: dict[str, np.ndarray] = {}
+        after: dict[str, np.ndarray] = {}
+        mask = np.ones((2, 2), dtype=bool)
+        delta = compute_pixel_delta(before, after, mask)
+
+        assert delta.shape == (2, 2)
+        assert np.allclose(delta, 0.0)
+
+    def test_compute_baselines_returns_non_none_pixel_delta(self) -> None:
+        """compute_baselines with all bands present returns a non-None pixel_delta_magnitude."""
+        mask = np.ones((4, 4), dtype=bool)
+        before = {
+            "B04": np.full((4, 4), 100, dtype=np.float32),
+            "B08": np.full((4, 4), 200, dtype=np.float32),
+        }
+        after = {
+            "B04": np.full((4, 4), 120, dtype=np.float32),
+            "B08": np.full((4, 4), 180, dtype=np.float32),
+        }
+        result = compute_baselines(_pair(before, after, mask))
+
+        assert result.abstain is False
+        assert result.pixel_delta_magnitude is not None
+        assert result.pixel_delta_magnitude.shape == (4, 4)

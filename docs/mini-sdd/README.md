@@ -49,7 +49,7 @@ docs/mini-sdd/
 
 | ID | Status | Description |
 |----|--------|-------------|
-| `001-data-plane-pipeline` | **DONE** — 114 tests | Full data-plane pipeline: STAC discovery → scene quality → COG read → preparation → baselines → change detection → evidence bundles → CLI |
+| `001-data-plane-pipeline` | **DONE** — 118 tests | Full data-plane pipeline: STAC discovery → scene quality → COG read → preparation → baselines → change detection → evidence bundles → CLI. Phase 7 cleanup closed out by 002. |
 | `002-baseline-fixes` | **NEXT** — Ready to build | Complete pixel_delta stub, write task contract, close 001 Phase 7 |
 | `003-clay-experiment` | Ready (after 002) | Get Clay running, produce feature-diff map on one example |
 | `004-benchmark-dataset` | Ready (after 003) | Collect 12-18 reviewed before/after pairs, create golden integration tests |

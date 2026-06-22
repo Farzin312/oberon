@@ -109,6 +109,7 @@ class Finding:
     ndvi_delta_mean: float
     nbr_delta_mean: float
     valid_pixels_in_finding: int
+    pixel_delta_mean: float = 0.0
 
 
 @dataclass

@@ -33,9 +33,27 @@ def compute_ndmi(nir: np.ndarray, swir1: np.ndarray) -> np.ndarray:
     return np.asarray((nir - swir1) / denom)
 
 
-def compute_pixel_delta(before: np.ndarray, after: np.ndarray) -> np.ndarray:
-    """Per-band magnitude of pixel-level change (Euclidean across all bands)."""
-    return np.asarray(np.sqrt(((after - before) ** 2).sum(axis=-1)) if before.ndim == 3 else np.abs(after - before))
+def compute_pixel_delta(
+    before: dict[str, np.ndarray],
+    after: dict[str, np.ndarray],
+    mask: np.ndarray,
+) -> np.ndarray:
+    """Euclidean magnitude across all matching bands.
+
+    Finds bands present in BOTH dicts. Stacks as (H, W, N).
+    Computes sqrt(sum((after - before)^2, axis=2)).
+    Returns (H, W) float32. NaN where not masked.
+    """
+    # Intersection of band names present in both observations.
+    common = sorted(set(before.keys()) & set(after.keys()))
+
+    if not common:
+        return np.where(mask, 0.0, np.nan).astype(np.float32)
+
+    stacked_before = np.stack([before[b] for b in common], axis=-1)
+    stacked_after = np.stack([after[b] for b in common], axis=-1)
+    raw = np.sqrt(((stacked_after - stacked_before) ** 2).sum(axis=-1))
+    return np.where(mask, raw, np.nan).astype(np.float32)
 
 
 def compute_baselines(pair: PreparedPair) -> BaselineResult:
@@ -102,9 +120,7 @@ def compute_baselines(pair: PreparedPair) -> BaselineResult:
         ndvi_diff=ndvi_diff,
         nbr_diff=nbr_diff,
         ndmi_diff=ndmi_diff,
-        # ponytail: pixel_delta needs all bands stacked (H, W, B); ceiling is
-        # per-band Euclidean magnitude; upgrade path: stack bands in align_to_common_grid.
-        pixel_delta_magnitude=None,
+        pixel_delta_magnitude=compute_pixel_delta(pair.before, pair.after, pair.mask),
         valid_pixels_before=valid_before,
         valid_pixels_after=valid_after,
     )

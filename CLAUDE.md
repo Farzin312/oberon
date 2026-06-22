@@ -19,7 +19,8 @@ Oberon is an open-source, self-hostable Earth observation monitoring engine. It 
 | Testing rules | [docs/TESTING_GUIDE.md](docs/TESTING_GUIDE.md) |
 | Spec-Driven Development | [docs/SPEC_DRIVEN_DEVELOPMENT.md](docs/SPEC_DRIVEN_DEVELOPMENT.md) |
 | Mini-SDD (bounded changes) | [docs/mini-sdd/README.md](docs/mini-sdd/README.md) |
-| Current work | [docs/mini-sdd/001-data-plane-pipeline/README.md](docs/mini-sdd/001-data-plane-pipeline/README.md) |
+| Task contract (what we detect) | [docs/TASK_CONTRACT.md](docs/TASK_CONTRACT.md) |
+| Current work | [docs/mini-sdd/002-baseline-fixes/README.md](docs/mini-sdd/002-baseline-fixes/README.md) |
 | Bounds (subsystem boundaries) | run `bounds describe <subsystem>` or `bounds list` |
 
 ---

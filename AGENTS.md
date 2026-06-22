@@ -49,6 +49,7 @@ Mark shortcuts: `# ponytail: <name of ceiling>, <upgrade path if throughput matt
 - **Pillow required for PNG output** — `render_true_color` and `render_change_overlay` need Pillow. Added as core dependency in pyproject.toml.
 - **CLI exits 0 for abstention** — abstention (no suitable scenes, insufficient pixels) is a valid analysis result, not an error. Exit code 0, message prefixed with "Abstained:".
 - **Default date windows are 30 days** — `--before` window defaults to 30-day lookback from the given date. `--after` window defaults to a single day (30 days if `--after-start` is set).
+- **pixel_delta is secondary** — Euclidean band magnitude is a secondary ranking signal at 0.3 weight. NDVI stays primary. See [docs/TASK_CONTRACT.md](docs/TASK_CONTRACT.md) for the full contract. pixel_delta includes seasonal variation in non-vegetation bands (e.g. SWIR moisture), which is why it's capped.
 - **mypy strictness** — Some dict types are `dict[str, Any]` for GeoJSON geometry dicts (mixed-type shapes). Use `cast()` for narrowing, not `# type: ignore`.
 
 ## Build/test commands

@@ -32,6 +32,7 @@ def build_provenance(
             "metrics": {
                 "ndvi_delta_mean": f.ndvi_delta_mean,
                 "nbr_delta_mean": f.nbr_delta_mean,
+                "pixel_delta_mean": f.pixel_delta_mean,
                 "valid_pixels_in_finding": f.valid_pixels_in_finding,
             },
         })

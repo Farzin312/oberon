@@ -136,7 +136,7 @@ Each stage has a typed input and output. These contracts are the API between pip
 | Scene quality | `list[CandidateScene]` → `SelectedScene` | Valid-pixel fraction > threshold |
 | COG read | `CandidateScene` → `RasterWindow` | Bands exist, window valid, nodata handled |
 | Preparation | `RasterWindow` × 2 → `PreparedPair` | CRS match, grid match, mask consistency |
-| Baselines | `PreparedPair` → `BaselineResult` | Array shapes match, division by zero guarded |
+| Baselines | `PreparedPair` → `BaselineResult` | Array shapes match, division by zero guarded. pixel_delta_magnitude now computed (Euclidean across matching bands) |
 | AI inference | `PreparedPair` → `ModelResult` (future) | Chip size match, band order matches adapter |
 | Postprocessing | `PreparedPair` → `list[Finding]` | Minimum area, abstention thresholds |
 | Evidence | `list[Finding]` + `PreparedPair` → `EvidenceBundle` | All artifacts present, provenance complete |

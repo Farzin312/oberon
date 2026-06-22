@@ -32,6 +32,7 @@ def write_findings_geojson(
                 "area_ha": finding.area_ha,
                 "ndvi_delta_mean": finding.ndvi_delta_mean,
                 "nbr_delta_mean": finding.nbr_delta_mean,
+                "pixel_delta_mean": finding.pixel_delta_mean,
                 "valid_pixels_in_finding": finding.valid_pixels_in_finding,
             },
         }

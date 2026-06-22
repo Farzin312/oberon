@@ -36,6 +36,7 @@ def threshold_change_map(
 def extract_findings(
     change_mask: np.ndarray,
     ndvi_diff: np.ndarray | None,
+    pixel_delta: np.ndarray | None = None,
     min_pixels: int = _MIN_CHANGE_PIXELS,
     pixel_area_ha: float = _PIXEL_AREA_HA,
 ) -> list[Finding]:
@@ -59,9 +60,17 @@ def extract_findings(
         mean_delta = 0.0
         if ndvi_diff is not None:
             mean_delta = float(np.nanmean(np.where(component, ndvi_diff, np.nan)))
-            # ponytail: linear score normalized to [0, 1]; calibrate against
-            # labeled examples when evaluation dataset exists.
-            score = min(abs(mean_delta) / 0.5, 1.0)
+            ndvi_score = min(abs(mean_delta) / 0.5, 1.0)
+        else:
+            ndvi_score = 0.0
+
+        delta_mean = 0.0
+        if pixel_delta is not None:
+            delta_mean = float(np.nanmean(np.where(component, pixel_delta, np.nan)))
+        delta_score = min(delta_mean / 5000.0, 1.0)
+
+        # NDVI stays primary; pixel_delta is secondary at 0.3 weight.
+        score = max(ndvi_score, delta_score * 0.3)
 
         findings.append(
             Finding(
@@ -71,6 +80,7 @@ def extract_findings(
                 ndvi_delta_mean=mean_delta,
                 nbr_delta_mean=0.0,
                 valid_pixels_in_finding=pixel_count,
+                pixel_delta_mean=delta_mean,
             )
         )
 
@@ -152,5 +162,10 @@ def detect_changes(
     if not pair.is_usable or baseline.abstain or baseline.ndvi_diff is None:
         return []
     change_mask = threshold_change_map(baseline.ndvi_diff, threshold)
-    findings = extract_findings(cast(np.ndarray, change_mask), baseline.ndvi_diff, min_pixels)
+    findings = extract_findings(
+        cast(np.ndarray, change_mask),
+        baseline.ndvi_diff,
+        pixel_delta=baseline.pixel_delta_magnitude,
+        min_pixels=min_pixels,
+    )
     return deduplicate_and_rank(findings)
