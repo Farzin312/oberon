@@ -18,7 +18,6 @@ from oberon.core.change_detection import (
     deduplicate_and_rank,
     detect_changes,
     extract_findings,
-    is_broad_change,
     threshold_change_map,
 )
 
@@ -175,6 +174,31 @@ class TestDetectChanges:
         pair = self._make_pair(mask_fraction=0.2)
         assert detect_changes(pair) == []
 
+    def test_greenup_only_yields_zero_findings_for_veg_disturbance(self) -> None:
+        """detect_changes(task='vegetation_disturbance') must return [] when
+        NDVI only increases (green-up), since signed threshold direction='negative'.
+        """
+        h, w = 30, 30
+        # before: sparse vegetation (low NIR, high red) -> low NDVI
+        nir_before = np.full((h, w), 0.15, dtype=np.float32)
+        red_before = np.full((h, w), 0.25, dtype=np.float32)
+        # after: healthy vegetation in a block -> NDVI increases by > 0.15
+        nir_after = nir_before.copy()
+        red_after = red_before.copy()
+        nir_after[5:20, 5:20] = 0.6  # big NIR increase over the block
+        red_after[5:20, 5:20] = 0.1
+        mask = np.ones((h, w), dtype=bool)
+        pair = PreparedPair(
+            before={"B04": red_before, "B08": nir_before},
+            after={"B04": red_after, "B08": nir_after},
+            mask=mask,
+            crs="EPSG:32617",
+            transform=(10.0, 0.0, 0.0, 0.0, 10.0, 0.0),
+            bounds=(0.0, 0.0, 300.0, 300.0),
+        )
+        findings = detect_changes(pair, task="vegetation_disturbance")
+        assert findings == []
+
 
 # ---------------------------------------------------------------------------
 # threshold_change_map direction parameter
@@ -230,57 +254,6 @@ class TestThresholdDirection:
         assert threshold_change_map(None, direction="negative") is None
         assert threshold_change_map(None, direction="positive") is None
         assert threshold_change_map(None, direction="absolute") is None
-
-
-# ---------------------------------------------------------------------------
-# is_broad_change (seasonal/broad-change abstention)
-# ---------------------------------------------------------------------------
-
-
-class TestIsBroadChange:
-    """is_broad_change(): detect landscape-wide seasonal shifts."""
-
-    def test_most_pixels_changed_triggers(self) -> None:
-        """When >40% of valid pixels are in the change mask, triggers True."""
-        valid = np.ones((10, 10), dtype=bool)
-        change = np.zeros((10, 10), dtype=bool)
-        change[:7, :] = True  # 70% of pixels flagged
-        assert is_broad_change(change, valid)
-
-    def test_few_pixels_changed_returns_false(self) -> None:
-        """When <40% of valid pixels are in the change mask, returns False."""
-        valid = np.ones((10, 10), dtype=bool)
-        change = np.zeros((10, 10), dtype=bool)
-        change[:3, :] = True  # 30% of pixels flagged
-        assert not is_broad_change(change, valid)
-
-    def test_no_valid_pixels_returns_false(self) -> None:
-        """Empty valid mask returns False (edge case, should not occur in practice)."""
-        valid = np.zeros((10, 10), dtype=bool)
-        change = np.ones((10, 10), dtype=bool)
-        assert not is_broad_change(change, valid)
-
-    def test_edge_value_just_below_threshold(self) -> None:
-        """Exactly 50% (at threshold) should NOT trigger (strict >)."""
-        valid = np.ones((100,), dtype=bool)
-        change = np.zeros((100,), dtype=bool)
-        change[:50] = True  # exactly 50%
-        assert not is_broad_change(change, valid)
-
-    def test_edge_value_just_above_threshold(self) -> None:
-        """51% (>50%) should trigger."""
-        valid = np.ones((100,), dtype=bool)
-        change = np.zeros((100,), dtype=bool)
-        change[:51] = True  # 51%
-        assert is_broad_change(change, valid)
-
-    def test_valid_mask_restricts_to_valid_pixels(self) -> None:
-        """Only valid pixels should count toward the fraction."""
-        valid = np.zeros((10, 10), dtype=bool)
-        valid[0, :] = True  # only 10 valid pixels
-        change = np.ones((10, 10), dtype=bool)
-        # All 10 valid pixels changed = 100% of valid = trigger
-        assert is_broad_change(change, valid)
 
 
 # ---------------------------------------------------------------------------

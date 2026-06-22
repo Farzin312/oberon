@@ -11,7 +11,7 @@ from shapely.geometry import MultiPoint, mapping
 from oberon.core import Finding, PreparedPair
 
 # Default threshold: |NDVI change| > 0.15 is considered significant.
-_DEFAULT_NDVI_THRESHOLD = 0.15
+NDVI_THRESHOLD = 0.15
 
 # Minimum contiguous pixels for a finding (~50 pixels at 10m = 0.5 ha).
 _MIN_CHANGE_PIXELS = 50
@@ -32,29 +32,6 @@ def _direction_for_task(task: str) -> str:
     Unknown tasks fall back to "absolute" (backwards compatible).
     """
     return _TASK_DIRECTIONS.get(task, "absolute")
-
-
-# When >50% of valid AOI pixels show NDVI loss after directional thresholding,
-# the change is likely landscape-wide senescence, not targeted disturbance.
-# 50% catches uniform seasonal browning while letting large (but concentrated)
-# real fires through. Tuned from benchmark data: 08-Finland seasonal triggered
-# at this level in integration tests.
-_BROAD_CHANGE_FRACTION = 0.50
-
-
-def is_broad_change(change_mask: np.ndarray, valid_mask: np.ndarray) -> bool:
-    """Check if the change mask covers >_BROAD_CHANGE_FRACTION of valid pixels.
-
-    A change covering the majority of the AOI suggests a landscape-wide
-    phenological shift rather than targeted disturbance (fire, clearing).
-    """
-    if valid_mask.size == 0:
-        return False
-    total_valid = int(valid_mask.sum())
-    if total_valid == 0:
-        return False
-    changed_valid = int(np.count_nonzero(change_mask & valid_mask))
-    return changed_valid / total_valid > _BROAD_CHANGE_FRACTION
 
 
 def apply_morphological_closing(
@@ -81,7 +58,7 @@ def apply_morphological_closing(
 
 def threshold_change_map(
     diff_map: np.ndarray | None,
-    threshold: float = _DEFAULT_NDVI_THRESHOLD,
+    threshold: float = NDVI_THRESHOLD,
     direction: str = "absolute",
 ) -> np.ndarray | None:
     """Apply directional or absolute threshold to a difference map.
@@ -224,7 +201,7 @@ def deduplicate_and_rank(
 
 def detect_changes(
     pair: PreparedPair,
-    threshold: float = _DEFAULT_NDVI_THRESHOLD,
+    threshold: float = NDVI_THRESHOLD,
     min_pixels: int = _MIN_CHANGE_PIXELS,
     task: str = "vegetation_disturbance",
 ) -> list[Finding]:

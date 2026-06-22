@@ -61,7 +61,7 @@ The pipeline MUST abstain (return exit 0, empty findings, `"Abstained:"` prefix)
 | Cloud cover over AOI | > 50% of AOI pixels masked as cloud/shadow/snow/ice | `max_cloud_fraction` / SCL mask |
 | Valid pixels in AOI | < 30% valid in both before AND after | `PreparedPair.is_usable` (0.30 threshold) |
 | Missing required bands | B04 or B08 absent from either observation | `compute_baselines` abstain path |
-| Seasonal mismatch | Automated via broad-change detection (>50% AOI NDVI loss) | `is_broad_change()` in orchestrator — 013 |
+| Seasonal mismatch | Not automated — coverage threshold cannot separate seasonal senescence from real fire on small AOIs (013 finding). Cross-season annotation prepends "seasonal:" to pixel-quality abstention reasons. Spatial-variance analysis (014) needed for true seasonal detection. | `_is_cross_season()` in orchestrator — 013 |
 
 Abstention is a valid analysis result, not an error. Exit code 0.
 

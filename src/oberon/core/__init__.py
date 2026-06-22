@@ -150,7 +150,13 @@ TRUE_COLOR_BANDS = ["B04", "B03", "B02"]
 """Red, Green, Blue for true-color composites."""
 
 CLAY_BANDS = ["B02", "B03", "B04", "B05", "B06", "B07", "B08", "B8A", "B11", "B12"]
-"""10-band subset used by Clay v1.5 for inference."""
+"""10-band subset used by the pipeline for Clay v1.5 inference.
+
+This is a SUBSET of the full 12-band Clay v1.5 spec (ai/clay_config.py
+CLAY_BANDS) which also includes B01 and B09. The pipeline excludes them
+because B01 (coastal aerosol, 60m) and B09 (water vapour, 60m) are at a
+much coarser native resolution and are not fetched by the COG reader.
+"""
 
 SCL_CLOUD_BITS = {1, 3, 7, 8, 9, 10, 11}
 """SCL values that indicate invalid/obstructed pixels (saturated, cloud shadow, cloud, cirrus, snow/ice)."""

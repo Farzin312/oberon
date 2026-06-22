@@ -10,6 +10,7 @@ from oberon.artifacts import build_evidence_bundle
 from oberon.core import ChangeRequest, EvidenceBundle, PreparedPair
 from oberon.core.baselines import compute_baselines
 from oberon.core.change_detection import (
+    NDVI_THRESHOLD,
     apply_morphological_closing,
     deduplicate_and_rank,
     extract_findings,
@@ -186,6 +187,12 @@ def run_analysis(
         findings, pair, output_dir,
         source_info=source_info,
         model_versions=model_versions,
+        processing_config={
+            "task": request.task,
+            "threshold_direction": direction,
+            "ndvi_threshold": NDVI_THRESHOLD,
+            "closing_kernel_size": 25,
+        },
     )
 
     # ----- Phase 5: Artifact index -----

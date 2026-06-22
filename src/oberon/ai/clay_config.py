@@ -18,7 +18,8 @@ CLAY_TEACHER = "vit_large_patch14_reg4_dinov2.lvd142m"
 CLAY_DOLLS = [16, 32, 64, 128, 256, 768, 1024]
 CLAY_DOLL_WEIGHTS = [1, 1, 1, 1, 1, 1, 1]
 
-# Sentinel-2 L2A band ordering expected by Clay (12 bands).
+# Sentinel-2 L2A band ordering expected by Clay (full 12-band spec).
+# NOTE: The pipeline uses a 10-band subset (no B01/B09) — see core/__init__.py CLAY_BANDS.
 CLAY_BANDS = ["B01", "B02", "B03", "B04", "B05", "B06", "B07", "B08", "B8A", "B09", "B11", "B12"]
 
 # Wavelengths in nm for Clay's spectral position encoding.

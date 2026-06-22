@@ -15,7 +15,7 @@ from unittest.mock import MagicMock, patch
 
 import numpy as np
 
-from oberon.cli.orchestrator import COMPOSITE_THRESHOLD, run_analysis
+from oberon.cli.orchestrator import COMPOSITE_THRESHOLD, _is_cross_season, run_analysis
 from oberon.core import ChangeRequest
 
 
@@ -135,3 +135,46 @@ class TestCompositeFallback:
             run_analysis(_request(), tmp_path / "output", force_composite=True)
 
             assert mock_composite.called, "Composite should be called when force_composite=True"
+
+
+class TestIsCrossSeason:
+    """_is_cross_season(): month-gap heuristic for cross-season detection."""
+
+    def _request_with_months(self, before_month: int, after_month: int) -> ChangeRequest:
+        """Build a ChangeRequest with specific before/after start months."""
+        return ChangeRequest(
+            geometry={"type": "Polygon", "coordinates": [[[0, 0], [1, 0], [1, 1], [0, 1], [0, 0]]]},
+            before=(date(2026, before_month, 1), date(2026, before_month, 28)),
+            after=(date(2026, after_month, 1), date(2026, after_month, 28)),
+        )
+
+    def test_summer_to_winter_is_cross_season(self) -> None:
+        """July -> January (gap=6) should be cross-season."""
+        assert _is_cross_season(self._request_with_months(7, 1))
+
+    def test_spring_to_fall_is_cross_season(self) -> None:
+        """March -> September (gap=6) should be cross-season."""
+        assert _is_cross_season(self._request_with_months(3, 9))
+
+    def test_adjacent_months_not_cross_season(self) -> None:
+        """June -> July (gap=1) should NOT be cross-season."""
+        assert not _is_cross_season(self._request_with_months(6, 7))
+
+    def test_same_month_not_cross_season(self) -> None:
+        """June -> June (gap=0) should NOT be cross-season."""
+        assert not _is_cross_season(self._request_with_months(6, 6))
+
+    def test_exactly_4_months_is_cross_season(self) -> None:
+        """Exactly 4 months apart (gap=4) triggers cross-season (>= 4)."""
+        assert _is_cross_season(self._request_with_months(1, 5))
+
+    def test_exactly_3_months_not_cross_season(self) -> None:
+        """3 months apart (gap=3) does NOT trigger (< 4)."""
+        assert not _is_cross_season(self._request_with_months(1, 4))
+
+    def test_year_wrap_handled(self) -> None:
+        """November -> February (abs gap=9) should be cross-season.
+
+        The heuristic uses abs(month diff), so year-wrap is not special-cased.
+        """
+        assert _is_cross_season(self._request_with_months(11, 2))

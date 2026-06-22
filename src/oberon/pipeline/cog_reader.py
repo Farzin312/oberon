@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import warnings
+from collections.abc import Iterator
+from contextlib import contextmanager
 from typing import Any
 
 import numpy as np
@@ -13,6 +16,25 @@ from rasterio.windows import Window
 from shapely.geometry import shape
 
 from oberon.core import SCL_CLOUD_BITS, CandidateScene, RasterWindow
+
+
+@contextmanager
+def _suppress_rasterio_shape_warning() -> Iterator[None]:
+    """Suppress NumPy 2.5 'Setting the shape' DeprecationWarning from rasterio 1.5.0 internals.
+
+    rasterio 1.5.0's C extension calls arr.shape = ... on the returned array,
+    which triggers a DeprecationWarning in NumPy 2.5. Fixed upstream eventually;
+    until then suppress narrowly so we don't hide real deprecation warnings.
+
+    ponytail: targeted suppression. Remove when rasterio patches the call.
+    """
+    with warnings.catch_warnings():
+        warnings.filterwarnings(
+            "ignore",
+            message="Setting the shape on a NumPy array",
+            category=DeprecationWarning,
+        )
+        yield
 
 # WGS84 — the CRS of GeoJSON coordinates and STAC bboxes.
 _GEO_CRS = "EPSG:4326"
@@ -134,7 +156,8 @@ def read_window(
                     )
 
                 last_window = win
-                band_data = src.read(1, window=win)
+                with _suppress_rasterio_shape_warning():
+                    band_data = src.read(1, window=win)
 
                 # Capture reference grid from the first band read.
                 if ref_height is None:
@@ -194,7 +217,8 @@ def read_window(
                         height=scl_win.height + 2 * buffer_pixels,
                     )
 
-                scl_data = src.read(1, window=scl_win)
+                with _suppress_rasterio_shape_warning():
+                    scl_data = src.read(1, window=scl_win)
 
                 # Resample SCL to reference grid if needed.
                 if (

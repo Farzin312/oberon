@@ -19,6 +19,7 @@ def build_provenance(
     abstention_reason: str | None = None,
     source_info: dict[str, Any] | None = None,
     model_versions: list[str] | None = None,
+    processing_config: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Construct the provenance dictionary for a set of findings.
 
@@ -29,6 +30,9 @@ def build_provenance(
         model_versions: List of registered model version strings used
             in this run (e.g. ["deterministic-v1", "clay-v1.5"]).
             Defaults to ["deterministic-v1"].
+        processing_config: Processing parameters that produced these
+            findings (task name, threshold direction, closing kernel
+            size, etc.). Required by CLAUDE.md rule 3.
     """
     if model_versions is None:
         model_versions = ["deterministic-v1"]
@@ -62,6 +66,9 @@ def build_provenance(
 
     if source_info:
         provenance["sources"] = source_info
+
+    if processing_config:
+        provenance["processing_config"] = processing_config
 
     if abstention_reason:
         provenance["abstention"] = {"reason": abstention_reason}

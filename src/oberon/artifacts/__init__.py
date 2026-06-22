@@ -27,6 +27,7 @@ def build_evidence_bundle(
     abstention_reason: str | None = None,
     source_info: dict[str, Any] | None = None,
     model_versions: list[str] | None = None,
+    processing_config: dict[str, Any] | None = None,
 ) -> EvidenceBundle:
     """Build all evidence artifacts (images, GeoJSON, provenance) into output_dir.
 
@@ -36,6 +37,8 @@ def build_evidence_bundle(
     Args:
         model_versions: List of registered model version strings used
             in this run (e.g. ["deterministic-v1", "clay-v1.5"]).
+        processing_config: Processing parameters that produced these findings
+            (task, threshold direction, closing kernel). CLAUDE.md rule 3.
 
     ponytail: full-AOI rendering. Upgrade path: tile rendering for very large
     areas (>1000x1000 px) to avoid memory pressure.
@@ -92,6 +95,7 @@ def build_evidence_bundle(
         abstention_reason=abstention_reason,
         source_info=source_info,
         model_versions=model_versions,
+        processing_config=processing_config,
     )
     bundle.provenance = provenance
     write_provenance_manifest(provenance, provenance_path)

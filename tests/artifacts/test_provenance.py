@@ -184,3 +184,35 @@ class TestModelVersionsInProvenance:
             model_versions=["deterministic-v1"],
         )
         assert result["model_versions"] == ["deterministic-v1"]
+
+
+class TestProcessingConfigInProvenance:
+    """processing_config in provenance (CLAUDE.md rule 3: 'every finding
+    records processing config'). Records threshold direction, closing kernel,
+    task name so results can be independently verified.
+    """
+
+    def test_processing_config_present_when_provided(
+        self, sample_finding: Finding, sample_bundle: EvidenceBundle
+    ) -> None:
+        """When processing_config is provided, it appears in provenance."""
+        config = {
+            "task": "vegetation_disturbance",
+            "threshold_direction": "negative",
+            "ndvi_threshold": 0.15,
+            "closing_kernel_size": 25,
+        }
+        result = build_provenance(
+            [sample_finding], sample_bundle, processing_config=config,
+        )
+        assert "processing_config" in result
+        assert result["processing_config"]["task"] == "vegetation_disturbance"
+        assert result["processing_config"]["threshold_direction"] == "negative"
+        assert result["processing_config"]["closing_kernel_size"] == 25
+
+    def test_processing_config_absent_when_not_provided(
+        self, sample_finding: Finding, sample_bundle: EvidenceBundle
+    ) -> None:
+        """When processing_config is None, the key should not be present."""
+        result = build_provenance([sample_finding], sample_bundle)
+        assert "processing_config" not in result
