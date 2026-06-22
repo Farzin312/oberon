@@ -26,11 +26,16 @@ def build_evidence_bundle(
     output_dir: Path,
     abstention_reason: str | None = None,
     source_info: dict[str, Any] | None = None,
+    model_versions: list[str] | None = None,
 ) -> EvidenceBundle:
     """Build all evidence artifacts (images, GeoJSON, provenance) into output_dir.
 
     Renders before/after true-color PNGs, a change overlay, a findings GeoJSON
     file, and a provenance manifest. Returns the EvidenceBundle with all paths.
+
+    Args:
+        model_versions: List of registered model version strings used
+            in this run (e.g. ["deterministic-v1", "clay-v1.5"]).
 
     ponytail: full-AOI rendering. Upgrade path: tile rendering for very large
     areas (>1000x1000 px) to avoid memory pressure.
@@ -82,7 +87,12 @@ def build_evidence_bundle(
         provenance_manifest=provenance_path,
         provenance={},
     )
-    provenance = build_provenance(findings, bundle, abstention_reason=abstention_reason, source_info=source_info)
+    provenance = build_provenance(
+        findings, bundle,
+        abstention_reason=abstention_reason,
+        source_info=source_info,
+        model_versions=model_versions,
+    )
     bundle.provenance = provenance
     write_provenance_manifest(provenance, provenance_path)
 

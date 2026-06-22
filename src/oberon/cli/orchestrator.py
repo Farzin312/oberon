@@ -127,9 +127,12 @@ def run_analysis(
     findings = deduplicate_and_rank(raw_findings)
 
     # ----- Phase 3b: Optional AI branch (parallel to baseline) -----
+    model_versions: list[str] = ["deterministic-v1"]
     ai_info: dict[str, object] | None = None
     if use_ai:
         ai_info = _run_ai_branch(pair)
+        if ai_info and not ai_info.get("abstain", True):
+            model_versions.append("clay-v1.5")
 
     # ----- Phase 4: Evidence bundles -----
     # Record source scene metadata for provenance.
@@ -147,7 +150,16 @@ def run_analysis(
     if ai_info is not None:
         source_info["ai"] = ai_info
 
-    bundle = build_evidence_bundle(findings, pair, output_dir, source_info=source_info)
+    bundle = build_evidence_bundle(
+        findings, pair, output_dir,
+        source_info=source_info,
+        model_versions=model_versions,
+    )
+
+    # ----- Phase 5: Artifact index -----
+    from oberon.store.artifact_index import build_run_artifact_index
+
+    build_run_artifact_index(bundle, output_dir)
 
     return bundle
 

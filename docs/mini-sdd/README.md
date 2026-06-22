@@ -54,7 +54,7 @@ docs/mini-sdd/
 | `003-clay-experiment` | **DONE** — 157 tests | Clay v1.5 adapter, tiled inference, --use-ai flag. PROCEED WITH CAUTION to 005. |
 | `004-benchmark-dataset` | **FRAMEWORK DONE** — 12 examples, golden harness | Collect 12-18 reviewed before/after pairs, create golden integration tests. Calibration (Phase 3) deferred to live STAC run. |
 | `005-evaluation-harness` | **FRAMEWORK DONE** — 26 comparison tests | Full AI vs deterministic baseline comparison; decision gate. Live run (Phases 1-4) deferred to network access. |
-| `006-model-registry-provenance` | Ready (after 002+003) | Model registry, artifact index, COG cache, API contract alignment |
+| `006-model-registry-provenance` | **DONE** — 226 tests | Model registry, artifact index, provenance enrichment, COG cache, --json/--cache flags, API gap doc |
 | `007-packaging-deployment` | **DONE** — 131 tests | Docker Compose (CPU+GPU), structured logging, health check, verified in container |
 | `008-rust-control-plane` | Deferred (after 006+007) | Axum API, typed job contracts, SQLite state machine, Python subprocess |
 | `009-launch-docs` | After 005+006+007 | README/ARCHITECTURE/ROADMAP rewrite, SDK demo, design partner prep |

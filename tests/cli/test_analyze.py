@@ -56,6 +56,8 @@ class TestAnalyzeHelp:
         assert "--min-valid" in result.output
         assert "--composite" in result.output
         assert "--use-ai" in result.output
+        assert "--cache" in result.output
+        assert "--json" in result.output
 
 
 class TestHealthCommand:

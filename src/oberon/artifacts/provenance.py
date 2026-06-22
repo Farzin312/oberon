@@ -18,12 +18,20 @@ def build_provenance(
     oberon_version: str = "0.1.0",
     abstention_reason: str | None = None,
     source_info: dict[str, Any] | None = None,
+    model_versions: list[str] | None = None,
 ) -> dict[str, Any]:
     """Construct the provenance dictionary for a set of findings.
 
     This is product data, not logging. It records every detail needed
     to independently verify or reproduce a result.
+
+    Args:
+        model_versions: List of registered model version strings used
+            in this run (e.g. ["deterministic-v1", "clay-v1.5"]).
+            Defaults to ["deterministic-v1"].
     """
+    if model_versions is None:
+        model_versions = ["deterministic-v1"]
     finding_entries = []
     for idx, f in enumerate(findings, start=1):
         finding_entries.append({
@@ -40,6 +48,7 @@ def build_provenance(
 
     provenance: dict[str, Any] = {
         "oberon_version": oberon_version,
+        "model_versions": model_versions,
         "artifacts": {
             "before_image": bundle.before_image.name if bundle.before_image else None,
             "after_image": bundle.after_image.name if bundle.after_image else None,

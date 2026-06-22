@@ -17,6 +17,46 @@ from oberon.core import SCL_CLOUD_BITS, CandidateScene, RasterWindow
 # WGS84 — the CRS of GeoJSON coordinates and STAC bboxes.
 _GEO_CRS = "EPSG:4326"
 
+# Session-level COG cache. Keyed by (scene_id, band, AOI geometry hash).
+# In-memory only — no disk persistence. Clears when the process exits.
+# Set via enable_cache() / disable_cache().
+_cache_enabled: bool = False
+_cache: dict[str, RasterWindow] = {}
+
+
+def enable_cache() -> None:
+    """Enable session-level COG window caching."""
+    global _cache_enabled
+    _cache_enabled = True
+
+
+def disable_cache() -> None:
+    """Disable session-level COG window caching and clear stored entries."""
+    global _cache_enabled, _cache
+    _cache_enabled = False
+    _cache.clear()
+
+
+def clear_cache() -> None:
+    """Clear the cache without disabling it."""
+    _cache.clear()
+
+
+def get_cache_size() -> int:
+    """Return the number of cached entries."""
+    return len(_cache)
+
+
+def _cache_key(scene: CandidateScene, aoi_geometry: dict[str, Any], bands: list[str]) -> str:
+    """Build a deterministic cache key for (scene, AOI, bands)."""
+    import hashlib
+    import json
+
+    geom_str = json.dumps(aoi_geometry, sort_keys=True)
+    bands_str = ",".join(sorted(bands))
+    raw = f"{scene.stac_item_id}|{bands_str}|{geom_str}"
+    return hashlib.sha256(raw.encode()).hexdigest()
+
 
 def read_window(
     scene: CandidateScene,
@@ -37,6 +77,12 @@ def read_window(
     """
     if not bands:
         raise ValueError("At least one band must be requested")
+
+    # Check session cache.
+    if _cache_enabled:
+        key = _cache_key(scene, aoi_geometry, bands)
+        if key in _cache:
+            return _cache[key]
 
     geom = shape(aoi_geometry)
     lon_min, lat_min, lon_max, lat_max = geom.bounds
@@ -130,10 +176,17 @@ def read_window(
         else (0.0, 0.0, 0.0, 0.0)
     )
 
-    return RasterWindow(
+    result = RasterWindow(
         data=data,
         crs=crs,
         transform=tuple(_transform) if _transform is not None else (),
         bounds=win_bounds,
         scl_mask=scl_mask,
     )
+
+    # Store in session cache.
+    if _cache_enabled:
+        key = _cache_key(scene, aoi_geometry, bands)
+        _cache[key] = result
+
+    return result

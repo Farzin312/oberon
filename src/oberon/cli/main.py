@@ -54,6 +54,10 @@ def cli() -> None:
               help="Force cloud-masked composite mode (merge up to 3 scenes per period)")
 @click.option("--use-ai", "use_ai", is_flag=True, default=False,
               help="Run Clay v1.5 feature extraction alongside deterministic baseline")
+@click.option("--cache", "use_cache", is_flag=True, default=False,
+              help="Enable session-level COG window cache (reduces repeat reads)")
+@click.option("--json", "as_json", is_flag=True, default=False,
+              help="Output results as JSON (for programmatic use)")
 def analyze(
     aoi: str,
     before: str,
@@ -66,6 +70,8 @@ def analyze(
     min_valid: float,
     force_composite: bool,
     use_ai: bool,
+    use_cache: bool,
+    as_json: bool,
 ) -> None:
     """Analyze a land area for vegetation change between two date windows.
 
@@ -132,6 +138,12 @@ def analyze(
     click.echo(f"  Output:    {output_dir}")
     click.echo("")
 
+    # Enable cache if requested.
+    if use_cache:
+        from oberon.pipeline.cog_reader import enable_cache
+
+        enable_cache()
+
     # Run the pipeline.
     from oberon.cli.orchestrator import run_analysis
 
@@ -142,17 +154,34 @@ def analyze(
     if provenance.get("abstention"):
         reason = provenance["abstention"]["reason"]
         logger.info("analyze.result", extra={"outcome": "abstained", "reason": reason})
-        click.echo(f"Abstained: {reason}")
+        if as_json:
+            click.echo(json.dumps({
+                "status": "abstained",
+                "reason": reason,
+                "model_versions": provenance.get("model_versions", []),
+                "output_dir": str(output_dir),
+            }, indent=2))
+        else:
+            click.echo(f"Abstained: {reason}")
         sys.exit(0)
 
     num_findings = len(provenance.get("findings", []))
     logger.info("analyze.result", extra={"outcome": "complete", "findings": num_findings})
-    click.echo(f"Analysis complete: {num_findings} finding(s)")
-    click.echo(f"  Before image:  {bundle.before_image}")
-    click.echo(f"  After image:   {bundle.after_image}")
-    click.echo(f"  Overlay:       {bundle.overlay_image}")
-    click.echo(f"  Findings:      {bundle.findings_geojson}")
-    click.echo(f"  Provenance:    {bundle.provenance_manifest}")
+    if as_json:
+        click.echo(json.dumps({
+            "status": "complete",
+            "finding_count": num_findings,
+            "model_versions": provenance.get("model_versions", []),
+            "artifacts": provenance.get("artifacts", {}),
+            "output_dir": str(output_dir),
+        }, indent=2))
+    else:
+        click.echo(f"Analysis complete: {num_findings} finding(s)")
+        click.echo(f"  Before image:  {bundle.before_image}")
+        click.echo(f"  After image:   {bundle.after_image}")
+        click.echo(f"  Overlay:       {bundle.overlay_image}")
+        click.echo(f"  Findings:      {bundle.findings_geojson}")
+        click.echo(f"  Provenance:    {bundle.provenance_manifest}")
 
 
 @cli.command()

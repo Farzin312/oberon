@@ -154,3 +154,33 @@ class TestBuildProvenance:
         result = build_provenance([sample_finding], sample_bundle)
 
         assert "sources" not in result
+
+
+class TestModelVersionsInProvenance:
+    """model_versions field in provenance (006 Phase 2)."""
+
+    def test_defaults_to_deterministic_v1(
+        self, sample_finding: Finding, sample_bundle: EvidenceBundle
+    ) -> None:
+        result = build_provenance([sample_finding], sample_bundle)
+        assert "model_versions" in result
+        assert result["model_versions"] == ["deterministic-v1"]
+
+    def test_ai_run_includes_clay(
+        self, sample_finding: Finding, sample_bundle: EvidenceBundle
+    ) -> None:
+        result = build_provenance(
+            [sample_finding], sample_bundle,
+            model_versions=["deterministic-v1", "clay-v1.5"],
+        )
+        assert "clay-v1.5" in result["model_versions"]
+        assert "deterministic-v1" in result["model_versions"]
+
+    def test_custom_model_versions(
+        self, sample_finding: Finding, sample_bundle: EvidenceBundle
+    ) -> None:
+        result = build_provenance(
+            [sample_finding], sample_bundle,
+            model_versions=["deterministic-v1"],
+        )
+        assert result["model_versions"] == ["deterministic-v1"]
