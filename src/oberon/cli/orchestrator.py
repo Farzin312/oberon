@@ -129,7 +129,7 @@ def run_analysis(
     # ----- Phase 3b: Optional AI branch (parallel to baseline) -----
     ai_info: dict[str, object] | None = None
     if use_ai:
-        ai_info = _run_ai_branch(pair, before_scenes[0].candidate.stac_item_id)
+        ai_info = _run_ai_branch(pair)
 
     # ----- Phase 4: Evidence bundles -----
     # Record source scene metadata for provenance.
@@ -169,7 +169,7 @@ def _abstention_result(reason: str, output_dir: Path) -> EvidenceBundle:
     return build_evidence_bundle([], empty_pair, output_dir, abstention_reason=reason)
 
 
-def _run_ai_branch(pair: PreparedPair, scene_id: str) -> dict[str, object] | None:
+def _run_ai_branch(pair: PreparedPair) -> dict[str, object] | None:
     """Run the Clay AI branch if torch is available.
 
     Returns a dict with adapter_version, model_version, chip_count, and

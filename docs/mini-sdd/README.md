@@ -50,7 +50,7 @@ docs/mini-sdd/
 | ID | Status | Description |
 |----|--------|-------------|
 | `001-data-plane-pipeline` | **DONE** — 118 tests | Full data-plane pipeline: STAC discovery → scene quality → COG read → preparation → baselines → change detection → evidence bundles → CLI. Phase 7 cleanup closed out by 002. |
-| `002-baseline-fixes` | **NEXT** — Ready to build | Complete pixel_delta stub, write task contract, close 001 Phase 7 |
+| `002-baseline-fixes` | **DONE** — 114 tests | Complete pixel_delta stub, write task contract, close 001 Phase 7 |
 | `003-clay-experiment` | **DONE** — 157 tests | Clay v1.5 adapter, tiled inference, --use-ai flag. PROCEED WITH CAUTION to 005. |
 | `004-benchmark-dataset` | Ready (after 003) | Collect 12-18 reviewed before/after pairs, create golden integration tests |
 | `005-evaluation-harness` | Ready (after 003+004) | Full AI vs deterministic baseline comparison; decision gate |

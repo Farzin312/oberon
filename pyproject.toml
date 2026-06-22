@@ -24,6 +24,9 @@ dependencies = [
 ai = [
     "torch>=2.6",
     "torchvision>=0.20",
+    "clay-foundation-model>=0.1",
+    "python-box>=7.0",
+    "einops>=0.8",
 ]
 dev = [
     "pytest>=8.0",
