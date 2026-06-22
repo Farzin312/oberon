@@ -18,6 +18,7 @@ from oberon.core.change_detection import (
     extract_findings,
     threshold_change_map,
 )
+from oberon.core.geometry import polygon_area_approx_ha
 from oberon.pipeline import (
     align_to_common_grid,
     build_composite,
@@ -70,6 +71,19 @@ def run_analysis(
     builds a cloud-masked median composite from the top candidate scenes
     for that period instead of using a single observation.
     """
+    # ----- Phase 0: AOI validation -----
+    # Reject polygons too large for reasonable processing.
+    # At 10m resolution, a 50,000 ha polygon produces ~5000x5000 pixel
+    # arrays per band (~400 MB for 6 bands). Cap prevents memory exhaustion.
+    max_aoi_ha = 50000
+    aoi_area = polygon_area_approx_ha(request.geometry)
+    if aoi_area > max_aoi_ha:
+        return _abstention_result(
+            f"AOI too large: {aoi_area:,.0f} ha exceeds limit of {max_aoi_ha:,.0f} ha. "
+            f"Simplify the polygon or split into smaller areas.",
+            output_dir,
+        )
+
     # ----- Phase 1: STAC discovery + scene quality -----
     try:
         candidates = search_catalog(request)

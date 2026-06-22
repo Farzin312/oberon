@@ -20,9 +20,13 @@ from oberon.core import ChangeRequest
 
 
 def _request() -> ChangeRequest:
-    """Build a minimal change request for testing."""
+    """Build a minimal change request for testing.
+
+    Uses a tiny geometry (0.001x0.001 degrees ~ 1.2 ha) so the
+    AOI area cap (50,000 ha) does not block test execution.
+    """
     return ChangeRequest(
-        geometry={"type": "Polygon", "coordinates": [[[0, 0], [1, 0], [1, 1], [0, 1], [0, 0]]]},
+        geometry={"type": "Polygon", "coordinates": [[[0, 0], [0.001, 0], [0.001, 0.001], [0, 0.001], [0, 0]]]},
         before=(date(2026, 1, 1), date(2026, 1, 31)),
         after=(date(2026, 6, 1), date(2026, 6, 30)),
     )
@@ -143,7 +147,7 @@ class TestIsCrossSeason:
     def _request_with_months(self, before_month: int, after_month: int) -> ChangeRequest:
         """Build a ChangeRequest with specific before/after start months."""
         return ChangeRequest(
-            geometry={"type": "Polygon", "coordinates": [[[0, 0], [1, 0], [1, 1], [0, 1], [0, 0]]]},
+            geometry={"type": "Polygon", "coordinates": [[[0, 0], [0.001, 0], [0.001, 0.001], [0, 0.001], [0, 0]]]},
             before=(date(2026, before_month, 1), date(2026, before_month, 28)),
             after=(date(2026, after_month, 1), date(2026, after_month, 28)),
         )

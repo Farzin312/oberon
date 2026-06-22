@@ -46,21 +46,26 @@ class TimeWindow(BaseModel):
 class ChangeRequestAPI(BaseModel):
     """POST /v1/change request body.
 
-    Matches the Product Brief §5 request shape. The Rust control plane will
-    deserialize this and spawn the Python pipeline.
+    Matches the Product Brief section 5 request shape. The Rust control plane
+    will deserialize this and spawn the Python pipeline.
     """
 
     geometry: dict[str, Any] = Field(..., description="GeoJSON Polygon or MultiPolygon")
     before: TimeWindow
     after: TimeWindow
-    task: str = "vegetation_disturbance"
-    max_cloud_fraction: float = 0.15
+    task: str = Field("vegetation_disturbance", description="Task type (currently: vegetation_disturbance)")
+    max_cloud_fraction: float = Field(0.15, ge=0.0, le=1.0, description="Max cloud fraction (0.0-1.0)")
 
     @field_validator("geometry")
     @classmethod
     def validate_geometry_non_empty(cls, v: dict[str, Any]) -> dict[str, Any]:
         if not v or "type" not in v:
             raise ValueError("geometry must be a GeoJSON geometry with a 'type' field")
+        allowed = frozenset({"Polygon", "MultiPolygon"})
+        if v.get("type") not in allowed:
+            raise ValueError(
+                f"geometry type must be one of {allowed}, got '{v.get('type')}'"
+            )
         return v
 
     @model_validator(mode="after")

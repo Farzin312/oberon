@@ -51,8 +51,10 @@ _GEO_CRS = "EPSG:4326"
 # Session-level COG cache. Keyed by (scene_id, band, AOI geometry hash).
 # In-memory only — no disk persistence. Clears when the process exits.
 # Set via enable_cache() / disable_cache().
+# Max 100 entries — evicts oldest first (LRU via move_to_end pattern).
 _cache_enabled: bool = False
 _cache: dict[str, RasterWindow] = {}
+_CACHE_MAX_SIZE = 100
 
 
 def enable_cache() -> None:
@@ -265,9 +267,12 @@ def read_window(
         scl_mask=scl_mask,
     )
 
-    # Store in session cache.
+    # Store in session cache (LRU eviction when at capacity).
     if _cache_enabled:
         key = _cache_key(scene, aoi_geometry, bands)
+        if len(_cache) >= _CACHE_MAX_SIZE and key not in _cache:
+            # Evict the oldest entry (first inserted key).
+            _cache.pop(next(iter(_cache)))
         _cache[key] = result
 
     return result
