@@ -1,0 +1,20 @@
+{
+  "type": "Feature",
+  "properties": {
+    "name": "california-wildfire",
+    "description": "California, USA. 2024 wildfire scar. Clear vegetation loss signal.",
+    "recommended_before": "2024-01-01 to 2024-06-01",
+    "recommended_after": "2024-09-01 to 2024-12-01",
+    "expected": "Findings with strong NDVI/NBR drops from burn scar"
+  },
+  "geometry": {
+    "type": "Polygon",
+    "coordinates": [[
+      [-120.0, 34.7],
+      [-119.95, 34.7],
+      [-119.95, 34.75],
+      [-120.0, 34.75],
+      [-120.0, 34.7]
+    ]]
+  }
+}

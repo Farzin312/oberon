@@ -36,7 +36,7 @@ def pytest_collection_modifyitems(config: pytest.Config, items: list[pytest.Item
 
 @pytest.fixture
 def sample_geojson() -> dict:
-    """Load the sample Costa Rica polygon fixture."""
+    """Load the sample AOI polygon fixture (Amazon deforestation arc)."""
     path = DATA_DIR / "sample.geojson"
     with open(path) as f:
         return json.load(f)
@@ -44,14 +44,14 @@ def sample_geojson() -> dict:
 
 @pytest.fixture
 def sample_polygon_geometry() -> dict:
-    """A small sample AOI polygon geometry (Costa Rica, ~100 ha)."""
+    """A small sample AOI polygon geometry (Amazon, ~300 ha)."""
     return {
         "type": "Polygon",
         "coordinates": [[
-            [-84.0, 10.0],
-            [-83.9, 10.0],
-            [-83.9, 10.1],
-            [-84.0, 10.1],
-            [-84.0, 10.0],
+            [-55.2, -7.5],
+            [-55.15, -7.5],
+            [-55.15, -7.45],
+            [-55.2, -7.45],
+            [-55.2, -7.5],
         ]],
     }

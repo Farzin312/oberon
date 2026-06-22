@@ -1,0 +1,20 @@
+{
+  "type": "Feature",
+  "properties": {
+    "name": "iowa-cropland",
+    "description": "Iowa, USA. Stable cropland with seasonal variation. Reliable cloud-free coverage.",
+    "recommended_before": "2024-06-01 to 2024-08-01",
+    "recommended_after": "2024-10-01 to 2024-12-01",
+    "expected": "Seasonal NDVI change from crop harvest"
+  },
+  "geometry": {
+    "type": "Polygon",
+    "coordinates": [[
+      [-93.65, 41.8],
+      [-93.6, 41.8],
+      [-93.6, 41.85],
+      [-93.65, 41.85],
+      [-93.65, 41.8]
+    ]]
+  }
+}

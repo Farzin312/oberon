@@ -1,0 +1,20 @@
+{
+  "type": "Feature",
+  "properties": {
+    "name": "portugal-wildfire",
+    "description": "Central Portugal. 2024 wildfire area. Mediterranean vegetation.",
+    "recommended_before": "2024-01-01 to 2024-06-01",
+    "recommended_after": "2024-09-01 to 2024-12-01",
+    "expected": "Findings with NDVI loss from fire damage"
+  },
+  "geometry": {
+    "type": "Polygon",
+    "coordinates": [[
+      [-8.3, 40.1],
+      [-8.25, 40.1],
+      [-8.25, 40.15],
+      [-8.3, 40.15],
+      [-8.3, 40.1]
+    ]]
+  }
+}

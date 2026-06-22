@@ -64,9 +64,11 @@ docker build -t oberon:cpu .
 
 ```bash
 # Provide a GeoJSON polygon and before/after dates
+# Sample AOI: Amazon deforestation arc (Para, Brazil)
 oberon analyze \
   --aoi sample-aoi.geojson \
-  --before 2026-01-01 --after 2026-06-01 \
+  --before-start 2024-01-01 --before 2024-03-01 \
+  --after-start 2024-07-01 --after 2024-09-01 \
   --task vegetation_disturbance \
   -o output/
 ```
@@ -82,7 +84,8 @@ Output in `output/`:
 uv sync --extra ai
 oberon analyze \
   --aoi sample-aoi.geojson \
-  --before 2026-01-01 --after 2026-06-01 \
+  --before-start 2024-01-01 --before 2024-03-01 \
+  --after-start 2024-07-01 --after 2024-09-01 \
   --use-ai -o output/
 ```
 
@@ -93,7 +96,8 @@ When the best single scene has too much cloud cover over the AOI, Oberon can mer
 ```bash
 oberon analyze \
   --aoi sample-aoi.geojson \
-  --before 2026-01-01 --after 2026-06-01 \
+  --before-start 2024-01-01 --before 2024-03-01 \
+  --after-start 2024-07-01 --after 2024-09-01 \
   --composite -o output/
 ```
 
@@ -102,7 +106,8 @@ oberon analyze \
 ```bash
 oberon analyze \
   --aoi sample-aoi.geojson \
-  --before 2026-01-01 --after 2026-06-01 \
+  --before-start 2024-01-01 --before 2024-03-01 \
+  --after-start 2024-07-01 --after 2024-09-01 \
   --json
 ```
 
@@ -135,13 +140,15 @@ docker run --rm \
   -v "$PWD/output:/output" \
   oberon:cpu analyze \
     --aoi /input/sample-aoi.geojson \
-    --before 2026-01-01 --after 2026-06-01 \
+    --before-start 2024-01-01 --before 2024-03-01 \
+    --after-start 2024-07-01 --after 2024-09-01 \
     -o /output
 
 # GPU (requires nvidia-docker runtime)
 docker compose --profile gpu run --rm oberon-gpu analyze \
   --aoi /input/sample-aoi.geojson \
-  --before 2026-01-01 --after 2026-06-01 \
+  --before-start 2024-01-01 --before 2024-03-01 \
+  --after-start 2024-07-01 --after 2024-09-01 \
   --use-ai -o /output
 ```
 

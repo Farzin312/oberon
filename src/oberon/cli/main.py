@@ -268,7 +268,17 @@ def analyze(
     # Run the pipeline.
     from oberon.cli.orchestrator import run_analysis
 
-    bundle = run_analysis(request, output_dir, force_composite=force_composite, use_ai=use_ai)
+    # Progress callback prints stage status to stderr (keeps stdout clean for --json).
+    def _progress(msg: str) -> None:
+        if not as_json:
+            click.echo(msg, err=True)
+
+    bundle = run_analysis(
+        request, output_dir,
+        force_composite=force_composite,
+        use_ai=use_ai,
+        progress=_progress,
+    )
 
     # Report result using the API serialization layer for --json.
     provenance = bundle.provenance
@@ -410,12 +420,75 @@ def init() -> None:
     click.echo("")
 
     if stac_ok:
-        click.echo("All set. Try: oberon analyze --aoi sample-aoi.geojson --before 2026-01-01 --after 2026-06-01")
+        click.echo("All set. Try: oberon analyze --aoi sample-aoi.geojson --before-start 2024-01-01 --before 2024-03-01 --after-start 2024-07-01 --after 2024-09-01")
     else:
         click.echo("STAC API unreachable — check your network or set OBERON_STAC_URL.")
         click.echo("You can still run offline tests: pytest tests/ -q")
 
     sys.exit(0)
+
+
+@cli.command()
+@click.option("--lat", required=True, type=click.FloatRange(-90, 90),
+              help="Latitude of the AOI center (decimal degrees)")
+@click.option("--lon", required=True, type=click.FloatRange(-180, 180),
+              help="Longitude of the AOI center (decimal degrees)")
+@click.option("--buffer", "buffer_km", default=2.5, type=click.FloatRange(0.1, 20),
+              help="Half-width of the bounding box in km (default: 2.5 = ~5km box)")
+@click.option("--output", "-o", default=None,
+              help="Output file path. If omitted, prints GeoJSON to stdout.")
+def aoi(lat: float, lon: float, buffer_km: float, output: str | None) -> None:
+    """Generate a bounding-box AOI polygon from a lat/lon coordinate.
+
+    Creates a square GeoJSON polygon centered on the given coordinate.
+    Useful when you don't have a ready-made GeoJSON polygon.
+
+    \b
+    Examples:
+      oberon aoi --lat -7.475 --lon -55.175 -o amazon.geojson
+      oberon aoi --lat 41.82 --lon -93.62 --buffer 1.0 > iowa.geojson
+      oberon aoi --lat -7.475 --lon -55.175 --buffer 2.5 | oberon analyze --request /dev/stdin
+    """
+    import math
+
+    # Convert km buffer to degrees. 1 degree latitude ~111 km.
+    # Longitude degrees shrink with cos(lat).
+    lat_offset = buffer_km / 111.0
+    lon_offset = buffer_km / (111.0 * math.cos(math.radians(lat)))
+
+    min_lon = round(lon - lon_offset, 6)
+    max_lon = round(lon + lon_offset, 6)
+    min_lat = round(lat - lat_offset, 6)
+    max_lat = round(lat + lat_offset, 6)
+
+    geojson = {
+        "type": "Feature",
+        "properties": {
+            "name": f"aoi-{lat:.4f}-{lon:.4f}",
+            "center": [lon, lat],
+            "buffer_km": buffer_km,
+        },
+        "geometry": {
+            "type": "Polygon",
+            "coordinates": [[
+                [min_lon, min_lat],
+                [max_lon, min_lat],
+                [max_lon, max_lat],
+                [min_lon, max_lat],
+                [min_lon, min_lat],
+            ]],
+        },
+    }
+
+    text = json.dumps(geojson, indent=2)
+    if output:
+        Path(output).write_text(text)
+        click.echo(f"AOI written to {output}")
+        click.echo(f"  Center:    {lat}, {lon}")
+        click.echo(f"  Buffer:    {buffer_km} km")
+        click.echo(f"  Bounds:    {min_lon}, {min_lat} to {max_lon}, {max_lat}")
+    else:
+        click.echo(text)
 
 
 def main() -> None:

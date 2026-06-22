@@ -7,7 +7,8 @@
 ```bash
 oberon analyze \
   --aoi aoi.geojson \
-  --before 2026-01-01 --after 2026-06-01 \
+  --before-start 2024-01-01 --before 2024-03-01 \
+  --after-start 2024-07-01 --after 2024-09-01 \
   -o output/
 ```
 
@@ -26,7 +27,8 @@ Analysis complete: 3 finding(s)
 ```bash
 oberon analyze \
   --aoi aoi.geojson \
-  --before 2026-01-01 --after 2026-06-01 \
+  --before-start 2024-01-01 --before 2024-03-01 \
+  --after-start 2024-07-01 --after 2024-09-01 \
   --json
 ```
 
@@ -39,7 +41,8 @@ Requires `uv sync --extra ai` and the Clay v1.5 checkpoint (~5GB).
 ```bash
 oberon analyze \
   --aoi aoi.geojson \
-  --before 2026-01-01 --after 2026-06-01 \
+  --before-start 2024-01-01 --before 2024-03-01 \
+  --after-start 2024-07-01 --after 2024-09-01 \
   --use-ai -o output/
 ```
 
@@ -52,7 +55,8 @@ When cloud cover is high, merge up to 3 scenes per period:
 ```bash
 oberon analyze \
   --aoi aoi.geojson \
-  --before 2026-01-01 --after 2026-06-01 \
+  --before-start 2024-01-01 --before 2024-03-01 \
+  --after-start 2024-07-01 --after 2024-09-01 \
   --composite -o output/
 ```
 
@@ -65,15 +69,15 @@ For programmatic or API-compatible invocations:
 cat > request.json << 'EOF'
 {
   "geometry": {"type": "Polygon", "coordinates": [[[...]]]},
-  "before": {"from": "2026-01-01", "to": "2026-02-01"},
-  "after": {"from": "2026-06-01", "to": "2026-07-01"}
+  "before": {"from": "2024-01-01", "to": "2024-03-01"},
+  "after": {"from": "2024-07-01", "to": "2024-09-01"}
 }
 EOF
 
 oberon analyze --request request.json -o output/
 ```
 
-This is the same JSON shape the Rust control plane will use.
+This is the same JSON shape the Rust control plane uses.
 
 ## Docker
 
@@ -87,7 +91,8 @@ docker run --rm \
   -v "$PWD/output:/output" \
   oberon:cpu analyze \
     --aoi /input/aoi.geojson \
-    --before 2026-01-01 --after 2026-06-01 \
+    --before-start 2024-01-01 --before 2024-03-01 \
+    --after-start 2024-07-01 --after 2024-09-01 \
     -o /output
 ```
 
@@ -96,7 +101,8 @@ docker run --rm \
 ```bash
 docker compose --profile gpu run --rm oberon-gpu analyze \
   --aoi /input/aoi.geojson \
-  --before 2026-01-01 --after 2026-06-01 \
+  --before-start 2024-01-01 --before 2024-03-01 \
+  --after-start 2024-07-01 --after 2024-09-01 \
   --use-ai -o /output
 ```
 
@@ -109,8 +115,8 @@ from oberon.cli.orchestrator import run_analysis
 
 request = ChangeRequest(
     geometry=load_geojson("aoi.geojson"),
-    before=(date(2026, 1, 1), date(2026, 2, 1)),
-    after=(date(2026, 6, 1), date(2026, 7, 1)),
+    before=(date(2024, 1, 1), date(2024, 3, 1)),
+    after=(date(2024, 7, 1), date(2024, 9, 1)),
 )
 
 bundle = run_analysis(request, output_dir="./output")

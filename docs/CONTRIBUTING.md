@@ -26,8 +26,8 @@ uv sync --group ai
 # Run the CLI
 python -m oberon.cli analyze \
   --aoi sample-aoi.geojson \
-  --before 2026-01-01 \
-  --after 2026-06-01 \
+  --before-start 2024-01-01 --before 2024-03-01 \
+  --after-start 2024-07-01 --after 2024-09-01 \
   --task vegetation_disturbance
 ```
 
@@ -49,7 +49,9 @@ sudo apt install libgdal-dev
 ```bash
 docker build -t oberon:cpu .
 docker run --rm -v "$PWD:/data" oberon:cpu analyze \
-  --aoi /data/sample-aoi.geojson --before 2026-01-01 --after 2026-06-01 -o /data/output
+  --aoi /data/sample-aoi.geojson \
+  --before-start 2024-01-01 --before 2024-03-01 \
+  --after-start 2024-07-01 --after 2024-09-01 -o /data/output
 ```
 
 ## Workflow

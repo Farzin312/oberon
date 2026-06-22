@@ -78,7 +78,9 @@ bounds validate --quick
 bounds preflight --ci
 
 # Run the CLI
-python -m oberon.cli analyze --aoi sample-aoi.geojson --before 2026-01-01 --after 2026-06-01
+python -m oberon.cli analyze --aoi sample-aoi.geojson \
+  --before-start 2024-01-01 --before 2024-03-01 \
+  --after-start 2024-07-01 --after 2024-09-01
 ```
 
 ## Version warnings

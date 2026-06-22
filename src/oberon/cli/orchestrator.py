@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from pathlib import Path
 from typing import Any
 
@@ -59,6 +60,7 @@ def run_analysis(
     *,
     force_composite: bool = False,
     use_ai: bool = False,
+    progress: Callable[[str], None] | None = None,
 ) -> EvidenceBundle:
     """Run the full analysis pipeline for a change request.
 
@@ -70,7 +72,14 @@ def run_analysis(
     valid-pixel fraction falls below COMPOSITE_THRESHOLD, the pipeline
     builds a cloud-masked median composite from the top candidate scenes
     for that period instead of using a single observation.
+
+    When progress is provided, it is called with a short status string
+    before each major pipeline stage. The CLI uses this to print stage
+    progress to stderr so the user knows the pipeline is working.
     """
+    def _stage(msg: str) -> None:
+        if progress:
+            progress(msg)
     # ----- Phase 0: AOI validation -----
     # Reject polygons too large for reasonable processing.
     # At 10m resolution, a 50,000 ha polygon produces ~5000x5000 pixel
@@ -85,6 +94,7 @@ def run_analysis(
         )
 
     # ----- Phase 1: STAC discovery + scene quality -----
+    _stage("Searching STAC catalog...")
     try:
         candidates = search_catalog(request)
     except ConnectionError as exc:
@@ -102,6 +112,7 @@ def run_analysis(
         return _abstention_result("No suitable scenes found for AOI and date range", output_dir)
 
     # ----- Phase 2: COG reading + preparation -----
+    _stage("Reading satellite imagery...")
     # Decide composite vs single-scene per period.
     before_scenes = [s for s in scenes if s.period == "before"][:_MAX_COMPOSITE_SCENES]
     after_scenes = [s for s in scenes if s.period == "after"][:_MAX_COMPOSITE_SCENES]
@@ -144,6 +155,7 @@ def run_analysis(
         return _abstention_result(reason, output_dir)
 
     # ----- Phase 3: Baselines + change detection -----
+    _stage("Computing baselines...")
     baseline = compute_baselines(pair)
     if baseline.abstain:
         reason = baseline.abstain_reason or "Baseline abstention — no valid signal"
@@ -194,6 +206,8 @@ def run_analysis(
     model_versions: list[str] = ["deterministic-v1"]
     ai_info: dict[str, object] | None = None
     if use_ai:
+        _stage("Loading AI model...")
+        _stage("Running AI inference...")
         ai_info = _run_ai_branch(pair)
         if ai_info and not ai_info.get("abstain", True):
             model_versions.append("clay-v1.5")

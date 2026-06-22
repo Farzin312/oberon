@@ -50,7 +50,7 @@ services:
     environment:
       - OBERON_CACHE_DIR=/root/.cache/oberon
       - OBERON_LOG_FORMAT=json
-      - OBERON_AUTH_DISABLED=***: non-root user for security
+      - "OBERON_AUTH_DISABLED=***: non-root user for security"
     user: "65532:65532"
     profiles: ["server"]
 

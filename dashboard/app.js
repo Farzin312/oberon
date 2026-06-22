@@ -8,7 +8,7 @@ let activePortfolioId = null;
 
 // ---- Init ----
 document.addEventListener('DOMContentLoaded', () => {
-    map = L.map('map').setView([10.05, -83.95], 12);
+    map = L.map('map').setView([-7.475, -55.175], 12);
     L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
         attribution: '&copy; OpenStreetMap &copy; CARTO',
         maxZoom: 19,
