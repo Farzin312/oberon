@@ -4,12 +4,16 @@ from __future__ import annotations
 
 from pathlib import Path
 
+import numpy as np
+
 from oberon.artifacts import build_evidence_bundle
 from oberon.core import ChangeRequest, EvidenceBundle, PreparedPair
 from oberon.core.baselines import compute_baselines
 from oberon.core.change_detection import (
+    apply_morphological_closing,
     deduplicate_and_rank,
     extract_findings,
+    is_broad_change,
     threshold_change_map,
 )
 from oberon.pipeline import (
@@ -33,6 +37,16 @@ COMPOSITE_THRESHOLD = 0.7
 
 # Max scenes to merge in a composite.
 _MAX_COMPOSITE_SCENES = 3
+
+def _is_cross_season(request: ChangeRequest) -> bool:
+    """Check if before/after windows span different phenological seasons.
+
+    Heuristic: windows whose center months are 4+ months apart are likely
+    cross-season (e.g. summer→winter, spring→fall).
+    """
+    before_month = request.before[0].month
+    after_month = request.after[0].month
+    return abs(after_month - before_month) >= 4
 
 
 def run_analysis(
@@ -104,26 +118,53 @@ def run_analysis(
     pair = align_to_common_grid(before_window, after_window)
     if not pair.is_usable:
         fraction = pair.valid_fraction
-        return _abstention_result(
+        reason = (
             f"Insufficient valid pixels: {fraction:.0%} "
-            f"(requires >= {request.min_valid_pixels:.0%})",
-            output_dir,
+            f"(requires >= {request.min_valid_pixels:.0%})"
         )
+        if _is_cross_season(request):
+            reason = f"seasonal: {reason}"
+        return _abstention_result(reason, output_dir)
 
     # ----- Phase 3: Baselines + change detection -----
     baseline = compute_baselines(pair)
     if baseline.abstain:
         reason = baseline.abstain_reason or "Baseline abstention — no valid signal"
+        if _is_cross_season(request) and baseline.ndvi_diff is None:
+            reason = f"seasonal: {reason}"
         return _abstention_result(reason, output_dir)
 
-    change_mask = threshold_change_map(baseline.ndvi_diff)
-    if change_mask is None:
-        return _abstention_result("Could not compute change mask from NDVI difference", output_dir)
+    ndvi_diff = baseline.ndvi_diff
+    if ndvi_diff is None:
+        return _abstention_result("Could not compute NDVI difference", output_dir)
 
+    # Step 3a: Broad-change seasonal abstention (absolute threshold, both directions).
+    abs_mask = threshold_change_map(ndvi_diff)
+    if abs_mask is not None and pair.mask.any() and is_broad_change(abs_mask, pair.mask):
+        return _abstention_result(
+            "Seasonal: broad NDVI change across the AOI "
+            "(threshold: 40%) — "
+            "likely phenological shift, not targeted disturbance",
+            output_dir,
+        )
+
+    # Step 3b: Task-direction-aware signed threshold.
+    # vegetation_disturbance only flags NDVI loss (negative diff).
+    direction = "negative" if request.task == "vegetation_disturbance" else "absolute"
+    change_mask = threshold_change_map(ndvi_diff, direction=direction)
+    if change_mask is None or not change_mask.any():
+        return _abstention_result(
+            f"No significant change detected ({direction} direction)", output_dir,
+        )
+
+    # Step 3c: Morphological closing to consolidate fragmented findings.
+    change_mask = apply_morphological_closing(change_mask)
+
+    # Step 3d: Extract + rank findings.
     raw_findings = extract_findings(
         change_mask,
-        baseline.ndvi_diff,
-        min_pixels=max(1, int(request.min_change_area_ha / 0.01)),  # 1px = 0.01ha at 10m
+        ndvi_diff,
+        min_pixels=max(1, int(request.min_change_area_ha / 0.01)),
     )
     findings = deduplicate_and_rank(raw_findings)
 

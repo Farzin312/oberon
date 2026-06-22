@@ -61,7 +61,7 @@ The pipeline MUST abstain (return exit 0, empty findings, `"Abstained:"` prefix)
 | Cloud cover over AOI | > 50% of AOI pixels masked as cloud/shadow/snow/ice | `max_cloud_fraction` / SCL mask |
 | Valid pixels in AOI | < 30% valid in both before AND after | `PreparedPair.is_usable` (0.30 threshold) |
 | Missing required bands | B04 or B08 absent from either observation | `compute_baselines` abstain path |
-| Seasonal mismatch | Flagged by user (not yet automated) | `ChangeRequest` — future: auto-detect via phenological phase comparison |
+| Seasonal mismatch | Automated via broad-change detection (>40% AOI change) + cross-season date annotation | `is_broad_change()` / `_is_cross_season()` — 013 |
 
 Abstention is a valid analysis result, not an error. Exit code 0.
 
@@ -123,10 +123,11 @@ Both windows must yield a selected scene. If either window has no suitable obser
 
 | Parameter | Value | Constant / Field | Mini-SDD calibration |
 |-----------|-------|-----------------|---------------------|
-| NDVI loss threshold | 0.15 | `_DEFAULT_NDVI_THRESHOLD` | 004 |
+| NDVI loss threshold | 0.15 | `_DEFAULT_NDVI_THRESHOLD` | 013 (signed direction) |
 | Minimum area | 0.5 ha (50 px) | `_MIN_CHANGE_PIXELS` / `min_change_area_ha` | 004 |
 | pixel_delta weight | 0.3 | (Phase 2 ranking formula) | 004 |
 | pixel_delta normalization | 5000.0 | (Phase 2 ranking formula) | 004 |
-| Valid-pixel floor | 30% | `PreparedPair.is_usable` | stable |
+| Valid-pixel floor | 30% | `PreparedPair.is_usable` (0.30 threshold) | stable |
 | Cloud fraction max | 50% AOI | `max_cloud_fraction` (default 0.15 scene-level) | 004 |
 | Max findings returned | 20 | `deduplicate_and_rank(max_findings=20)` | stable |
+| Threshold direction | signed (negative only) | vegetation_disturbance → NDVI loss only | 013 |

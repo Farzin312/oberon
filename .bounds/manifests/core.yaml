@@ -54,5 +54,9 @@ exposes:
   kind: function
 - name: threshold_change_map
   kind: function
+- name: apply_morphological_closing
+  kind: function
+- name: is_broad_change
+  kind: function
 - name: validate_geojson_polygon
   kind: function

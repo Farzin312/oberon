@@ -14,9 +14,12 @@ import pytest
 
 from oberon.core import Finding, PreparedPair
 from oberon.core.change_detection import (
+    apply_morphological_closing,
     deduplicate_and_rank,
     detect_changes,
     extract_findings,
+    is_broad_change,
+    threshold_change_map,
 )
 
 # ---------------------------------------------------------------------------
@@ -171,3 +174,159 @@ class TestDetectChanges:
         """A pair with only ~20% valid pixels (below the 0.30 usability threshold) abstains and returns []."""
         pair = self._make_pair(mask_fraction=0.2)
         assert detect_changes(pair) == []
+
+
+# ---------------------------------------------------------------------------
+# threshold_change_map direction parameter
+# ---------------------------------------------------------------------------
+
+
+class TestThresholdDirection:
+    """threshold_change_map(direction=...): task-aware sign filtering."""
+
+    def test_negative_direction_keeps_only_loss(self) -> None:
+        """With direction='negative', only diff < -threshold is True (NDVI loss)."""
+        diff = np.array([[-0.3, -0.1, 0.0, 0.1, 0.3]], dtype=np.float32)
+        mask = threshold_change_map(diff, threshold=0.15, direction="negative")
+        expected = np.array([[True, False, False, False, False]], dtype=bool)
+        assert mask is not None
+        np.testing.assert_array_equal(mask, expected)
+
+    def test_positive_direction_keeps_only_gain(self) -> None:
+        """With direction='positive', only diff > threshold is True (NDVI gain)."""
+        diff = np.array([[-0.3, -0.1, 0.0, 0.1, 0.3]], dtype=np.float32)
+        mask = threshold_change_map(diff, threshold=0.15, direction="positive")
+        expected = np.array([[False, False, False, False, True]], dtype=bool)
+        assert mask is not None
+        np.testing.assert_array_equal(mask, expected)
+
+    def test_absolute_direction_keeps_both(self) -> None:
+        """With direction='absolute', |diff| > threshold keeps both signs (backwards compat)."""
+        diff = np.array([[-0.3, -0.1, 0.0, 0.1, 0.3]], dtype=np.float32)
+        mask = threshold_change_map(diff, threshold=0.15, direction="absolute")
+        expected = np.array([[True, False, False, False, True]], dtype=bool)
+        assert mask is not None
+        np.testing.assert_array_equal(mask, expected)
+
+    def test_default_is_absolute_for_backwards_compat(self) -> None:
+        """When direction is omitted, current abs() behaviour is preserved."""
+        diff = np.array([[-0.3, -0.1, 0.0, 0.1, 0.3]], dtype=np.float32)
+        mask = threshold_change_map(diff, threshold=0.15)
+        expected = np.array([[True, False, False, False, True]], dtype=bool)
+        assert mask is not None
+        np.testing.assert_array_equal(mask, expected)
+
+    def test_nan_handled_in_negative_direction(self) -> None:
+        """NaN values are zeroed before thresholding in all directions."""
+        diff = np.array([[-0.3, np.nan, 0.2]], dtype=np.float32)
+        mask = threshold_change_map(diff, threshold=0.15, direction="negative")
+        assert mask is not None
+        assert mask[0, 0]  # -0.3 < -0.15
+        assert not mask[0, 1]  # NaN -> 0 -> not less than -0.15
+        assert not mask[0, 2]  # 0.2 is positive, not negative change
+
+    def test_none_diff_returns_none(self) -> None:
+        """None input returns None regardless of direction."""
+        assert threshold_change_map(None, direction="negative") is None
+        assert threshold_change_map(None, direction="positive") is None
+        assert threshold_change_map(None, direction="absolute") is None
+
+
+# ---------------------------------------------------------------------------
+# is_broad_change (seasonal/broad-change abstention)
+# ---------------------------------------------------------------------------
+
+
+class TestIsBroadChange:
+    """is_broad_change(): detect landscape-wide seasonal shifts."""
+
+    def test_most_pixels_changed_triggers(self) -> None:
+        """When >40% of valid pixels are in the change mask, triggers True."""
+        valid = np.ones((10, 10), dtype=bool)
+        change = np.zeros((10, 10), dtype=bool)
+        change[:7, :] = True  # 70% of pixels flagged
+        assert is_broad_change(change, valid)
+
+    def test_few_pixels_changed_returns_false(self) -> None:
+        """When <40% of valid pixels are in the change mask, returns False."""
+        valid = np.ones((10, 10), dtype=bool)
+        change = np.zeros((10, 10), dtype=bool)
+        change[:3, :] = True  # 30% of pixels flagged
+        assert not is_broad_change(change, valid)
+
+    def test_no_valid_pixels_returns_false(self) -> None:
+        """Empty valid mask returns False (edge case, should not occur in practice)."""
+        valid = np.zeros((10, 10), dtype=bool)
+        change = np.ones((10, 10), dtype=bool)
+        assert not is_broad_change(change, valid)
+
+    def test_edge_value_just_below_threshold(self) -> None:
+        """Exactly 40% (at threshold) should NOT trigger (strict >)."""
+        valid = np.ones((100,), dtype=bool)
+        change = np.zeros((100,), dtype=bool)
+        change[:40] = True  # exactly 40%
+        assert not is_broad_change(change, valid)
+
+    def test_edge_value_just_above_threshold(self) -> None:
+        """41% (>40%) should trigger."""
+        valid = np.ones((100,), dtype=bool)
+        change = np.zeros((100,), dtype=bool)
+        change[:41] = True  # 41%
+        assert is_broad_change(change, valid)
+
+    def test_valid_mask_restricts_to_valid_pixels(self) -> None:
+        """Only valid pixels should count toward the fraction."""
+        valid = np.zeros((10, 10), dtype=bool)
+        valid[0, :] = True  # only 10 valid pixels
+        change = np.ones((10, 10), dtype=bool)
+        # All 10 valid pixels changed = 100% of valid = trigger
+        assert is_broad_change(change, valid)
+
+
+# ---------------------------------------------------------------------------
+# apply_morphological_closing
+# ---------------------------------------------------------------------------
+
+
+class TestMorphologicalClosing:
+    """apply_morphological_closing(): consolidate fragmented findings."""
+
+    def test_merges_nearby_components(self) -> None:
+        """Two components within a 5-pixel gap should merge into one after closing."""
+        mask = np.zeros((20, 20), dtype=bool)
+        mask[2:5, 2:5] = True  # Component A
+        mask[2:5, 8:11] = True  # Component B, 3-pixel gap
+        closed = apply_morphological_closing(mask, kernel_size=5)
+        # After closing with 5x5, the gap should be filled → one component
+        from scipy import ndimage as ndi
+        labeled, num = ndi.label(closed)
+        assert num == 1, f"Expected 1 component, got {num}"
+
+    def test_distant_components_remain_separate(self) -> None:
+        """Components separated by >10 pixels should NOT merge."""
+        mask = np.zeros((30, 30), dtype=bool)
+        mask[2:5, 2:5] = True  # Component A
+        mask[2:5, 20:23] = True  # Component B, >15-pixel gap
+        closed = apply_morphological_closing(mask, kernel_size=5)
+        from scipy import ndimage as ndi
+        labeled, num = ndi.label(closed)
+        assert num == 2, f"Expected 2 components, got {num}"
+
+    def test_single_component_unchanged(self) -> None:
+        """A single contiguous component is unchanged after closing."""
+        mask = np.zeros((20, 20), dtype=bool)
+        mask[5:15, 5:15] = True
+        closed = apply_morphological_closing(mask, kernel_size=5)
+        from scipy import ndimage as ndi
+        before_labeled, _ = ndi.label(mask)
+        after_labeled, _ = ndi.label(closed)
+        # Area should not shrink (closing only fills holes, doesn't erode)
+        assert closed.sum() >= mask.sum()
+
+    def test_hole_in_middle_filled(self) -> None:
+        """A hole within a larger component should be filled by closing."""
+        mask = np.ones((15, 15), dtype=bool)
+        mask[6:9, 6:9] = False  # 3x3 hole in the middle
+        closed = apply_morphological_closing(mask, kernel_size=5)
+        # The interior hole should be filled (core region all True).
+        assert closed[6:9, 6:9].all(), "Hole in middle should be filled after closing"

@@ -52,15 +52,16 @@ docs/mini-sdd/
 | `001-data-plane-pipeline` | **DONE** — 118 tests | Full data-plane pipeline: STAC discovery → scene quality → COG read → preparation → baselines → change detection → evidence bundles → CLI. Phase 7 cleanup closed out by 002. |
 | `002-baseline-fixes` | **DONE** — 114 tests | Complete pixel_delta stub, write task contract, close 001 Phase 7 |
 | `003-clay-experiment` | **DONE** — 157 tests | Clay v1.5 adapter, tiled inference, --use-ai flag. PROCEED WITH CAUTION to 005. |
-| `004-benchmark-dataset` | **FRAMEWORK DONE** — 12 examples, golden harness | Collect 12-18 reviewed before/after pairs, create golden integration tests. Calibration (Phase 3) deferred to live STAC run. |
+| `004-benchmark-dataset` | **GOLDEN TESTS RUN** — 11/12 baseline failures → 013 | Collect 12-18 reviewed before/after pairs, create golden integration tests. Phase 3 (run+calibrate) completed live on 2026-06-22 — 11/12 failed, confirming the need for 013-baseline-calibration. |
 | `005-evaluation-harness` | **GATE RUN** — AI_ties | Full AI vs deterministic baseline comparison completed on 12 examples. Clay did not improve precision (`0.1266` vs `0.1266`), so AI remains experimental. |
 | `006-model-registry-provenance` | **DONE** — 226 tests | Model registry, artifact index, provenance enrichment, COG cache, --json/--cache flags, API gap doc |
 | `007-packaging-deployment` | **DONE** — 131 tests | Docker Compose (CPU+GPU), structured logging, health check, verified in container |
 | `008-rust-control-plane` | **Phase 1+4 (Python) DONE** — 262 tests | Axum API, typed job contracts, SQLite state machine, Python subprocess. Python-side API contracts + serialization + CLI --request/--json wiring complete. Rust control plane deferred. |
-| `009-launch-docs` | **Phase 0+1+2+3 DONE** — README, ARCHITECTURE, ROADMAP, CLI ref, SDK, reports | README/ARCHITECTURE/ROADMAP rewrite, CLI polish + reference docs, SDK demo, reports verified. Phase 5 (PDF vaulting) cancelled (private docs). Phase 4 (partner prep) + EVALUATION_REPORT deferred. |
+| `009-launch-docs` | **Phase 0-3 DONE** — Phase 4 (partner prep) + Phase 6 (QA) deferred | README/ARCHITECTURE/ROADMAP rewrite, CLI polish + reference docs, SDK demo, reports verified. Phase 5 (PDF vaulting) cancelled. Phase 4 partner prep deferred. |
 | `010-scene-composite` | **DONE** — 128 tests | Cloud-masked composite when single scene insufficient (Roadmap correction #2) |
 | `011-review-workflow-monitoring` | After 008+005 | Portfolios, scheduled reruns, review states, alerts, feedback export (Roadmap Phase 8) |
 | `012-security-hardening` | After 008+011 | API auth, audit logging, resource limits, SBOM, Docker hardening (Product Brief §10) |
+| `013-baseline-calibration` | **DONE** — 277 tests | Reduce false positives in deterministic baseline: signed threshold (vegetation_disturbance = NDVI loss only), seasonal abstention (>40% AOI = broad), morphological closing (5x5). 16 new unit tests. |
 
 ### Recommended build sequence
 

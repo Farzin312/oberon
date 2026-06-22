@@ -19,18 +19,87 @@ _MIN_CHANGE_PIXELS = 50
 # Pixel area at 10m resolution (ha per pixel).
 _PIXEL_AREA_HA = 0.01
 
+# Task-to-direction mapping for signed thresholding.
+# vegetation_disturbance only flags NDVI loss (negative diff).
+_TASK_DIRECTIONS: dict[str, str] = {
+    "vegetation_disturbance": "negative",
+}
+
+
+def _direction_for_task(task: str) -> str:
+    """Return the threshold direction for a given task name.
+
+    Unknown tasks fall back to "absolute" (backwards compatible).
+    """
+    return _TASK_DIRECTIONS.get(task, "absolute")
+
+
+# When >40% of valid AOI pixels are in the change mask, the change
+# is likely seasonal/broad, not targeted disturbance.
+_BROAD_CHANGE_FRACTION = 0.40
+
+
+def is_broad_change(change_mask: np.ndarray, valid_mask: np.ndarray) -> bool:
+    """Check if the change mask covers >_BROAD_CHANGE_FRACTION of valid pixels.
+
+    A change covering the majority of the AOI suggests a landscape-wide
+    phenological shift rather than targeted disturbance (fire, clearing).
+    """
+    if valid_mask.size == 0:
+        return False
+    total_valid = int(valid_mask.sum())
+    if total_valid == 0:
+        return False
+    changed_valid = int(np.count_nonzero(change_mask & valid_mask))
+    return changed_valid / total_valid > _BROAD_CHANGE_FRACTION
+
+
+def apply_morphological_closing(
+    change_mask: np.ndarray,
+    kernel_size: int = 5,
+) -> np.ndarray:
+    """Apply binary closing to merge nearby fragmented change regions.
+
+    Uses a square structuring element of `kernel_size` x `kernel_size`
+    to fill small gaps within a single disturbance event (fire scars,
+    clearcuts) that may have been fragmented by noise or mixed pixels.
+    """
+    from scipy import ndimage as ndi
+
+    structure = np.ones((kernel_size, kernel_size), dtype=bool)
+    result = ndi.binary_closing(change_mask, structure=structure)
+    return cast(np.ndarray, result)
+
 
 def threshold_change_map(
     diff_map: np.ndarray | None,
     threshold: float = _DEFAULT_NDVI_THRESHOLD,
+    direction: str = "absolute",
 ) -> np.ndarray | None:
-    """Apply signed threshold to a difference map.
+    """Apply directional or absolute threshold to a difference map.
 
-    Returns a boolean mask where |diff| > threshold.
+    Args:
+        diff_map: NDVI (or other index) difference array.
+        threshold: Pixels with |diff| > threshold (absolute mode) or
+                   diff < -threshold (negative mode, for vegetation loss)
+                   or diff > threshold (positive mode, for vegetation gain)
+                   are flagged as change.
+        direction: One of "absolute" (both directions, backwards compat),
+                   "negative" (only decreases — vegetation_disturbance),
+                   "positive" (only increases — future recovery task).
+
+    Returns:
+        Boolean mask of same shape as diff_map, or None if input is None.
     """
     if diff_map is None:
         return None
-    return np.asarray(np.abs(np.nan_to_num(diff_map, nan=0.0)) > threshold)
+    diff = np.nan_to_num(diff_map, nan=0.0)
+    if direction == "negative":
+        return np.asarray(diff < -threshold)
+    if direction == "positive":
+        return np.asarray(diff > threshold)
+    # Default: "absolute" — backwards compatible.
+    return np.asarray(np.abs(diff) > threshold)
 
 
 def extract_findings(
@@ -149,8 +218,13 @@ def detect_changes(
     pair: PreparedPair,
     threshold: float = _DEFAULT_NDVI_THRESHOLD,
     min_pixels: int = _MIN_CHANGE_PIXELS,
+    task: str = "vegetation_disturbance",
 ) -> list[Finding]:
     """Thin orchestrator: baseline -> threshold -> extract -> rank.
+
+    Uses task-aware directional thresholding so that
+    vegetation_disturbance only detects NDVI loss (negative diff),
+    not seasonal green-up.
 
     Abstains (returns []) when the pair is not usable, the baseline abstained,
     or no NDVI difference could be computed.
@@ -161,7 +235,8 @@ def detect_changes(
     baseline = compute_baselines(pair)
     if not pair.is_usable or baseline.abstain or baseline.ndvi_diff is None:
         return []
-    change_mask = threshold_change_map(baseline.ndvi_diff, threshold)
+    direction = _direction_for_task(task)
+    change_mask = threshold_change_map(baseline.ndvi_diff, threshold, direction=direction)
     findings = extract_findings(
         cast(np.ndarray, change_mask),
         baseline.ndvi_diff,

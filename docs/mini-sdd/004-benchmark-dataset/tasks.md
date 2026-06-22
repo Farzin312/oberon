@@ -43,12 +43,16 @@
 - [ ] [QA] `pytest tests/integration/ --run-integration -v` — verified pass on 5+ examples *(requires live STAC; deferred to manual run)*
 
 ## Phase 3 — Run + calibrate
-**Status:** [ ] DEFERRED (requires live STAC network access)
+**Status:** [x] DONE (run on 2026-06-22; 11/12 failed — results documented in EVALUATION_REPORT.md)
 
-- [ ] [QA] Run golden tests on ALL examples, record results
-- [ ] [BE] Generate `tests/data/benchmark/calibration_report.json`
-- [ ] [DOC] Record baseline metrics in report
-- [ ] [DOC] Note threshold adjustments if defaults from 002 are wrong
+- [x] [QA] Run golden tests on ALL examples, record results
+- [x] [BE] Generate `tests/data/benchmark/calibration_report.json`
+- [x] [DOC] Record baseline metrics in report
+- [x] [DOC] Note threshold adjustments if defaults from 002 are wrong
+
+> Results: 1/12 passed (05-borneo-stable-forest). Failures confirmed the three root
+> causes addressed by 013-baseline-calibration: abs() threshold catching green-up,
+> missing seasonal abstention, and fragmentation without consolidation.
 
 ## Phase 4 — Document
 **Status:** [x] DONE
