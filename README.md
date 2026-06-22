@@ -6,6 +6,8 @@ Oberon turns public satellite imagery (Sentinel-2 L2A) into ranked, evidence-bac
 
 [Installation](#installation) | [Quick Start](#quick-start) | [Architecture](#architecture) | [Roadmap](#roadmap) | [Contributing](#contributing)
 
+> **New to Oberon?** Start with the [Getting Started Guide](docs/GETTING_STARTED.md) — three paths: CLI, API server, or Docker.
+
 ---
 
 ## Why Oberon?

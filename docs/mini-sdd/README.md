@@ -56,11 +56,11 @@ docs/mini-sdd/
 | `005-evaluation-harness` | **GATE RUN** — AI_ties | Full AI vs deterministic baseline comparison completed on 12 examples. Clay did not improve precision (`0.1266` vs `0.1266`), so AI remains experimental. |
 | `006-model-registry-provenance` | **DONE** — 226 tests | Model registry, artifact index, provenance enrichment, COG cache, --json/--cache flags, API gap doc |
 | `007-packaging-deployment` | **DONE** — 131 tests | Docker Compose (CPU+GPU), structured logging, health check, verified in container |
-| `008-rust-control-plane` | **Phase 1+4 (Python) DONE** — 262 tests | Axum API, typed job contracts, SQLite state machine, Python subprocess. Python-side API contracts + serialization + CLI --request/--json wiring complete. Rust control plane deferred. |
+| `008-rust-control-plane` | **DONE** — 287 py + 8 rs tests | Axum API, typed job contracts, SQLite state machine, Python subprocess, portfolio/review routes, web dashboard, audit middleware, auth, Docker server. |
 | `009-launch-docs` | **Phase 0-3 DONE** — Phase 4 (partner prep) + Phase 6 (QA) deferred | README/ARCHITECTURE/ROADMAP rewrite, CLI polish + reference docs, SDK demo, reports verified. Phase 5 (PDF vaulting) cancelled. Phase 4 partner prep deferred. |
 | `010-scene-composite` | **DONE** — 128 tests | Cloud-masked composite when single scene insufficient (Roadmap correction #2) |
-| `011-review-workflow-monitoring` | After 008+005 | Portfolios, scheduled reruns, review states, alerts, feedback export (Roadmap Phase 8) |
-| `012-security-hardening` | After 008+011 | API auth, audit logging, resource limits, SBOM, Docker hardening (Product Brief §10) |
+| `011-review-workflow-monitoring` | **DONE** — Rust control plane | Portfolios, runs, review states, webhook alerts, feedback export. Implemented in Rust (not Python) per 008 architecture decision. |
+| `012-security-hardening` | **DONE** — Rust control plane | API key auth (SHA-256), audit logging middleware, non-root Docker, path traversal guards, resource limits. Implemented in Rust. |
 | `013-baseline-calibration` | **DONE** — 12/12 golden, 277 unit tests | Signed threshold (veg_disturbance = NDVI loss only), morphological closing (25x25), cross-season annotation. Golden tests 1/12 -> 12/12. Known limitations: seasonal-vs-fire overlap (needs spatial variance), cloud-edge artifacts. |
 | `014-spatial-variance-seasonal-detection` | **DONE** — 287 unit tests | Spatial-variance seasonal detection: CV of NDVI loss distinguishes uniform seasonal senescence from patchy real disturbance. Abstains only when uniform AND broad. Annotates seasonal_risk in provenance otherwise. |
 

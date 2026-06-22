@@ -16,6 +16,7 @@ use tower_http::compression::CompressionLayer;
 
 use oberon_control_plane::db::Db;
 use crate::middleware::auth;
+use crate::middleware::audit::audit_middleware;
 
 #[derive(Clone)]
 pub struct AppState {
@@ -51,6 +52,7 @@ pub fn build_app(
         .route("/v1/portfolios/{id}/run", post(portfolio::run_portfolio))
         .route("/v1/portfolios/{id}/findings", get(portfolio::get_findings))
         .route("/v1/reviews", get(review::list_reviews).post(review::create_review))
+        .route("/v1/reviews/export", get(review::export_feedback))
         .route("/v1/audit/export", get(audit::export_audit))
         .layer(from_fn_with_state(
             state.clone(),
@@ -70,6 +72,7 @@ pub fn build_app(
         .merge(protected)
         .merge(public)
         .merge(dashboard)
+        .layer(from_fn_with_state(state.clone(), audit_middleware))
         .layer(CorsLayer::permissive())
         .layer(CompressionLayer::new())
         .with_state(state)

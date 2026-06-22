@@ -46,3 +46,23 @@ pub async fn create_review(
         .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
     Ok((StatusCode::CREATED, Json(json!(review))))
 }
+
+/// Export all review decisions as JSON (for model calibration feedback loop).
+/// GET /v1/reviews/export?portfolio=<id>
+pub async fn export_feedback(
+    State(state): State<AppState>,
+    Query(q): Query<ReviewQuery>,
+) -> Result<impl IntoResponse, (StatusCode, String)> {
+    let portfolio_id = q.portfolio.as_deref().unwrap_or("");
+    let list = db::list_reviews(&state.db, portfolio_id, None)
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+
+    // Filter to only reviewed (non-pending) decisions.
+    let reviewed: Vec<&Review> = list.iter().filter(|r| r.state != "pending").collect();
+
+    Ok(Json(json!({
+        "portfolio_id": portfolio_id,
+        "total_decisions": reviewed.len(),
+        "reviews": reviewed,
+    })))
+}
