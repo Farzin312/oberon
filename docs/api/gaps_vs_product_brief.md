@@ -76,14 +76,17 @@ gap and its remediation path.
 
 ## Remediation summary
 
-**Fix in 008 (Rust control plane)**: gaps 1, 2, 4, 5, 6, 8, 9, 10 — these require a
-serialization layer that transforms the internal EvidenceBundle into the API response shape.
+**Fixed in Python pre-work (008 Phase 1, done 2026-06-22)**: gaps 1, 2, 4, 5, 6,
+8, 9, 10 — resolved by `src/oberon/api/contracts.py` (Pydantic v2 models) +
+`src/oberon/api/serialization.py` (serialization layer). 26 tests in
+`tests/api/test_contracts.py` verify the full Product Brief §5 shape.
+
+**Fix in Rust control plane (008 Phases 2-7, deferred)**: Rust Axum server will
+use these same contract shapes via serde, spawn the Python pipeline via
+subprocess, and serve the serialized ChangeResponse via HTTP.
 
 **Fix post-pilot**: gaps 3, 7 — these require a trained task head and calibrated
 confidence scores, which are explicitly deferred.
-
-**No action needed**: the `model.confidence = null` pattern is correct for the current
-uncalibrated state. The absence of `suggested_class` is correct without a task head.
 
 ## --json CLI flag (006 Phase 4)
 

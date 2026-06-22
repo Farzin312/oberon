@@ -56,7 +56,7 @@ docs/mini-sdd/
 | `005-evaluation-harness` | **FRAMEWORK DONE** — 26 comparison tests | Full AI vs deterministic baseline comparison; decision gate. Live run (Phases 1-4) deferred to network access. |
 | `006-model-registry-provenance` | **DONE** — 226 tests | Model registry, artifact index, provenance enrichment, COG cache, --json/--cache flags, API gap doc |
 | `007-packaging-deployment` | **DONE** — 131 tests | Docker Compose (CPU+GPU), structured logging, health check, verified in container |
-| `008-rust-control-plane` | Deferred (after 006+007) | Axum API, typed job contracts, SQLite state machine, Python subprocess |
+| `008-rust-control-plane` | **Phase 1 (Python) DONE** — 252 tests | Axum API, typed job contracts, SQLite state machine, Python subprocess. Python-side API contracts + serialization layer complete (Pydantic v2, 26 tests). Rust control plane deferred. |
 | `009-launch-docs` | After 005+006+007 | README/ARCHITECTURE/ROADMAP rewrite, SDK demo, design partner prep |
 | `010-scene-composite` | **DONE** — 128 tests | Cloud-masked composite when single scene insufficient (Roadmap correction #2) |
 | `011-review-workflow-monitoring` | After 008+005 | Portfolios, scheduled reruns, review states, alerts, feedback export (Roadmap Phase 8) |

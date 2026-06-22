@@ -61,6 +61,12 @@ bounds list              # subsystem names
 bounds describe <name>   # specific subsystem contracts
 ```
 
+### API contracts (008 pre-work)
+
+- `src/oberon/api/contracts.py` — Pydantic v2 models matching Product Brief §5 (ChangeRequestAPI, ChangeResponse, APIFinding, EvidenceMetrics, ModelInfo)
+- `src/oberon/api/serialization.py` — Transform internal Finding/EvidenceBundle to API response shape (ha->m2, score->change_score, ndvi_delta_mean->ndvi_delta)
+- `docs/api/gaps_vs_product_brief.md` — Gap analysis between EvidenceBundle and the target API shape
+
 ## Known gotchas
 
 - **Clay v1.5** uses 10-band, 256x256 chips with specific band ordering and sensor metadata. Do not hard-code these assumptions through the pipeline — place them behind a versioned model adapter (`oberon/model_adapters/clay/`).

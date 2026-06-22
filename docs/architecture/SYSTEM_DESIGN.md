@@ -22,7 +22,7 @@ The heart of Oberon — satellite data becomes analysis-ready information.
 | Postprocessing | Convert pixel output to polygons, areas, severity metrics |
 | Evidence production | Before/after images, overlays, masks, GeoJSON, provenance manifests |
 
-### 2. Control Plane (oberon/cli/, later Rust API)
+### 2. Control Plane (oberon/cli/, oberon/api/, later Rust API)
 
 Orchestrates work — does NOT contain geospatial or model logic.
 
@@ -30,7 +30,9 @@ Orchestrates work — does NOT contain geospatial or model logic.
 |-----------|---------------|
 | CLI/API | Accept analysis request |
 | Request validation | Validate geometry, dates, task type, thresholds |
-| Job state machine | Track pending → running → completed/failed/abstained |
+| API contracts | Pydantic models matching Product Brief §5 (ChangeRequestAPI, ChangeResponse) |
+| Serialization | Transform EvidenceBundle to API response shape (ha->m2, score->change_score) |
+| Job state machine | Track pending -> running -> completed/failed/abstained |
 | Orchestrator | Call data-plane stages in order |
 | Queue | Async processing for long-running work |
 | Metadata persistence | Store jobs, scene selections, outputs, provenance |

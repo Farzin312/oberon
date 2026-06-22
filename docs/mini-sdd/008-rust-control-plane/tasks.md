@@ -14,15 +14,14 @@
 - [ ] [QA] `cargo test` passes
 
 ## Phase 1 — Domain types
-**Status:** [ ]
+**Status:** [x] DONE (Python-side pre-work)
 
-- [ ] [BE] `src/models/change_request.rs` — ChangeRequest, TimeWindow structs
-- [ ] [BE] `src/models/change_response.rs` — ChangeResponse, Finding, Observations, ModelInfo
-- [ ] [BE] Serde derives + validation (dates valid, geometry non-empty)
-- [ ] [TEST] Test ChangeRequest deserialization from JSON
-- [ ] [TEST] Test ChangeResponse serialization to JSON
-- [ ] [TEST] Test validation rejects invalid dates
-- [ ] [TEST] Test validation rejects missing geometry
+- [x] [BE] `src/oberon/api/contracts.py` — ChangeRequestAPI, ChangeResponse, APIFinding, EvidenceMetrics, ModelInfo, ArtifactPaths, ResponseStatus (Pydantic v2)
+- [x] [BE] `src/oberon/api/serialization.py` — serialize_findings(), serialize_bundle_to_response() — transforms internal Finding/EvidenceBundle to Product Brief §5 shape
+- [x] [TEST] `tests/api/test_contracts.py` — 26 tests: request validation, response shape, serialization (ha->m2, score->change_score, ndvi_delta_mean->ndvi_delta)
+- [ ] [BE] Rust `src/models/change_request.rs` — ChangeRequest, TimeWindow structs (Rust side deferred)
+- [ ] [BE] Rust `src/models/change_response.rs` — ChangeResponse, Finding, Observations, ModelInfo (Rust side deferred)
+- [ ] [BE] Serde derives + validation (dates valid, geometry non-empty) (Rust side deferred)
 
 ## Phase 2 — POST /v1/change
 **Status:** [ ]
@@ -90,4 +89,4 @@
 
 ### Progress
 
-_None yet. Depends on 002 (contract stability) + 006 (model registry) + 007 (Docker). Intentionally deferred — Python-first until pipeline is proven._
+_Python-side API contracts done (Phase 1 pre-work): Pydantic models matching Product Brief §5, serialization layer resolving gaps 1,2,4,5,6,8,9,10. 26 tests. Rust control plane (Phases 0, 2-7) remains deferred._
