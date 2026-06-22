@@ -211,12 +211,13 @@ Execution checklist. Cross items off one at a time. All quality gates apply per 
 
 ---
 
-## Phase 7 — Cleanup & Documentation (END)
+## Phase 7 — Cleanup & doc sync
 **Status:** [ ]
 
-- [ ] [BE] DRY sweep: check for duplicated masking logic across cog_reader, preparation, scene_quality; extract shared constants to `core/__init__.py`
-- [ ] [DOC] Update mini-SDD tasks.md — all checkboxes crossed, progress summary written
-- [ ] [DOC] Final docs review: CLAUDE.md, AGENTS.md, README.md, CONTRIBUTING.md — all current
+- [ ] [BE] DRY sweep — verify no duplicated SCL cloud bit definitions (delegated to 002 Phase 3)
+- [ ] [DOC] Final docs review — DATA_FLOW.md, SYSTEM_DESIGN.md (delegated to 002 Phase 3)
+- [ ] [DOC] EvidenceBundle → POST /v1/change gap analysis (delegated to 006 Phase 4)
+- [ ] [DOC] Git history — keep history (no squash); note that Phase 7 items continue in mini-SDDs 002-009
 - [ ] [DOC] Verify EvidenceBundle output shape matches forward-compatible `/v1/change` API response
 - [ ] [BE] Squash feature commits into clean history
 - [ ] [DOC] Write phase-end summary in Progress section below
