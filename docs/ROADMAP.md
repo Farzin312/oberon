@@ -13,11 +13,12 @@ Oberon is built in layers. Each layer must pass quality gates (ruff, mypy strict
 | Core pipeline | 001, 002, 010 | **Done** | 118 |
 | AI experiment + evaluation | 003, 004, 005 | **Gate run: AI_ties** — AI remains experimental | 82 |
 | Stability (registry, packaging) | 006, 007 | **Done** | 95 |
-| Control plane (API contracts) | 008 | **Phase 1 (Python) done** — Rust deferred | 26 |
+| Control plane (Rust API + dashboard) | 008 | **Done** — Axum server, SQLite, auth, pipeline bridge | 287 py + 8 rs |
 | Baseline calibration | 013 | **Done** — 12/12 golden tests | 277 |
 | Spatial-variance seasonal detection | 014 | **Done** | 287 |
 | Product (launch docs) | 009 | **Phase 0-3 done** — Phase 4 (partner prep) deferred | - |
-| Review workflow | 011, 012 | Deferred (requires 008 Rust control plane) | - |
+| Review workflow + monitoring | 011 | **Done** — Portfolios, runs, reviews, dashboard, Docker server | - |
+| Security hardening | 012 | **Done** — API auth, non-root Docker, path traversal guards | - |
 
 Total: 287 unit tests, 12 golden integration tests (live STAC, ~11 min).
 
@@ -50,13 +51,11 @@ Total: 287 unit tests, 12 golden integration tests (live STAC, ~11 min).
 | 006 | Model registry + provenance | Model version tracking, artifact index with checksums, provenance enrichment, COG cache, `--json`/`--cache` flags, API gap analysis. |
 | 007 | Packaging + deployment | Docker Compose (CPU+GPU), multi-stage Dockerfile with uv + GDAL, structured JSON logging, health check. |
 
-### Layer 4: Control plane (PHASE 1 DONE)
+### Layer 4: Control plane (DONE)
 
 | ID | Title | Outcome |
 |----|-------|---------|
-| 008 | Rust control plane | Python-side API contracts complete (Pydantic v2). Serialization layer resolves 8 of 10 API gaps. Rust Axum server deferred until pipeline contracts proven. |
-
-**Decision gate**: Only build the Rust control plane after the 005 evaluation gate passes and the Python pipeline contracts are stable. The Python CLI continues to work independently.
+| 008 | Rust control plane | Axum API server with SQLite state machine, API key auth, subprocess pipeline bridge, portfolio/review routes, web dashboard. Python pipeline unchanged. |
 
 ### Layer 5: Calibration (DONE)
 

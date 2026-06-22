@@ -35,3 +35,24 @@ services:
               count: all
               capabilities: [gpu]
     profiles: ["gpu"]
+
+  # Server profile — Rust API + Python pipeline + dashboard.
+  # Use: docker compose --profile server up
+  oberon-server:
+    build:
+      context: .
+      dockerfile: Dockerfile.server
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./cache:/root/.cache/oberon
+      - oberon-db:/root/.oberon
+    environment:
+      - OBERON_CACHE_DIR=/root/.cache/oberon
+      - OBERON_LOG_FORMAT=json
+      - OBERON_AUTH_DISABLED=***: non-root user for security
+    user: "65532:65532"
+    profiles: ["server"]
+
+volumes:
+  oberon-db:

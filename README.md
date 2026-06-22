@@ -150,6 +150,28 @@ oberon health          # CLI
 oberon health --json   # programmatic
 ```
 
+### Self-hosted server (Rust control plane + dashboard)
+
+```bash
+# Build and run the server
+cd control-plane && cargo build --release
+./target/release/oberon-control-plane serve --host 0.0.0.0:8000
+```
+
+Dashboard at http://localhost:8000/ · API at http://localhost:8000/v1/
+
+```bash
+# Or via Docker (Rust + Python in one container)
+docker compose --profile server up
+```
+
+Create an API key for authenticated access:
+```bash
+./target/release/oberon-control-plane auth create-key --user "your-name"
+```
+
+For local dev, set `OBERON_AUTH_DISABLED=1` to skip auth.
+
 ## Architecture
 
 Oberon follows a four-plane conceptual model. See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the full system design.
