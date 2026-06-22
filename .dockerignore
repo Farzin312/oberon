@@ -1,18 +1,43 @@
-git
-.gitignore
-.venv
+# Git
+.git
+.github
+
+# Python
 __pycache__
 *.pyc
+*.pyo
+*.egg-info
+.venv
+dist
+build
+
+# Test / CI
 .pytest_cache
-.mypy_cache
-.ruff_cache
-docs/
-tests/
+.coverage
+htmlcov
+evaluation_output
+
+# IDE
+.idea
+.vscode
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Docs (not needed in image)
+docs
 *.md
 !README.md
-kube/
-.DS_Store
-*.egg-info
-build/
-dist/
-oberon-output/
+
+# Examples (not needed in image)
+examples
+
+# Docker
+Dockerfile*
+docker-compose*
+.dockerignore
+
+# Planning (private)
+docs/planning

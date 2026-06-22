@@ -1,0 +1,26 @@
+cff-version: 1.2.0
+title: Oberon
+message: "If you use Oberon in your research, please cite it as below."
+type: software
+authors:
+  - given-names: Farzin
+    family-names: Shifat
+repository-code: "https://github.com/farzin/oberon"
+license: Apache-2.0
+version: 0.1.0
+date-released: "2026-06-22"
+keywords:
+  - earth-observation
+  - remote-sensing
+  - sentinel-2
+  - change-detection
+  - vegetation-monitoring
+  - satellite-imagery
+  - STAC
+abstract: >-
+  Oberon is an open, self-hostable Earth observation monitoring engine that
+  turns public satellite imagery (Sentinel-2 L2A) into ranked, evidence-backed
+  change findings for defined land portfolios. It combines deterministic
+  spectral baselines (NDVI, NBR, NDMI) with optional AI triage (Clay v1.5),
+  produces provenance-tracked evidence bundles, and abstains explicitly when
+  inputs are unreliable.

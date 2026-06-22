@@ -198,6 +198,7 @@ See [ROADMAP.md](ROADMAP.md) for the phased build plan and current status.
 ## Contributing
 
 Contributions welcome. Read [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md) first.
+We follow the [Contributor Covenant Code of Conduct](CODE_OF_CONDUCT.md).
 
 All code (human or AI) must pass: TDD, ruff, mypy strict, pytest, provenance checks.
 
@@ -208,6 +209,14 @@ Pre-MVP. The core pipeline is functional and tested (252 tests). The AI evaluati
 ## License
 
 Apache 2.0 — see [LICENSE](LICENSE).
+
+## Changelog
+
+See [CHANGELOG.md](CHANGELOG.md) for version history.
+
+## Citation
+
+If you use Oberon in research, see [CITATION.cff](CITATION.cff) for citation information.
 
 ---
 
