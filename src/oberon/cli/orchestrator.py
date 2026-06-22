@@ -12,7 +12,13 @@ from oberon.core.change_detection import (
     extract_findings,
     threshold_change_map,
 )
-from oberon.pipeline import align_to_common_grid, rank_by_scene_quality, read_window, search_catalog
+from oberon.pipeline import (
+    align_to_common_grid,
+    build_composite,
+    rank_by_scene_quality,
+    read_window,
+    search_catalog,
+)
 
 # Sentinel-2 bands needed for the vegetation-change pipeline.
 _BANDS_RGB = ["B04", "B03", "B02"]
@@ -21,13 +27,30 @@ _BANDS_NBR = ["B12"]
 _BANDS_NDMI = ["B11"]
 REQUIRED_BANDS = sorted(set(_BANDS_RGB + _BANDS_NDVI + _BANDS_NBR + _BANDS_NDMI))
 
+# When the best single scene's valid-pixel fraction is below this, build a
+# composite from the top candidates instead. Roadmap correction #2.
+COMPOSITE_THRESHOLD = 0.7
 
-def run_analysis(request: ChangeRequest, output_dir: Path) -> EvidenceBundle:
+# Max scenes to merge in a composite.
+_MAX_COMPOSITE_SCENES = 3
+
+
+def run_analysis(
+    request: ChangeRequest,
+    output_dir: Path,
+    *,
+    force_composite: bool = False,
+) -> EvidenceBundle:
     """Run the full analysis pipeline for a change request.
 
     Calls each pipeline stage in order. If any stage returns abstention,
     the pipeline stops early and returns an abstention result containing
     the reason and any partial provenance.
+
+    When force_composite is True, or when the best single scene's
+    valid-pixel fraction falls below COMPOSITE_THRESHOLD, the pipeline
+    builds a cloud-masked median composite from the top candidate scenes
+    for that period instead of using a single observation.
     """
     # ----- Phase 1: STAC discovery + scene quality -----
     try:
@@ -45,21 +68,34 @@ def run_analysis(request: ChangeRequest, output_dir: Path) -> EvidenceBundle:
     if not scenes:
         return _abstention_result("No suitable scenes found for AOI and date range", output_dir)
 
-    before_scene = next((s for s in scenes if s.period == "before"), None)
-    after_scene = next((s for s in scenes if s.period == "after"), None)
-    if not before_scene:
+    # ----- Phase 2: COG reading + preparation -----
+    # Decide composite vs single-scene per period.
+    before_scenes = [s for s in scenes if s.period == "before"][:_MAX_COMPOSITE_SCENES]
+    after_scenes = [s for s in scenes if s.period == "after"][:_MAX_COMPOSITE_SCENES]
+
+    if not before_scenes:
         return _abstention_result("No suitable before scene found", output_dir)
-    if not after_scene:
+    if not after_scenes:
         return _abstention_result("No suitable after scene found", output_dir)
 
-    # ----- Phase 2: COG reading + preparation -----
+    use_composite_before = force_composite or before_scenes[0].local_valid_fraction < COMPOSITE_THRESHOLD
+    use_composite_after = force_composite or after_scenes[0].local_valid_fraction < COMPOSITE_THRESHOLD
+
     try:
-        before_window = read_window(before_scene.candidate, request.geometry, REQUIRED_BANDS)
+        if use_composite_before and len(before_scenes) > 1:
+            windows = [read_window(s.candidate, request.geometry, REQUIRED_BANDS) for s in before_scenes]
+            before_window = build_composite(windows)
+        else:
+            before_window = read_window(before_scenes[0].candidate, request.geometry, REQUIRED_BANDS)
     except FileNotFoundError as exc:
         return _abstention_result(f"Before COG read failed: {exc}", output_dir)
 
     try:
-        after_window = read_window(after_scene.candidate, request.geometry, REQUIRED_BANDS)
+        if use_composite_after and len(after_scenes) > 1:
+            windows = [read_window(s.candidate, request.geometry, REQUIRED_BANDS) for s in after_scenes]
+            after_window = build_composite(windows)
+        else:
+            after_window = read_window(after_scenes[0].candidate, request.geometry, REQUIRED_BANDS)
     except FileNotFoundError as exc:
         return _abstention_result(f"After COG read failed: {exc}", output_dir)
 
@@ -90,7 +126,19 @@ def run_analysis(request: ChangeRequest, output_dir: Path) -> EvidenceBundle:
     findings = deduplicate_and_rank(raw_findings)
 
     # ----- Phase 4: Evidence bundles -----
-    bundle = build_evidence_bundle(findings, pair, output_dir)
+    # Record source scene metadata for provenance.
+    source_info: dict[str, object] = {
+        "before_source_type": "composite" if (use_composite_before and len(before_scenes) > 1) else "single",
+        "after_source_type": "composite" if (use_composite_after and len(after_scenes) > 1) else "single",
+        "before_source_scenes": [s.candidate.stac_item_id for s in before_scenes],
+        "after_source_scenes": [s.candidate.stac_item_id for s in after_scenes],
+    }
+    if use_composite_before and len(before_scenes) > 1:
+        source_info["before_composite_method"] = "median"
+    if use_composite_after and len(after_scenes) > 1:
+        source_info["after_composite_method"] = "median"
+
+    bundle = build_evidence_bundle(findings, pair, output_dir, source_info=source_info)
 
     return bundle
 

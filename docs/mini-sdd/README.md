@@ -58,7 +58,7 @@ docs/mini-sdd/
 | `007-packaging-deployment` | Ready (after 002) | Docker Compose (CPU+GPU), structured logging, external reproducibility |
 | `008-rust-control-plane` | Deferred (after 006+007) | Axum API, typed job contracts, SQLite state machine, Python subprocess |
 | `009-launch-docs` | After 005+006+007 | README/ARCHITECTURE/ROADMAP rewrite, SDK demo, design partner prep |
-| `010-scene-composite` | Ready (after 001) | Cloud-masked composite when single scene insufficient (Roadmap correction #2) |
+| `010-scene-composite` | **DONE** — 128 tests | Cloud-masked composite when single scene insufficient (Roadmap correction #2) |
 | `011-review-workflow-monitoring` | After 008+005 | Portfolios, scheduled reruns, review states, alerts, feedback export (Roadmap Phase 8) |
 | `012-security-hardening` | After 008+011 | API auth, audit logging, resource limits, SBOM, Docker hardening (Product Brief §10) |
 

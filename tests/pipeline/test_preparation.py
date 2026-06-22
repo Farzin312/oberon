@@ -501,3 +501,130 @@ def _passthrough_reproject(source, destination, **kwargs):
         destination[:] = np.full(destination.shape, np.mean(source), dtype=np.float32)
     else:
         destination[:] = source.astype(np.float32)
+
+
+# ---------------------------------------------------------------------------
+# build_composite
+# ---------------------------------------------------------------------------
+
+class TestBuildComposite:
+    """build_composite(): per-band median blending across multiple scenes."""
+
+    def _window(self, band_data: dict, scl: np.ndarray | None = None) -> RasterWindow:
+        """Build a RasterWindow for composite tests."""
+        return RasterWindow(
+            data=band_data,
+            crs="EPSG:32616",
+            transform=(10.0, 0.0, 0.0, 0.0, -10.0, 0.0),
+            bounds=(0.0, 0.0, 100.0, 100.0),
+            scl_mask=scl,
+        )
+
+    def test_median_blends_two_scenes(self) -> None:
+        """Per-band median across 2 scenes: where both valid, median of the two values."""
+        # Scene 1: all pixels = 1000, all valid
+        w1 = self._window(
+            {"B04": np.full((4, 4), 1000, dtype=np.float32)},
+            scl=np.ones((4, 4), dtype=bool),
+        )
+        # Scene 2: all pixels = 3000, all valid
+        w2 = self._window(
+            {"B04": np.full((4, 4), 3000, dtype=np.float32)},
+            scl=np.ones((4, 4), dtype=bool),
+        )
+
+        from oberon.pipeline.preparation import build_composite
+        result = build_composite([w1, w2])
+
+        # Median of [1000, 3000] = 2000 everywhere
+        assert result.data["B04"].shape == (4, 4)
+        assert np.allclose(result.data["B04"], 2000.0)
+        # Union mask: all valid
+        assert result.scl_mask is not None
+        assert result.scl_mask.all()
+
+    def test_ignores_masked_pixels(self) -> None:
+        """Where a scene's SCL mask is False, that scene's pixels must be excluded from median."""
+        # Scene 1: valid in left half only, value 1000
+        scl1 = np.array(
+            [[True, True, False, False]] * 4, dtype=bool,
+        )
+        w1 = self._window(
+            {"B04": np.full((4, 4), 1000, dtype=np.float32)},
+            scl=scl1,
+        )
+        # Scene 2: valid in right half only, value 3000
+        scl2 = np.array(
+            [[False, False, True, True]] * 4, dtype=bool,
+        )
+        w2 = self._window(
+            {"B04": np.full((4, 4), 3000, dtype=np.float32)},
+            scl=scl2,
+        )
+
+        from oberon.pipeline.preparation import build_composite
+        result = build_composite([w1, w2])
+
+        # Left half: only scene 1 contributes -> 1000
+        assert np.allclose(result.data["B04"][:, :2], 1000.0)
+        # Right half: only scene 2 contributes -> 3000
+        assert np.allclose(result.data["B04"][:, 2:], 3000.0)
+        # Union mask: all valid (each pixel valid in at least one scene)
+        assert result.scl_mask is not None
+        assert result.scl_mask.all()
+
+    def test_valid_mask_is_union(self) -> None:
+        """The composite valid mask is the OR of all input masks."""
+        scl1 = np.array(
+            [[True, False], [False, False]], dtype=bool,
+        )
+        scl2 = np.array(
+            [[False, False], [False, True]], dtype=bool,
+        )
+        w1 = self._window(
+            {"B04": np.full((2, 2), 500, dtype=np.float32)},
+            scl=scl1,
+        )
+        w2 = self._window(
+            {"B04": np.full((2, 2), 700, dtype=np.float32)},
+            scl=scl2,
+        )
+
+        from oberon.pipeline.preparation import build_composite
+        result = build_composite([w1, w2])
+
+        # Union: (0,0) from w1, (1,1) from w2, (0,1) and (1,0) both invalid
+        assert result.scl_mask is not None
+        assert result.scl_mask[0, 0]
+        assert result.scl_mask[1, 1]
+        assert not result.scl_mask[0, 1]
+        assert not result.scl_mask[1, 0]
+
+    def test_rejects_mismatched_shapes(self) -> None:
+        """Scenes with different band shapes must raise ValueError."""
+        w1 = self._window(
+            {"B04": np.full((4, 4), 1000, dtype=np.float32)},
+            scl=np.ones((4, 4), dtype=bool),
+        )
+        w2 = self._window(
+            {"B04": np.full((3, 3), 2000, dtype=np.float32)},
+            scl=np.ones((3, 3), dtype=bool),
+        )
+
+        from oberon.pipeline.preparation import build_composite
+        with pytest.raises(ValueError, match="shape"):
+            build_composite([w1, w2])
+
+    def test_single_scene_returns_same_data(self) -> None:
+        """A single-scene composite is just that scene's data."""
+        w1 = self._window(
+            {"B04": np.full((4, 4), 1500, dtype=np.float32)},
+            scl=np.ones((4, 4), dtype=bool),
+        )
+
+        from oberon.pipeline.preparation import build_composite
+        result = build_composite([w1])
+
+        assert np.allclose(result.data["B04"], 1500.0)
+        assert result.scl_mask is not None
+        assert result.scl_mask.all()

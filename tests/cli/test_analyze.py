@@ -54,6 +54,7 @@ class TestAnalyzeHelp:
         assert "--output" in result.output or "-o" in result.output
         assert "--max-cloud" in result.output
         assert "--min-valid" in result.output
+        assert "--composite" in result.output
 
 
 class TestAnalyzeValidation:

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Any
 
 import numpy as np
 
@@ -24,6 +25,7 @@ def build_evidence_bundle(
     pair: PreparedPair,
     output_dir: Path,
     abstention_reason: str | None = None,
+    source_info: dict[str, Any] | None = None,
 ) -> EvidenceBundle:
     """Build all evidence artifacts (images, GeoJSON, provenance) into output_dir.
 
@@ -80,7 +82,7 @@ def build_evidence_bundle(
         provenance_manifest=provenance_path,
         provenance={},
     )
-    provenance = build_provenance(findings, bundle, abstention_reason=abstention_reason)
+    provenance = build_provenance(findings, bundle, abstention_reason=abstention_reason, source_info=source_info)
     bundle.provenance = provenance
     write_provenance_manifest(provenance, provenance_path)
 

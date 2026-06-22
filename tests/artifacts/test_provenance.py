@@ -124,3 +124,33 @@ class TestBuildProvenance:
 
         assert result["findings"][0]["id"] == 1
         assert result["findings"][1]["id"] == 2
+
+    def test_composite_source_info_recorded(
+        self, sample_finding: Finding, sample_bundle: EvidenceBundle
+    ) -> None:
+        """When source_info is provided, it appears in the provenance under 'sources'."""
+        source_info = {
+            "before_source_type": "composite",
+            "after_source_type": "single",
+            "before_source_scenes": ["S2A_001", "S2B_002", "S2A_003"],
+            "after_source_scenes": ["S2B_004"],
+            "before_composite_method": "median",
+        }
+
+        result = build_provenance(
+            [sample_finding], sample_bundle, source_info=source_info,
+        )
+
+        assert "sources" in result
+        assert result["sources"]["before_source_type"] == "composite"
+        assert result["sources"]["after_source_type"] == "single"
+        assert len(result["sources"]["before_source_scenes"]) == 3
+        assert result["sources"]["before_composite_method"] == "median"
+
+    def test_no_source_info_omits_sources(
+        self, sample_finding: Finding, sample_bundle: EvidenceBundle
+    ) -> None:
+        """When source_info is None, 'sources' key should not be present."""
+        result = build_provenance([sample_finding], sample_bundle)
+
+        assert "sources" not in result

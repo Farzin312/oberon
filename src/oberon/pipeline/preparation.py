@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import warnings
+
 import numpy as np
 import rasterio
 from affine import Affine
@@ -12,6 +14,84 @@ TARGET_RESOLUTION_M = 10
 
 # Sentinel-2 bands at 20m native resolution that need upsampling to 10m.
 _20M_BANDS = frozenset({"B05", "B06", "B07", "B11", "B12", "B8A"})
+
+
+def build_composite(
+    windows: list[RasterWindow],
+    max_scenes: int = 3,
+) -> RasterWindow:
+    """Median-blend multiple scenes into a single RasterWindow.
+
+    For each band present in ALL windows, stacks valid pixels along the
+    scene axis and computes the per-pixel median (ignoring NaN). The
+    composite valid mask is the union of all input SCL masks.
+
+    ponytail: per-band median with NaN masking. For large N, a streaming
+    or incremental median would avoid holding N scenes in memory. But N
+    is capped at max_scenes=3, so the materialized stack is tiny.
+    """
+    if not windows:
+        raise ValueError("build_composite requires at least one window")
+
+    windows = windows[:max_scenes]
+    n = len(windows)
+
+    # Use the first window as the reference shape.
+    ref = windows[0]
+    ref_bands = set(ref.data.keys())
+    ref_shape = next(iter(ref.data.values())).shape if ref.data else (0, 0)
+
+    # Validate all windows have matching shapes.
+    for i, w in enumerate(windows[1:], start=1):
+        for band_name, band_data in w.data.items():
+            if band_data.shape != ref_shape:
+                raise ValueError(
+                    f"Window {i} band '{band_name}' shape {band_data.shape} "
+                    f"does not match reference {ref_shape}"
+                )
+
+    # Build per-scene valid masks (same logic as build_valid_mask but inline
+    # for the composite path where we need all masks simultaneously).
+    masks: list[np.ndarray] = []
+    for w in windows:
+        if w.scl_mask is not None:
+            m = w.scl_mask
+        elif ref.data:
+            # Fallback: nodata-only mask.
+            any_band = next(iter(w.data.values())) if w.data else None
+            m = any_band != 0 if any_band is not None else np.ones(ref_shape, dtype=bool)
+        else:
+            m = np.ones(ref_shape, dtype=bool)
+        masks.append(m)
+
+    # Union valid mask across all scenes.
+    union_mask = np.zeros(ref_shape, dtype=bool)
+    for m in masks:
+        union_mask |= m
+
+    # Determine common bands (present in all windows).
+    common_bands = ref_bands.copy()
+    for w in windows[1:]:
+        common_bands &= set(w.data.keys())
+
+    # Per-band median: stack (N, H, W), mask invalid as NaN, nanmedian.
+    composite_data: dict[str, np.ndarray] = {}
+    for band_name in sorted(common_bands):
+        stacked = np.full((n, *ref_shape), np.nan, dtype=np.float32)
+        for i, w in enumerate(windows):
+            values = w.data[band_name].astype(np.float32)
+            stacked[i] = np.where(masks[i], values, np.nan)
+        with warnings.catch_warnings():
+            warnings.filterwarnings("ignore", message="All-NaN slice", category=RuntimeWarning)
+            composite_data[band_name] = np.asarray(np.nanmedian(stacked, axis=0))
+
+    return RasterWindow(
+        data=composite_data,
+        crs=ref.crs,
+        transform=ref.transform,
+        bounds=ref.bounds,
+        scl_mask=union_mask,
+    )
 
 
 def build_valid_mask(window: RasterWindow) -> tuple[np.ndarray, str | None]:

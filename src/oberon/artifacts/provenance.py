@@ -17,6 +17,7 @@ def build_provenance(
     bundle: EvidenceBundle,
     oberon_version: str = "0.1.0",
     abstention_reason: str | None = None,
+    source_info: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Construct the provenance dictionary for a set of findings.
 
@@ -49,6 +50,9 @@ def build_provenance(
         "software": _collect_software_versions(oberon_version),
         "abstention": None,
     }
+
+    if source_info:
+        provenance["sources"] = source_info
 
     if abstention_reason:
         provenance["abstention"] = {"reason": abstention_reason}
