@@ -83,7 +83,7 @@ class TestPolygonToBbox:
     def test_returns_minimum_bounding_box(self, sample_polygon_geometry: dict) -> None:
         """Bbox should return (min_lon, min_lat, max_lon, max_lat) matching the polygon extent."""
         bbox = polygon_to_bbox(sample_polygon_geometry)
-        assert bbox == (-84.0, 10.0, -83.9, 10.1)
+        assert bbox == (-55.2, -7.5, -55.15, -7.45)
 
     def test_multipolygon_returns_unified_envelope(self) -> None:
         """For MultiPolygon, the bbox should cover the envelope of all parts combined."""

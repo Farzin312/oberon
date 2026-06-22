@@ -10,6 +10,8 @@ exposes:
   kind: const
 - name: REQUIRED_BANDS
   kind: const
+- name: aoi
+  kind: function
 - name: analyze
   kind: function
 - name: cli

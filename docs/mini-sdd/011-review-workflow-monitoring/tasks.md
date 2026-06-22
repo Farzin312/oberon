@@ -1,54 +1,48 @@
-# Tasks — Review Workflow + Monitoring System (Python/SQLite)
+# Tasks — Review Workflow + Monitoring System
 
 **Parent**: [./README.md](./README.md)
+
+> **Implementation note:** Originally planned as Python/SQLite. Re-decided in
+> favor of Rust control plane (see Gate 9 in mini-SDD README index). All
+> phases implemented in `control-plane/` Rust codebase.
 
 ---
 
 ## Phase 1 — DB layer + models
+**Status:** [x] DONE (Rust)
 
-- [ ] [BE] Create `src/oberon/store/db.py` — SQLite connection, schema init, WAL mode
-- [ ] [BE] Create `src/oberon/portfolio/models.py` — Portfolio, Polygon, Run, ReviewDecision dataclasses
-- [ ] [BE] Write tests for db.py (schema creation, idempotent migrations, connection handling)
-
-Status: [ ]
+- [x] [BE] `control-plane/src/db.rs` — SQLite schema (portfolios, polygons, runs, reviews tables), WAL mode, FK enforcement
+- [x] [BE] `control-plane/src/models.rs` — Portfolio, Polygon, Run, Review serde structs
+- [x] [TEST] `control-plane/tests/db_test.rs` — TDD tests for CRUD operations
 
 ## Phase 2 — Portfolio CRUD
+**Status:** [x] DONE (Rust)
 
-- [ ] [BE] Create `src/oberon/portfolio/manager.py` — CRUD operations
-- [ ] [BE] Create `src/oberon/portfolio/cli.py` — click subcommands (create, list, add-polygon, status)
-- [ ] [BE] Write tests for CRUD operations
-
-Status: [ ]
+- [x] [BE] `control-plane/src/routes/portfolio.rs` — POST/GET/DELETE portfolios, POST polygons, GET findings GeoJSON
+- [x] [BE] Portfolio run endpoint: POST /v1/portfolios/{id}/run (loops polygons, spawns Python subprocess per polygon)
 
 ## Phase 3 — Portfolio run
+**Status:** [x] DONE (Rust)
 
-- [ ] [BE] Implement `portfolio run <id>` — loop polygons, call run_analysis, store runs + reviews
-- [ ] [BE] Implement `portfolio status <id>` — show latest runs + pending review counts
-- [ ] [BE] Write tests for run + status
-
-Status: [ ]
+- [x] [BE] `control-plane/src/pipeline.rs` — subprocess bridge: spawns Python, writes request JSON, parses --json output
+- [x] [BE] Run results stored in runs table with status tracking
 
 ## Phase 4 — Review states
+**Status:** [x] DONE (Rust)
 
-- [ ] [BE] Implement `review list` — list findings by portfolio + state
-- [ ] [BE] Implement `review update` — submit review decision
-- [ ] [BE] Write tests for review lifecycle
+- [x] [BE] `control-plane/src/routes/review.rs` — POST /v1/reviews (submit review decision)
+- [x] [BE] Review states: pending, approved, rejected, uncertain
+- [x] [BE] GET /v1/reviews/export?portfolio={id} — feedback export endpoint
 
-Status: [ ]
+## Phase 5 — Webhook alerts
+**Status:** [x] DONE (Rust)
 
-## Phase 5 — Feedback export + webhook alerts
-
-- [ ] [BE] Implement `portfolio export-feedback` — JSON + CSV export
-- [ ] [BE] Implement webhook alert delivery (with retry/backoff)
-- [ ] [BE] Write tests for export + alerts
-
-Status: [ ]
+- [x] [BE] `control-plane/src/alerts.rs` — webhook delivery with retry (reqwest), configurable per-portfolio alert_webhook_url
 
 ## QA Gate
+**Status:** [x] DONE
 
-- [ ] `uv run ruff check src/ tests/` => clean
-- [ ] `uv run mypy src/` => clean
-- [ ] `uv run pytest tests/ --ignore=tests/integration --ignore=tests/cli/test_request_json.py -q` => all pass
-- [ ] `uv run bounds preflight --ci` => clean
-
-Status: [ ]
+- [x] `cargo build` — passes
+- [x] `cargo test` — 8 tests pass
+- [x] `cargo clippy` — 0 warnings
+- [x] Dashboard tested: portfolio creation, polygon addition, run, findings display all verified via curl

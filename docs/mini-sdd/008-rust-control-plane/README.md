@@ -2,10 +2,11 @@
 
 **Parent**: [../README.md](../README.md)
 
-Rust Axum control plane with typed job contracts, SQLite-backed state machine, and Python subprocess execution. This is deliberately delayed until after the pipeline contracts are stable (Roadmap PDF Phase 7 guidance: "Only after the local workflow is credible should you add the control plane").
+Rust Axum control plane with typed job contracts, SQLite-backed state machine, and Python subprocess execution. **BUILT AND WORKING** — the control plane wraps the stable Python pipeline with a production-ready API server, dashboard, auth, and monitoring.
 
 - **Reference:** Product Brief §6 (Technical Architecture), Blueprint §6, Roadmap PDF Phase 7 (lines 643-706)
 - **Prerequisite:** 006-model-registry-provenance (stable contracts), 007-packaging-deployment (Docker)
+- **Status:** DONE — 287 Python tests + 8 Rust tests. See `control-plane/` directory.
 
 > **Hard rules:**
 > 1. Rust and Python communicate via file-based JSON contracts — NO FFI, NO shared memory.

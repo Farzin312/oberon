@@ -194,7 +194,7 @@ Commercial Plane  -> (future) accounts, auth, billing
 
 Key design decisions:
 - **Modular monolith** — one Python process, clear stage boundaries, no microservices.
-- **Python-first** — Rust control plane deferred until pipeline contracts are stable.
+- **Python pipeline, Rust control plane** — Python owns geospatial processing. Rust owns API, auth, jobs, dashboard.
 - **Functional core** — pipeline stages are pure functions. Side effects only in the outer shell.
 - **Windowed reads only** — never download a full scene. Read only the AOI-bounded window.
 
@@ -212,8 +212,8 @@ See [docs/ROADMAP.md](docs/ROADMAP.md) for the phased build plan and current sta
 | API contracts (Pydantic, Product Brief shape) | **Done** |
 | Baseline calibration (signed threshold, closing) | **Done** — 12/12 golden tests |
 | Spatial-variance seasonal detection | **Done** |
-| Rust control plane (Axum API) | Deferred |
-| Review workflow, monitoring, alerts | Deferred |
+| Rust control plane (Axum API) | **Done** |
+| Review workflow, monitoring, alerts | **Done** |
 
 ## Documentation
 

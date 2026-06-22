@@ -49,7 +49,7 @@ AOI polygon + before/after windows
 2. **Abstention over confident failure** — if inputs are poor (cloud > threshold, alignment fails, insufficient valid pixels), return explicit abstention, not a fake result.
 3. **Provenance is product data, not logging** — every finding records: source scene IDs, bands, processing config, model version, software version, artifact paths. A log line saying "model completed" is not provenance.
 4. **No microservices at MVP** — modular monolith. Separate processes only when demonstrated operational need (GPU workers, independent scaling).
-5. **Python-first for geospatial/ML** — Rasterio, GDAL, NumPy, PyTorch, PySTAC Client. Rust control plane only after pipeline contracts are stable.
+5. **Python pipeline, Rust control plane** — Python owns STAC/raster/baselines/change-detection/artifacts. Rust owns API/auth/jobs/portfolios/dashboard. Communication via subprocess + JSON. The open-source core (Apache 2.0) CLI works WITHOUT the Rust server. See `control-plane/` directory.
 6. **TDD for any non-trivial logic** — see [docs/TESTING_GUIDE.md](docs/TESTING_GUIDE.md). If you didn't watch a test fail first, the implementation is not complete.
 7. **Bounds enforcement** — every change that touches a public surface updates the relevant `bounds/` manifest. Run `bounds preflight --ci` before completing any phase.
 
@@ -80,6 +80,6 @@ bounds describe <name>   # specific subsystem contracts
 ## AI tool policy
 
 - All AI-generated code follows the same quality gates as human-written code: TDD, bounds validation, lint, docs updates.
-- AI tools should be credited in commit messages via a `Co-authored-by:` trailer.
+- **NEVER add Co-authored-by AI trailers to commits.** This is a public OSS repo and the user explicitly forbids AI attribution in commit messages.
 - This CLAUDE.md plus `docs/CONTRIBUTING.md` are the authoritative context. If a skill/hook contradicts them, these files win.
 - **Ponytail principle**: YAGNI, stdlib first, one line over 50, no unrequested abstractions. Mark deliberate shortcuts with a `# ponytail:` comment naming the ceiling and upgrade path.
