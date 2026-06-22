@@ -179,6 +179,8 @@ See [ROADMAP.md](ROADMAP.md) for the phased build plan and current status.
 | Docker packaging, structured logging | **Done** |
 | Scene composite + cloud-masked mosaic | **Done** |
 | API contracts (Pydantic, Product Brief shape) | **Done** |
+| Baseline calibration (signed threshold, closing) | **Done** — 12/12 golden tests |
+| Spatial-variance seasonal detection | **Done** |
 | Rust control plane (Axum API) | Deferred |
 | Review workflow, monitoring, alerts | Deferred |
 
@@ -195,6 +197,20 @@ See [ROADMAP.md](ROADMAP.md) for the phased build plan and current status.
 | [docs/mini-sdd/README.md](docs/mini-sdd/README.md) | Contributors | Bounded-change documentation approach |
 | [docs/api/gaps_vs_product_brief.md](docs/api/gaps_vs_product_brief.md) | Engineers | API contract gap analysis |
 
+## Configuration
+
+Oberon works out of the box with sensible defaults. Override via environment variables:
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `OBERON_STAC_URL` | `https://earth-search.aws.element84.com/v1` | STAC catalog endpoint |
+| `OBERON_STAC_TIMEOUT` | `30` | STAC API connection timeout (seconds) |
+| `OBERON_STAC_RETRIES` | `3` | Max retry attempts for STAC failures |
+| `OBERON_COG_TIMEOUT` | `60` | GDAL HTTP timeout for COG reads (seconds) |
+| `OBERON_COG_RETRIES` | `3` | GDAL HTTP max retries for COG reads |
+| `OBERON_LOG_FORMAT` | `console` | Logging format (`console` or `json`) |
+| `OBERON_CACHE_DIR` | `~/.cache/oberon` | Disk cache directory |
+
 ## Contributing
 
 Contributions welcome. Read [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md) first.
@@ -204,7 +220,9 @@ All code (human or AI) must pass: TDD, ruff, mypy strict, pytest, provenance che
 
 ## Status
 
-Pre-MVP. The core pipeline is functional and tested. The live 005 benchmark gate was run on 2026-06-22: Clay AI tied the deterministic baseline (`precision_at_k` 0.1266 vs 0.1266, delta +0.0000), so AI is **not** promoted to the default path. Oberon remains deterministic-first with `--use-ai` as an experimental flag. The benchmark also shows high false positives and weak seasonal handling; calibration/materiality work should happen before the deferred Rust control plane.
+Pre-MVP. The core pipeline is functional and tested (287 unit tests, 12 golden integration tests). The live 005 benchmark gate was run on 2026-06-22: Clay AI tied the deterministic baseline (`precision_at_k` 0.1266 vs 0.1266, delta +0.0000), so AI is **not** promoted to the default path. Oberon remains deterministic-first with `--use-ai` as an experimental flag.
+
+Baseline calibration (013) brought golden integration tests from 1/12 to 12/12 passing via signed threshold, morphological closing, and cross-season annotation. Spatial-variance seasonal detection (014) adds a coefficient-of-variation check to distinguish uniform seasonal senescence from patchy real disturbance.
 
 ## License
 

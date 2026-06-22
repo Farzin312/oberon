@@ -7,6 +7,12 @@ paths:
 exposes:
 - name: STAC_URL
   kind: const
+- name: STAC_TIMEOUT
+  kind: const
+- name: STAC_MAX_RETRIES
+  kind: const
+- name: STAC_RETRY_DELAY
+  kind: const
 - name: TARGET_RESOLUTION_M
   kind: const
 - name: align_to_common_grid

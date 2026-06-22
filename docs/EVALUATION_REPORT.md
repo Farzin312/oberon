@@ -4,15 +4,16 @@
 
 **Result: AI_ties** — Clay AI did not improve over deterministic baseline. --use-ai remains experimental.
 
-## Baseline Calibration Status (013)
+## Baseline Calibration Status (013 + 014)
 
-Three calibration changes were applied to reduce false positives:
+Four calibration changes were applied to reduce false positives:
 
 | Fix | What it does | Effect |
 |-----|-------------|--------|
-| Signed threshold | vegetation_disturbance flags NDVI loss only (negative deltas). Green-up (positive deltas) no longer produces findings. | Eliminates ~60% of false positives caused by seasonal green-up being treated as change. |
-| Broad-change abstention | If >50% of valid AOI pixels show NDVI loss after directional thresholding, abstain with "Seasonal" reason. | Catches uniform landscape-wide senescence (summer-to-fall browning). |
-| Morphological closing | 15x15 (150m) binary closing before connected-component labelling. | Consolidates fragmented findings from single disturbance events into fewer, larger polygons. |
+| Signed threshold (013) | vegetation_disturbance flags NDVI loss only (negative deltas). Green-up (positive deltas) no longer produces findings. | Eliminates ~60% of false positives caused by seasonal green-up. |
+| Morphological closing (013) | 25x25 (250m) binary closing before connected-component labelling. | Consolidates fragmented findings from single disturbance events. |
+| Cross-season annotation (013) | When before/after windows span 4+ months, pixel-quality abstentions get "seasonal:" prepended. | Honest labelling of cross-season abstentions without false seasonal detection. |
+| Spatial-variance seasonal detection (014) | Coefficient of variation (CV) of NDVI loss distinguishes uniform seasonal senescence from patchy disturbance. Abstains when CV < 0.3 AND coverage > 50%. | Separates seasonal browning from real fire without a coverage threshold alone. |
 
 ## Known Limitations (honest)
 

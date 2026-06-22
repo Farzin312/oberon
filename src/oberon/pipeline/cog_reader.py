@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import warnings
 from collections.abc import Iterator
 from contextlib import contextmanager
@@ -16,6 +17,14 @@ from rasterio.windows import Window
 from shapely.geometry import shape
 
 from oberon.core import SCL_CLOUD_BITS, CandidateScene, RasterWindow
+
+# GDAL/rasterio network config for remote COG reads.
+# Set once at module load so every rasterio.open() inherits them.
+# ponytail: env-var approach instead of per-call session config.
+# Upgrade path: rasterio.Env() context manager if per-request tuning is needed.
+os.environ.setdefault("GDAL_HTTP_TIMEOUT", os.environ.get("OBERON_COG_TIMEOUT", "60"))
+os.environ.setdefault("GDAL_HTTP_MAX_RETRY", os.environ.get("OBERON_COG_RETRIES", "3"))
+os.environ.setdefault("GDAL_HTTP_RETRY_DELAY", "2")
 
 
 @contextmanager

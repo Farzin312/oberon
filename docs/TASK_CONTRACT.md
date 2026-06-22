@@ -1,7 +1,7 @@
 # Task Contract — vegetation_disturbance
 
 **Parent**: [README.md](../README.md)
-**Source**: Roadmap PDF Phase 1 (lines 411-449), Product Brief v3
+**Source**: Mini-SDD 002 (task contract formalization)
 **Mini-SDD**: [002-baseline-fixes](mini-sdd/002-baseline-fixes/README.md)
 
 ---

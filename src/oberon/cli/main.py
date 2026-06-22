@@ -26,6 +26,29 @@ def _parse_date(ctx: click.Context, _param: click.Parameter, value: str) -> str:
     return value
 
 
+# Max GeoJSON file size: 10 MB. Prevents memory exhaustion from huge polygons.
+_MAX_GEOJSON_BYTES = 10 * 1024 * 1024
+
+
+def _validate_file_size(path: str) -> None:
+    """Reject input files larger than _MAX_GEOJSON_BYTES.
+
+    Protects against accidental or malicious resource exhaustion from
+    processing country-sized polygons with millions of vertices.
+    """
+    import os
+
+    size = os.path.getsize(path)
+    if size > _MAX_GEOJSON_BYTES:
+        click.echo(
+            f"Error: Input file '{path}' is {size / 1024 / 1024:.1f} MB. "
+            f"Maximum is {_MAX_GEOJSON_BYTES / 1024 / 1024:.0f} MB. "
+            "Simplify the geometry (reduce vertex count or area).",
+            err=True,
+        )
+        sys.exit(1)
+
+
 def _build_request(
     request_file: str | None,
     aoi: str | None,
@@ -59,6 +82,7 @@ def _build_request(
 
 def _request_from_file(path: str) -> ChangeRequest:
     """Parse a ChangeRequestAPI JSON file into a ChangeRequest."""
+    _validate_file_size(path)
     try:
         with open(path) as f:
             raw: dict[str, Any] = json.load(f)
@@ -107,6 +131,7 @@ def _request_from_flags(
     )
     after_start_dt = date.fromisoformat(after_start) if after_start else after_dt
 
+    _validate_file_size(aoi)
     try:
         with open(aoi) as f:
             geojson = json.load(f)
@@ -297,10 +322,9 @@ def health(as_json: bool) -> None:
     try:
         import urllib.request
 
-        urllib.request.urlopen(
-            "https://earth-search.aws.element84.com/v1",
-            timeout=5,
-        )
+        from oberon.pipeline.stac_discovery import STAC_URL
+
+        urllib.request.urlopen(STAC_URL, timeout=5)
         status["stac_reachable"] = True
     except Exception:
         status["stac_reachable"] = False

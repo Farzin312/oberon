@@ -7,6 +7,8 @@ for preliminary ranking; Phase 2 adds AOI-local quality assessment.
 
 from __future__ import annotations
 
+import os
+import time
 from datetime import UTC, date, datetime
 from typing import Any
 
@@ -15,7 +17,18 @@ from shapely.geometry import shape
 
 from oberon.core import CandidateScene, ChangeRequest, SelectedScene
 
-STAC_URL = "https://earth-search.aws.element84.com/v1"
+# Configurable STAC endpoint. Defaults to Earth Search (Element84).
+# Override with OBERON_STAC_URL environment variable for alternative catalogs.
+STAC_URL = os.environ.get("OBERON_STAC_URL", "https://earth-search.aws.element84.com/v1")
+
+# Timeout for STAC API connections (seconds).
+STAC_TIMEOUT = float(os.environ.get("OBERON_STAC_TIMEOUT", "30"))
+
+# Max retry attempts for transient STAC failures.
+STAC_MAX_RETRIES = int(os.environ.get("OBERON_STAC_RETRIES", "3"))
+
+# Base delay for exponential backoff (seconds).
+STAC_RETRY_DELAY = 2.0
 
 # Sentinel-2 L2A band names to COG asset keys.
 _BAND_NAMES = ["B01", "B02", "B03", "B04", "B05", "B06", "B07", "B08", "B8A", "B11", "B12"]
@@ -40,36 +53,68 @@ _STAC_TO_INTERNAL: dict[str, str] = {
 def search_catalog(request: ChangeRequest, limit: int = 50) -> list[CandidateScene]:
     """Search the STAC catalog for Sentinel-2 L2A items intersecting the AOI.
 
-    Queries the Earth Search STAC API for both the before and after date
-    windows, combines results, and returns CandidateScene objects ordered
+    Queries the STAC API for both the before and after date windows,
+    combines results, and returns CandidateScene objects ordered
     by datetime descending.
 
-    Raises ConnectionError if the STAC API is unreachable.
+    Retries with exponential backoff on transient network errors.
+    Raises ConnectionError if the STAC API is unreachable after all retries.
     """
-    try:
-        client = Client.open(STAC_URL)
-    except Exception as exc:
-        raise ConnectionError(f"Failed to connect to STAC catalog at {STAC_URL}: {exc}") from exc
+    client = _open_stac_client()
 
     candidates: list[CandidateScene] = []
 
     for window in (request.before, request.after):
         date_str = f"{window[0].isoformat()}/{window[1].isoformat()}"
-        search = client.search(
-            intersects=request.geometry,
-            datetime=date_str,
-            collections=["sentinel-2-l2a"],
-            max_items=limit,
-        )
-
-        for item in search.items():
+        items = _search_with_retry(client, request.geometry, date_str, limit)
+        for item in items:
             scene = _parse_stac_item(item)
             if scene is not None:
                 candidates.append(scene)
 
-    # Sort by datetime descending (newest first)
     candidates.sort(key=lambda c: c.datetime, reverse=True)
     return candidates
+
+
+def _open_stac_client() -> Client:
+    """Open a STAC client with configurable timeout."""
+    try:
+        return Client.open(STAC_URL, timeout=STAC_TIMEOUT)
+    except Exception as exc:
+        raise ConnectionError(
+            f"Failed to connect to STAC catalog at {STAC_URL}: {exc}"
+        ) from exc
+
+
+def _search_with_retry(
+    client: Client,
+    geometry: dict[str, Any],
+    date_str: str,
+    limit: int,
+) -> list[Any]:
+    """Execute a STAC search with exponential backoff retry.
+
+    Retries on connection and timeout errors. Raises the last error
+    after all retries are exhausted.
+    """
+    last_exc: Exception | None = None
+    for attempt in range(STAC_MAX_RETRIES):
+        try:
+            search = client.search(
+                intersects=geometry,
+                datetime=date_str,
+                collections=["sentinel-2-l2a"],
+                max_items=limit,
+            )
+            return list(search.items())
+        except (ConnectionError, OSError, TimeoutError) as exc:
+            last_exc = exc
+            if attempt < STAC_MAX_RETRIES - 1:
+                delay = STAC_RETRY_DELAY * (2 ** attempt)
+                time.sleep(delay)
+    raise ConnectionError(
+        f"STAC search failed after {STAC_MAX_RETRIES} retries: {last_exc}"
+    ) from last_exc
 
 
 def rank_by_scene_quality(
