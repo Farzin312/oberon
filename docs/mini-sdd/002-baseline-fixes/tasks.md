@@ -42,15 +42,16 @@
 - [x] [DOC] Mark 001 Phase 7 complete
 
 ## Phase 4 — QA gate
-**Status:** [ ]
+**Status:** [x] DONE
 
-- [ ] [QA] `ruff check src/ tests/` — 0 exit
-- [ ] [QA] `mypy src/` — 0 exit
-- [ ] [QA] `pytest tests/ -v --tb=short` — baseline updated
-- [ ] [QA] Commit: `feat: 002 baseline fixes + task contract`
+- [x] [QA] `ruff check src/ tests/` — 0 exit
+- [x] [QA] `mypy src/` — 0 exit
+- [x] [QA] `pytest tests/ -v --tb=short` — 118 pass (was 114)
+- [x] [QA] Commit: `feat: 002 baseline fixes + task contract` (27c5e1b)
 
 ---
 
 ### Progress
 
-_None yet._
+Mini-SDD 002 complete. 114 → 118 tests. pixel_delta stub replaced with
+full implementation, task contract written, 001 Phase 7 closed out.
