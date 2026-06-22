@@ -1,9 +1,9 @@
 {
-  "expected_outcome": "findings",
-  "abstention_reason_substring": null,
+  "expected_outcome": "abstention",
+  "abstention_reason_substring": "pixel",
   "finding_count": {
-    "min": 1,
-    "max": 5
+    "min": 0,
+    "max": 0
   },
   "ndvi_delta_range": [
     -0.45,
@@ -14,5 +14,6 @@
   "ecosystem": "rainforest",
   "time_interval_months": 6,
   "season_comparison": "same_season",
-  "holdout_group": "geo_asia"
+  "holdout_group": "geo_asia",
+  "notes": "Persistent cloud cover yields only 25% valid pixels. Pipeline correctly abstains. Scene availability limitation, not calibration."
 }

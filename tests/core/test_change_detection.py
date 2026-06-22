@@ -292,22 +292,21 @@ class TestMorphologicalClosing:
     """apply_morphological_closing(): consolidate fragmented findings."""
 
     def test_merges_nearby_components(self) -> None:
-        """Two components within a 15-pixel gap should merge into one after closing."""
-        mask = np.zeros((30, 30), dtype=bool)
-        mask[5:10, 5:10] = True  # Component A
-        mask[5:10, 18:23] = True  # Component B, 8-pixel gap
-        closed = apply_morphological_closing(mask, kernel_size=15)
-        # After closing with 15x15, the gap should be filled -> one component
+        """Two components within a 25-pixel gap should merge into one after closing."""
+        mask = np.zeros((50, 50), dtype=bool)
+        mask[10:20, 5:15] = True  # Component A
+        mask[10:20, 25:35] = True  # Component B, 10-pixel gap
+        closed = apply_morphological_closing(mask, kernel_size=25)
         from scipy import ndimage as ndi
         labeled, num = ndi.label(closed)
         assert num == 1, f"Expected 1 component, got {num}"
 
     def test_distant_components_remain_separate(self) -> None:
-        """Components separated by >30 pixels should NOT merge."""
-        mask = np.zeros((50, 50), dtype=bool)
-        mask[5:10, 5:10] = True  # Component A
-        mask[5:10, 40:45] = True  # Component B, >30-pixel gap
-        closed = apply_morphological_closing(mask, kernel_size=15)
+        """Components separated by >50 pixels should NOT merge."""
+        mask = np.zeros((80, 80), dtype=bool)
+        mask[10:20, 5:15] = True  # Component A
+        mask[10:20, 60:70] = True  # Component B, >45-pixel gap
+        closed = apply_morphological_closing(mask, kernel_size=25)
         from scipy import ndimage as ndi
         labeled, num = ndi.label(closed)
         assert num == 2, f"Expected 2 components, got {num}"
@@ -325,8 +324,8 @@ class TestMorphologicalClosing:
 
     def test_hole_in_middle_filled(self) -> None:
         """A hole within a larger component should be filled by closing."""
-        mask = np.ones((30, 30), dtype=bool)
-        mask[12:18, 12:18] = False  # 6x6 hole in the middle
-        closed = apply_morphological_closing(mask, kernel_size=15)
+        mask = np.ones((50, 50), dtype=bool)
+        mask[20:30, 20:30] = False  # 10x10 hole in the middle
+        closed = apply_morphological_closing(mask, kernel_size=25)
         # The interior hole should be filled (core region all True).
-        assert closed[12:18, 12:18].all(), "Hole in middle should be filled after closing"
+        assert closed[20:30, 20:30].all(), "Hole in middle should be filled after closing"

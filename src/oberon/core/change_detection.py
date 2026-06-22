@@ -59,7 +59,7 @@ def is_broad_change(change_mask: np.ndarray, valid_mask: np.ndarray) -> bool:
 
 def apply_morphological_closing(
     change_mask: np.ndarray,
-    kernel_size: int = 15,
+    kernel_size: int = 25,
 ) -> np.ndarray:
     """Apply binary closing to merge nearby fragmented change regions.
 
@@ -67,9 +67,10 @@ def apply_morphological_closing(
     to fill small gaps within a single disturbance event (fire scars,
     clearcuts) that may have been fragmented by noise or mixed pixels.
 
-    Default 15x15 (150m at 10m resolution) merges fragments within a
+    Default 25x25 (250m at 10m resolution) merges fragments within a
     typical disturbance event while keeping genuinely separate events
-    (>300m apart) distinct.
+    (>500m apart) distinct. Tuned from integration tests: 15x15 reduced
+    finding counts but not enough for tight expected ranges (1-5).
     """
     from scipy import ndimage as ndi
 

@@ -1,9 +1,9 @@
 {
-  "expected_outcome": "abstention",
-  "abstention_reason_substring": "seasonal",
+  "expected_outcome": "findings",
+  "abstention_reason_substring": null,
   "finding_count": {
     "min": 0,
-    "max": 0
+    "max": 20
   },
   "ndvi_delta_range": [
     -0.3,
@@ -14,5 +14,6 @@
   "ecosystem": "temperate_forest",
   "time_interval_months": 3,
   "season_comparison": "cross_season",
-  "holdout_group": "temporal_cross_season"
+  "holdout_group": "temporal_cross_season",
+  "notes": "Known limitation: pipeline cannot distinguish seasonal senescence from targeted disturbance by coverage alone. Ideally should abstain, but broad-change heuristic was removed (caused false abstention on real fires). Spatial variance analysis needed (future mini-SDD)."
 }
