@@ -6,6 +6,7 @@ import json
 import sys
 from datetime import date
 from pathlib import Path
+from typing import Any
 
 import click
 
@@ -25,22 +26,130 @@ def _parse_date(ctx: click.Context, _param: click.Parameter, value: str) -> str:
     return value
 
 
+def _build_request(
+    request_file: str | None,
+    aoi: str | None,
+    before: str | None,
+    after: str | None,
+    before_start: str | None,
+    after_start: str | None,
+    task: str,
+    max_cloud: float,
+    min_valid: float,
+) -> ChangeRequest:
+    """Build a ChangeRequest from either --request JSON or --aoi/--before/--after flags.
+
+    Validates mutual exclusion: --request cannot be used with --aoi.
+    At least one input mode must be provided.
+    """
+    if request_file:
+        if aoi:
+            raise click.UsageError("--request cannot be used together with --aoi/--before/--after.")
+        return _request_from_file(request_file)
+
+    if not aoi or not before or not after:
+        raise click.UsageError(
+            "Either --request <path> or --aoi + --before + --after is required."
+        )
+    return _request_from_flags(aoi, before, after, before_start, after_start, task, max_cloud, min_valid)
+
+
+def _request_from_file(path: str) -> ChangeRequest:
+    """Parse a ChangeRequestAPI JSON file into a ChangeRequest."""
+    try:
+        with open(path) as f:
+            raw: dict[str, Any] = json.load(f)
+    except (json.JSONDecodeError, OSError) as exc:
+        click.echo(f"Error: Invalid request file '{path}': {exc}", err=True)
+        sys.exit(1)
+
+    # Validate with the Pydantic model (catches bad geometry, dates, etc.).
+    from pydantic import ValidationError
+
+    from oberon.api.contracts import ChangeRequestAPI
+
+    try:
+        api_req = ChangeRequestAPI(**raw)
+    except ValidationError as exc:
+        click.echo(f"Error: Invalid request schema: {exc}", err=True)
+        sys.exit(1)
+
+    return ChangeRequest(
+        geometry=api_req.geometry,
+        before=(api_req.before.from_, api_req.before.to),
+        after=(api_req.after.from_, api_req.after.to),
+        task=api_req.task,
+        max_cloud_fraction=api_req.max_cloud_fraction,
+        min_valid_pixels=0.30,
+    )
+
+
+def _request_from_flags(
+    aoi: str,
+    before: str,
+    after: str,
+    before_start: str | None,
+    after_start: str | None,
+    task: str,
+    max_cloud: float,
+    min_valid: float,
+) -> ChangeRequest:
+    """Build a ChangeRequest from CLI flags (the original --aoi mode)."""
+    before_dt = date.fromisoformat(before)
+    after_dt = date.fromisoformat(after)
+
+    before_start_dt = date.fromisoformat(before_start) if before_start else before_dt.replace(
+        month=before_dt.month - 1 if before_dt.month > 1 else 12,
+        year=before_dt.year - 1 if before_dt.month <= 1 else before_dt.year,
+    )
+    after_start_dt = date.fromisoformat(after_start) if after_start else after_dt
+
+    try:
+        with open(aoi) as f:
+            geojson = json.load(f)
+    except (json.JSONDecodeError, OSError) as exc:
+        click.echo(f"Error: Invalid AOI file '{aoi}': {exc}", err=True)
+        sys.exit(1)
+
+    geometry = geojson.get("geometry") or geojson
+    if geojson.get("type") == "FeatureCollection" and geojson.get("features"):
+        feat = geojson["features"][0]
+        geometry = feat.get("geometry") or feat
+    if not isinstance(geometry, dict) or "type" not in geometry:
+        click.echo("Error: AOI file must contain a GeoJSON Feature or Geometry with a 'type' field",
+                   err=True)
+        sys.exit(1)
+
+    return ChangeRequest(
+        geometry=geometry,
+        before=(before_start_dt, before_dt),
+        after=(after_start_dt, after_dt),
+        task=task,
+        max_cloud_fraction=max_cloud / 100.0,
+        min_valid_pixels=min_valid,
+    )
+
+
 @click.group()
 def cli() -> None:
     """Oberon — Earth observation change monitoring engine."""
 
 
 @cli.command()
-@click.option("--aoi", required=True, type=click.Path(exists=True, dir_okay=False),
+@click.option("--aoi", default=None, type=click.Path(exists=True, dir_okay=False),
               help="Path to GeoJSON file with AOI polygon")
-@click.option("--before", required=True, callback=_parse_date,
+@click.option("--before", default=None, callback=_parse_date,
               help="Before date window end (YYYY-MM-DD)")
-@click.option("--after", required=True, callback=_parse_date,
+@click.option("--after", default=None, callback=_parse_date,
               help="After date window end (YYYY-MM-DD)")
 @click.option("--before-start", "before_start", default=None, callback=_parse_date,
               help="Before date window start (YYYY-MM-DD). Defaults to 30 days before --before.")
 @click.option("--after-start", "after_start", default=None, callback=_parse_date,
               help="After date window start (YYYY-MM-DD). Defaults to --after.")
+@click.option("--request", "request_file", default=None,
+              type=click.Path(exists=True, dir_okay=False),
+              help="Path to JSON request file (ChangeRequestAPI schema). "
+                   "Alternative to --aoi/--before/--after.")
 @click.option("--task", default="vegetation_disturbance",
               help="Task type (default: vegetation_disturbance)")
 @click.option("--output", "-o", default="./oberon-output",
@@ -59,11 +168,12 @@ def cli() -> None:
 @click.option("--json", "as_json", is_flag=True, default=False,
               help="Output results as JSON (for programmatic use)")
 def analyze(
-    aoi: str,
-    before: str,
-    after: str,
+    aoi: str | None,
+    before: str | None,
+    after: str | None,
     before_start: str | None,
     after_start: str | None,
+    request_file: str | None,
     task: str,
     output: str,
     max_cloud: float,
@@ -79,64 +189,35 @@ def analyze(
     computes spectral indices and change detection, and writes evidence
     artifacts (PNG images, GeoJSON findings, provenance manifest) to
     the output directory.
+
+    Two input modes:
+    - Flag mode: --aoi polygon.geojson --before 2026-01-01 --after 2026-06-01
+    - Request mode: --request request.json (reads ChangeRequestAPI JSON)
     """
-    # Parse dates into windows.
-    before_dt = date.fromisoformat(before)
-    after_dt = date.fromisoformat(after)
-
-    # Default windows: 30-day lookback for before, 30-day for after.
-    before_start_dt = date.fromisoformat(before_start) if before_start else before_dt.replace(
-        month=before_dt.month - 1 if before_dt.month > 1 else 12,
-        year=before_dt.year - 1 if before_dt.month <= 1 else before_dt.year,
-    )
-    after_start_dt = date.fromisoformat(after_start) if after_start else after_dt
-
-    # Load AOI GeoJSON
-    try:
-        with open(aoi) as f:
-            geojson = json.load(f)
-    except (json.JSONDecodeError, OSError) as exc:
-        click.echo(f"Error: Invalid AOI file '{aoi}': {exc}", err=True)
-        sys.exit(1)
-
-    geometry = geojson.get("geometry") or geojson
-    # Handle FeatureCollection: extract the first feature's geometry.
-    if geojson.get("type") == "FeatureCollection" and geojson.get("features"):
-        feat = geojson["features"][0]
-        geometry = feat.get("geometry") or feat
-    if not isinstance(geometry, dict) or "type" not in geometry:
-        click.echo("Error: AOI file must contain a GeoJSON Feature or Geometry with a 'type' field",
-                   err=True)
-        sys.exit(1)
-
-    # Build the change request.
-    request = ChangeRequest(
-        geometry=geometry,
-        before=(before_start_dt, before_dt),
-        after=(after_start_dt, after_dt),
-        task=task,
-        max_cloud_fraction=max_cloud / 100.0,
-        min_valid_pixels=min_valid,
+    request = _build_request(
+        request_file, aoi, before, after, before_start, after_start,
+        task, max_cloud, min_valid,
     )
 
     output_dir = Path(output)
 
     logger = get_logger("oberon.analyze")
     logger.info("analyze.start", extra={
-        "task": task, "aoi": str(aoi),
+        "task": request.task, "aoi": str(aoi or request_file),
         "before": str(request.before), "after": str(request.after),
         "max_cloud": max_cloud, "min_valid": min_valid,
         "composite": force_composite,
     })
 
-    click.echo(f"Oberon analyze — {task}")
-    click.echo(f"  AOI:       {aoi}")
-    click.echo(f"  Before:    {request.before[0]} to {request.before[1]}")
-    click.echo(f"  After:     {request.after[0]} to {request.after[1]}")
-    click.echo(f"  Max cloud: {max_cloud:.0f}%")
-    click.echo(f"  Min valid: {min_valid:.0%}")
-    click.echo(f"  Output:    {output_dir}")
-    click.echo("")
+    if not as_json:
+        click.echo(f"Oberon analyze — {request.task}")
+        click.echo(f"  AOI:       {aoi or request_file}")
+        click.echo(f"  Before:    {request.before[0]} to {request.before[1]}")
+        click.echo(f"  After:     {request.after[0]} to {request.after[1]}")
+        click.echo(f"  Max cloud: {max_cloud:.0f}%")
+        click.echo(f"  Min valid: {min_valid:.0%}")
+        click.echo(f"  Output:    {output_dir}")
+        click.echo("")
 
     # Enable cache if requested.
     if use_cache:
@@ -149,39 +230,33 @@ def analyze(
 
     bundle = run_analysis(request, output_dir, force_composite=force_composite, use_ai=use_ai)
 
-    # Report result.
+    # Report result using the API serialization layer for --json.
     provenance = bundle.provenance
-    if provenance.get("abstention"):
-        reason = provenance["abstention"]["reason"]
-        logger.info("analyze.result", extra={"outcome": "abstained", "reason": reason})
-        if as_json:
-            click.echo(json.dumps({
-                "status": "abstained",
-                "reason": reason,
-                "model_versions": provenance.get("model_versions", []),
-                "output_dir": str(output_dir),
-            }, indent=2))
-        else:
-            click.echo(f"Abstained: {reason}")
-        sys.exit(0)
+    abstention = provenance.get("abstention")
+    is_abstained = bool(abstention and abstention.get("reason"))
+    reason = abstention["reason"] if (abstention and isinstance(abstention, dict)) else ""
 
-    num_findings = len(provenance.get("findings", []))
-    logger.info("analyze.result", extra={"outcome": "complete", "findings": num_findings})
+    if is_abstained:
+        logger.info("analyze.result", extra={"outcome": "abstained", "reason": reason})
+
     if as_json:
-        click.echo(json.dumps({
-            "status": "complete",
-            "finding_count": num_findings,
-            "model_versions": provenance.get("model_versions", []),
-            "artifacts": provenance.get("artifacts", {}),
-            "output_dir": str(output_dir),
-        }, indent=2))
+        from oberon.api.serialization import serialize_bundle_to_response
+
+        response = serialize_bundle_to_response(bundle)
+        click.echo(response.model_dump_json(indent=2))
+    elif is_abstained:
+        click.echo(f"Abstained: {reason}")
     else:
+        num_findings = len(provenance.get("findings", []))
+        logger.info("analyze.result", extra={"outcome": "complete", "findings": num_findings})
         click.echo(f"Analysis complete: {num_findings} finding(s)")
         click.echo(f"  Before image:  {bundle.before_image}")
         click.echo(f"  After image:   {bundle.after_image}")
         click.echo(f"  Overlay:       {bundle.overlay_image}")
         click.echo(f"  Findings:      {bundle.findings_geojson}")
         click.echo(f"  Provenance:    {bundle.provenance_manifest}")
+
+    sys.exit(0)
 
 
 @cli.command()

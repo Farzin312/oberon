@@ -44,15 +44,15 @@
 - [ ] [TEST] Test SQLite round-trip
 
 ## Phase 4 — Python subprocess
-**Status:** [ ]
+**Status:** [ ] (Rust executor deferred)
 
-- [ ] [BE] `src/executor.rs` — spawn python -m oberon.cli analyze --request /tmp/input.json
-- [ ] [BE] Write request JSON to tempdir, spawn, capture stdout/stderr, read result
-- [ ] [BE] Timeout handling (default: 300s)
-- [ ] [BE] `src/oberon/cli/main.py` — add `--request <path>` flag (reads JSON)
-- [ ] [TEST] `cargo test` — test Python subprocess integration (mocked pipeline)
-- [ ] [TEST] `cargo test` — test timeout returns failed state
-- [ ] [TEST] `cargo test` — test Python crash returns failed state with stderr
+Python-side CLI wiring done:
+
+- [x] [BE] `src/oberon/cli/main.py` — add `--request <path>` flag (reads ChangeRequestAPI JSON)
+- [x] [BE] `--request` and `--aoi` are mutually exclusive (enforced via _build_request)
+- [x] [BE] `--json` output upgraded to full ChangeResponse shape via serialize_bundle_to_response()
+- [x] [TEST] `tests/cli/test_request_json.py` — 10 tests: request parsing, mutual exclusion, JSON shape
+- [ ] [BE] Rust `src/executor.rs` — spawn python -m oberon.cli analyze --request /tmp/input.json (deferred)
 
 ## Phase 5 — Durable queue
 **Status:** [ ]

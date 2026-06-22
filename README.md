@@ -104,6 +104,26 @@ oberon analyze \
   --json
 ```
 
+Outputs the full Product Brief section 5 response shape (status, findings with change_score/changed_area_m2/evidence, artifacts).
+
+### Request file mode (API contract input)
+
+```bash
+# Run from a JSON request file (ChangeRequestAPI schema)
+oberon analyze --request request.json -o output/
+```
+
+The request JSON format:
+```json
+{
+  "geometry": {"type": "Polygon", "coordinates": [[[...]]]},
+  "before": {"from": "2026-01-01", "to": "2026-02-01"},
+  "after": {"from": "2026-06-01", "to": "2026-07-01"}
+}
+```
+
+This is the same shape the Rust control plane will use. `--request` cannot be combined with `--aoi`.
+
 ### Docker
 
 ```bash
