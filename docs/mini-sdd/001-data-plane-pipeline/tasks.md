@@ -159,34 +159,34 @@ Execution checklist. Cross items off one at a time. All quality gates apply per 
 ---
 
 ## Phase 5 — CLI Wiring + Pipeline Orchestration
-**Status:** [ ]
+**Status:** [x] COMPLETE — 114 tests, ruff 0 exit
 
 **Full pipeline orchestration**
 
-- [ ] [BE] `src/oberon/cli/orchestrator.py` — implement `run_analysis(request, output_dir) -> EvidenceBundle` following the orchestration flow in plan.md §6.3
-- [ ] [BE] `src/oberon/cli/orchestrator.py` — handle each abstention path: "No suitable scenes found", "Missing before/after scene", "Insufficient valid pixels", abstention in baselines
-- [ ] [BE] `src/oberon/cli/orchestrator.py` — handle STAC connection error, invalid polygon, COG read failure with descriptive messages
+- [x] [BE] `src/oberon/cli/orchestrator.py` — implement `run_analysis(request, output_dir) -> EvidenceBundle` following the orchestration flow in plan.md §6.3
+- [x] [BE] `src/oberon/cli/orchestrator.py` — handle each abstention path: "No suitable scenes found", "Missing before/after scene", "Insufficient valid pixels", abstention in baselines
+- [x] [BE] `src/oberon/cli/orchestrator.py` — handle STAC connection error, invalid polygon, COG read failure with descriptive messages
 
 **CLI command**
 
-- [ ] [TEST] `tests/cli/test_analyze.py` — test `oberon analyze --help` shows all options
-- [ ] [TEST] `tests/cli/test_analyze.py` — test `oberon analyze` with invalid date format exits with error code 1
-- [ ] [TEST] `tests/cli/test_analyze.py` — test `oberon analyze` with missing --aoi flag shows required error
-- [ ] [TEST] `tests/cli/test_analyze.py` — test end-to-end with mocked STAC + synthetic COG + expected output
-- [ ] [BE] `src/oberon/cli/main.py` — complete click `analyze` command: option definitions, type validation, error handling, call orchestrator
+- [x] [TEST] `tests/cli/test_analyze.py` — test `oberon analyze --help` shows all options
+- [x] [TEST] `tests/cli/test_analyze.py` — test `oberon analyze` with invalid date format exits with error code 1
+- [x] [TEST] `tests/cli/test_analyze.py` — test `oberon analyze` with missing --aoi flag shows required error
+- [x] [TEST] `tests/cli/test_analyze.py` — test end-to-end with mocked STAC + synthetic COG + expected output
+- [x] [BE] `src/oberon/cli/main.py` — complete click `analyze` command: option definitions, type validation, error handling, call orchestrator
 
 **Export cleanup**
 
-- [ ] [BE] `src/oberon/core/__init__.py` — verify all public models are exported
-- [ ] [BE] `src/oberon/pipeline/__init__.py` — add exports for pipeline functions
-- [ ] [BE] `src/oberon/artifacts/__init__.py` — add exports for artifact functions
-- [ ] [QA] `python -m oberon.cli analyze --help` — works, shows all options
-- [ ] [BE] `uv lock` — lock all dependencies
+- [x] [BE] `src/oberon/core/__init__.py` — verify all public models are exported
+- [x] [BE] `src/oberon/pipeline/__init__.py` — add exports for pipeline functions
+- [x] [BE] `src/oberon/artifacts/__init__.py` — add exports for artifact functions
+- [x] [QA] `python -m oberon.cli analyze --help` — works, shows all options
+- [x] [BE] `uv lock` — lock all dependencies (Pillow added)
 
 **QA gate**
 
-- [ ] [QA] `ruff check src/ tests/` — 0 exit
-- [ ] [QA] `pytest tests/cli/ -v` — all pass
+- [x] [QA] `ruff check src/ tests/` — 0 exit
+- [x] [QA] `pytest tests/cli/ -v` — all pass (8)
 
 ---
 
@@ -220,11 +220,10 @@ Execution checklist. Cross items off one at a time. All quality gates apply per 
 ### Progress
 
 **Started:** 2026-06-21
-**Phases complete:** 1—4 (Setup + STAC/Quality + COG/Preparation + Baselines/Change Detection + Evidence Bundles/Provenance)
-**Key commits:** `5d41071` (scaffolding), `b0a64f6` (Phase 1), `4ad0579` (Phase 2 scene-quality SCL bridge)
-**Test baseline:** 106 tests, 0 failures, 0 warnings (up from 80)
+**Phases complete:** 1—5 (Setup + STAC/Quality + COG/Preparation + Baselines/Change Detection + Evidence Bundles/Provenance + CLI/Orchestration)
+**Key commits:** `5d41071` (scaffolding), `b0a64f6` (Phase 1), `4ad0579` (Phase 2), `76c2646` (Phase 3), `d436a5a` (Phase 4)
+**Test baseline:** 114 tests, 0 failures, 0 warnings (up from 106)
 **Lint:** ruff 0 exit
-**New deps:** Pillow 12.2 (image rendering)
 **Bounds:** bounds CLI not in PATH — skipped
-**Last plan update:** Phase 4 complete — `render_true_color`, `render_change_overlay`, `write_findings_geojson`, `build_provenance`, `render_evidence_bundle` all implemented. 18 artifact tests + 8 integration tests green. Files created: images.py, geojson.py, provenance.py, __init__.py (artifacts), test_images.py, test_geojson.py, test_provenance.py, test_evidence_bundle.py.
-**Next phase:** Phase 5 — CLI Wiring + Pipeline Orchestration (orchestrator.py + cli/main.py)
+**Last plan update:** Phase 5 complete — `run_analysis` orchestrator wires all stages (STAC→quality→COG→prep→baselines→change→evidence). CLI handles date validation, abstention paths, error reporting. `pipeline/__init__.py` exports all functions. 8 CLI tests pass.
+**Next phase:** Phase 6 — Verify & QA (full suite, type check, bounds preflight, docs sync)
