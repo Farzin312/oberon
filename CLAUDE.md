@@ -14,8 +14,8 @@ Oberon is an open-source, self-hostable Earth observation monitoring engine. It 
 |------|-----------|
 | What we're building | [docs/DEVELOPMENT_SCOPE.md](docs/DEVELOPMENT_SCOPE.md) |
 | How to contribute | [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md) |
-| Architecture overview | [ARCHITECTURE.md](ARCHITECTURE.md) |
-| Build roadmap | [ROADMAP.md](ROADMAP.md) |
+| Architecture overview | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) |
+| Build roadmap | [docs/ROADMAP.md](docs/ROADMAP.md) |
 | How to run locally | [docs/CONTRIBUTING.md#how-to-run](docs/CONTRIBUTING.md#how-to-run) |
 | Testing rules | [docs/TESTING_GUIDE.md](docs/TESTING_GUIDE.md) |
 | Spec-Driven Development | [docs/SPEC_DRIVEN_DEVELOPMENT.md](docs/SPEC_DRIVEN_DEVELOPMENT.md) |

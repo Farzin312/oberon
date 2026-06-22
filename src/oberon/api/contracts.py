@@ -119,8 +119,11 @@ class ChangeResponse(BaseModel):
 
     This is what the Rust API returns. The serialization layer
     (serialization.py) transforms an EvidenceBundle into this shape.
+
+    artifacts is Optional: null when the analysis abstained (no artifacts
+    were produced).
     """
 
     status: ResponseStatus
     findings: list[APIFinding]
-    artifacts: ArtifactPaths
+    artifacts: ArtifactPaths | None = None

@@ -47,7 +47,7 @@ class ConsoleFormatter(logging.Formatter):
 
 def configure_logging(level: str = "INFO") -> None:
     """Configure root logger with JSON or console format based on env var."""
-    fmt = os.environ.get("OBERON_LOG_FORMAT", "json")
+    fmt = os.environ.get("OBERON_LOG_FORMAT", "console")
     handler = logging.StreamHandler(sys.stderr)
     if fmt == "console":
         handler.setFormatter(ConsoleFormatter())
@@ -56,6 +56,10 @@ def configure_logging(level: str = "INFO") -> None:
     logging.root.handlers.clear()
     logging.root.addHandler(handler)
     logging.root.setLevel(level)
+
+    # Suppress noisy third-party loggers (boto3 DummySession, rasterio/GDAL).
+    for name in ("boto3", "botocore", "rasterio", "GDAL"):
+        logging.getLogger(name).setLevel(logging.WARNING)
 
 
 def get_logger(name: str) -> logging.Logger:

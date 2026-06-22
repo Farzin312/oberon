@@ -1,6 +1,6 @@
 # Architecture
 
-**Parent**: [README.md](README.md)
+**Parent**: [README.md](../README.md)
 
 Oberon's architecture follows a four-plane conceptual model. The MVP is a modular monolith: one Python process, clear stage boundaries, no distributed-system overhead.
 

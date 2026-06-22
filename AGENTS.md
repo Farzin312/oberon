@@ -48,7 +48,7 @@ Mark shortcuts: `# ponytail: <name of ceiling>, <upgrade path if throughput matt
 - **Scene-level cloud % is not local quality** — always compute quality over the AOI polygon, not the whole scene.
 - **Pillow required for PNG output** — `render_true_color` and `render_change_overlay` need Pillow. Added as core dependency in pyproject.toml.
 - **CLI exits 0 for abstention** — abstention (no suitable scenes, insufficient pixels) is a valid analysis result, not an error. Exit code 0, message prefixed with "Abstained:".
-- **Default date windows are 30 days** — `--before` window defaults to 30-day lookback from the given date. `--after` window defaults to a single day (30 days if `--after-start` is set).
+- **Default date windows are 30 days** — both `--before` and `--after` default to a 30-day lookback from the given date. `--before-start` / `--after-start` override the start date explicitly.
 - **pixel_delta is secondary** — Euclidean band magnitude is a secondary ranking signal at 0.3 weight. NDVI stays primary. See [docs/TASK_CONTRACT.md](docs/TASK_CONTRACT.md) for the full contract. pixel_delta includes seasonal variation in non-vegetation bands (e.g. SWIR moisture), which is why it's capped.
 - **mypy strictness** — Some dict types are `dict[str, Any]` for GeoJSON geometry dicts (mixed-type shapes). Use `cast()` for narrowing, not `# type: ignore`.
 - **Docker GDAL deps** — `python:3.12-slim` doesn't include GDAL system libraries. The Dockerfile installs `libgdal36 libgeos-c1t64 libexpat1 libspatialindex-c8` in the runtime stage. If rasterio fails with `.so` errors, check these packages.
@@ -78,7 +78,7 @@ bounds validate --quick
 bounds preflight --ci
 
 # Run the CLI
-python -m oberon.cli analyze --aoi tests/data/sample.geojson --before 2026-01-01 --after 2026-06-01
+python -m oberon.cli analyze --aoi sample-aoi.geojson --before 2026-01-01 --after 2026-06-01
 ```
 
 ## Version warnings

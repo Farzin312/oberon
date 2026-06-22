@@ -1,6 +1,6 @@
 # Roadmap
 
-**Parent**: [README.md](README.md)
+**Parent**: [README.md](../README.md)
 
 Oberon is built in layers. Each layer must pass quality gates (ruff, mypy strict, pytest, provenance checks) before the next begins. Decision gates mark go/no-go points.
 

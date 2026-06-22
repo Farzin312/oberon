@@ -63,7 +63,7 @@ docker build -t oberon:cpu .
 ```bash
 # Provide a GeoJSON polygon and before/after dates
 oberon analyze \
-  --aoi path/to/polygon.geojson \
+  --aoi sample-aoi.geojson \
   --before 2026-01-01 --after 2026-06-01 \
   --task vegetation_disturbance \
   -o output/
@@ -79,7 +79,7 @@ Output in `output/`:
 ```bash
 uv sync --extra ai
 oberon analyze \
-  --aoi path/to/polygon.geojson \
+  --aoi sample-aoi.geojson \
   --before 2026-01-01 --after 2026-06-01 \
   --use-ai -o output/
 ```
@@ -90,7 +90,7 @@ When the best single scene has too much cloud cover over the AOI, Oberon can mer
 
 ```bash
 oberon analyze \
-  --aoi path/to/polygon.geojson \
+  --aoi sample-aoi.geojson \
   --before 2026-01-01 --after 2026-06-01 \
   --composite -o output/
 ```
@@ -99,7 +99,7 @@ oberon analyze \
 
 ```bash
 oberon analyze \
-  --aoi path/to/polygon.geojson \
+  --aoi sample-aoi.geojson \
   --before 2026-01-01 --after 2026-06-01 \
   --json
 ```
@@ -132,13 +132,13 @@ docker run --rm \
   -v "$PWD/input:/input:ro" \
   -v "$PWD/output:/output" \
   oberon:cpu analyze \
-    --aoi /input/polygon.geojson \
+    --aoi /input/sample-aoi.geojson \
     --before 2026-01-01 --after 2026-06-01 \
     -o /output
 
 # GPU (requires nvidia-docker runtime)
 docker compose --profile gpu run --rm oberon-gpu analyze \
-  --aoi /input/polygon.geojson \
+  --aoi /input/sample-aoi.geojson \
   --before 2026-01-01 --after 2026-06-01 \
   --use-ai -o /output
 ```
@@ -152,7 +152,7 @@ oberon health --json   # programmatic
 
 ## Architecture
 
-Oberon follows a four-plane conceptual model. See [ARCHITECTURE.md](ARCHITECTURE.md) for the full system design.
+Oberon follows a four-plane conceptual model. See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the full system design.
 
 ```
 Data Plane        -> STAC discovery, COG reads, spectral baselines, AI inference
@@ -169,7 +169,7 @@ Key design decisions:
 
 ## Roadmap
 
-See [ROADMAP.md](ROADMAP.md) for the phased build plan and current status.
+See [docs/ROADMAP.md](docs/ROADMAP.md) for the phased build plan and current status.
 
 | Layer | Status |
 |-------|--------|
@@ -188,8 +188,8 @@ See [ROADMAP.md](ROADMAP.md) for the phased build plan and current status.
 
 | Doc | Audience | Description |
 |-----|----------|-------------|
-| [ARCHITECTURE.md](ARCHITECTURE.md) | Engineers | Four-plane model, stage boundaries, design decisions |
-| [ROADMAP.md](ROADMAP.md) | Community | Phased build plan, decision gates, current status |
+| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Engineers | Four-plane model, stage boundaries, design decisions |
+| [docs/ROADMAP.md](docs/ROADMAP.md) | Community | Phased build plan, decision gates, current status |
 | [CLAUDE.md](CLAUDE.md) | AI agents | Project context, build commands, gotchas |
 | [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md) | Contributors | Development workflow, setup, testing rules |
 | [docs/architecture/SYSTEM_DESIGN.md](docs/architecture/SYSTEM_DESIGN.md) | Engineers | Detailed subsystem design |

@@ -17,7 +17,7 @@ Oberon uses Spec-Driven Development (SDD) for complex features and mini-SDDs for
 ## How to run
 
 ```bash
-# Prerequisites: Python 3.12+, uv
+# Prerequisites: Python 3.12+, uv, GDAL system libraries
 uv sync
 
 # Optional: enable AI inference
@@ -25,10 +25,31 @@ uv sync --group ai
 
 # Run the CLI
 python -m oberon.cli analyze \
-  --aoi tests/data/sample.geojson \
+  --aoi sample-aoi.geojson \
   --before 2026-01-01 \
   --after 2026-06-01 \
   --task vegetation_disturbance
+```
+
+### GDAL installation
+
+Oberon uses rasterio which requires GDAL system libraries. Install per platform:
+
+**macOS (Homebrew):**
+```bash
+brew install gdal
+```
+
+**Ubuntu/Debian:**
+```bash
+sudo apt install libgdal-dev
+```
+
+**Or skip the install — use Docker:**
+```bash
+docker build -t oberon:cpu .
+docker run --rm -v "$PWD:/data" oberon:cpu analyze \
+  --aoi /data/sample-aoi.geojson --before 2026-01-01 --after 2026-06-01 -o /data/output
 ```
 
 ## Workflow

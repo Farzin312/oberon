@@ -129,7 +129,10 @@ def _request_from_flags(
         month=before_dt.month - 1 if before_dt.month > 1 else 12,
         year=before_dt.year - 1 if before_dt.month <= 1 else before_dt.year,
     )
-    after_start_dt = date.fromisoformat(after_start) if after_start else after_dt
+    after_start_dt = date.fromisoformat(after_start) if after_start else after_dt.replace(
+        month=after_dt.month - 1 if after_dt.month > 1 else 12,
+        year=after_dt.year - 1 if after_dt.month <= 1 else after_dt.year,
+    )
 
     _validate_file_size(aoi)
     try:
@@ -159,6 +162,7 @@ def _request_from_flags(
 
 
 @click.group()
+@click.version_option(version=__version__, prog_name="oberon")
 def cli() -> None:
     """Oberon — Earth observation change monitoring engine."""
 
@@ -173,7 +177,7 @@ def cli() -> None:
 @click.option("--before-start", "before_start", default=None, callback=_parse_date,
               help="Before date window start (YYYY-MM-DD). Defaults to 30 days before --before.")
 @click.option("--after-start", "after_start", default=None, callback=_parse_date,
-              help="After date window start (YYYY-MM-DD). Defaults to --after.")
+              help="After date window start (YYYY-MM-DD). Defaults to 30 days before --after.")
 @click.option("--request", "request_file", default=None,
               type=click.Path(exists=True, dir_okay=False),
               help="Path to JSON request file (ChangeRequestAPI schema). "
@@ -341,6 +345,10 @@ def health(as_json: bool) -> None:
     status["cache_dir"] = cache_dir
     status["cache_size_mb"] = round(cache_size / (1024 * 1024), 1)
 
+    # STAC is a core dependency — degraded when unreachable.
+    if not status.get("stac_reachable"):
+        status["status"] = "degraded"
+
     if as_json:
         click.echo(json.dumps(status, indent=2))
     else:
@@ -348,6 +356,64 @@ def health(as_json: bool) -> None:
         click.echo(f"  Torch:     {'available' if status['torch_available'] else 'not installed'}")
         click.echo(f"  STAC API:  {'reachable' if status['stac_reachable'] else 'unreachable'}")
         click.echo(f"  Cache:     {status['cache_size_mb']} MB at {status['cache_dir']}")
+
+    if status["status"] == "degraded":
+        sys.exit(1)
+    sys.exit(0)
+
+
+@cli.command()
+def init() -> None:
+    """Check prerequisites and create the ~/.oberon/ config directory.
+
+    Verifies Python, GDAL, and STAC reachability. Prints setup guidance
+    if anything is missing. Useful as a first-run sanity check.
+    """
+    import subprocess
+
+    click.echo(f"Oberon v{__version__} — setup check")
+    click.echo("")
+
+    # Python version.
+    click.echo(f"  Python:    {sys.version.split()[0]}")
+
+    # GDAL/rasterio check.
+    try:
+        result = subprocess.run(
+            [sys.executable, "-c", "import rasterio; print(rasterio.__gdal_version__)"],
+            capture_output=True, text=True, timeout=10,
+        )
+        if result.returncode == 0:
+            click.echo(f"  GDAL:      {result.stdout.strip()}")
+        else:
+            click.echo("  GDAL:      MISSING — install: brew install gdal (macOS) or sudo apt install libgdal-dev (Linux)")
+    except Exception:
+        click.echo("  GDAL:      check failed")
+
+    # STAC reachability.
+    try:
+        import urllib.request
+
+        from oberon.pipeline.stac_discovery import STAC_URL
+
+        urllib.request.urlopen(STAC_URL, timeout=5)
+        click.echo("  STAC API:  reachable")
+        stac_ok = True
+    except Exception:
+        click.echo("  STAC API:  unreachable")
+        stac_ok = False
+
+    # Create config dir.
+    config_dir = Path.home() / ".oberon"
+    config_dir.mkdir(parents=True, exist_ok=True)
+    click.echo(f"  Config:    {config_dir} (created)")
+    click.echo("")
+
+    if stac_ok:
+        click.echo("All set. Try: oberon analyze --aoi sample-aoi.geojson --before 2026-01-01 --after 2026-06-01")
+    else:
+        click.echo("STAC API unreachable — check your network or set OBERON_STAC_URL.")
+        click.echo("You can still run offline tests: pytest tests/ -q")
 
     sys.exit(0)
 

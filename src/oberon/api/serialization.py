@@ -111,11 +111,7 @@ def serialize_bundle_to_response(
         return ChangeResponse(
             status=ResponseStatus.ABSTAINED,
             findings=[],
-            artifacts=ArtifactPaths(
-                before=_resolve_artifact_path(bundle.before_image),
-                after=_resolve_artifact_path(bundle.after_image),
-                overlay=_resolve_artifact_path(bundle.overlay_image),
-            ),
+            artifacts=None,
         )
 
     # Serialize findings.

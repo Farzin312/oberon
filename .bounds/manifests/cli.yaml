@@ -16,6 +16,8 @@ exposes:
   kind: function
 - name: health
   kind: function
+- name: init
+  kind: function
 - name: main
   kind: function
 - name: run_analysis
