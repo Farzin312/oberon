@@ -246,6 +246,50 @@ def align_to_common_grid(
                 crs=out_crs, transform=(), bounds=(0.0, 0.0, 0.0, 0.0),
             )
 
+        # Fast path: if before and after are already on the same grid
+        # (same CRS, same shape, same bounds, all bands harmonized),
+        # skip reprojection entirely. The COG reader handles resolution
+        # harmonization (20m -> 10m upsampling) at read time.
+        b_ref = next(iter(before.data.values())) if before.data else None
+        a_ref = next(iter(after.data.values())) if after.data else None
+
+        # Check all bands within each window have the same shape
+        # (COG reader guarantees this, but be defensive).
+        b_shapes_ok = b_ref is not None and all(
+            v.shape == b_ref.shape for v in before.data.values()
+        )
+        a_shapes_ok = a_ref is not None and all(
+            v.shape == a_ref.shape for v in after.data.values()
+        )
+
+        if (
+            b_ref is not None
+            and a_ref is not None
+            and b_shapes_ok
+            and a_shapes_ok
+            and before.crs == after.crs
+            and b_ref.shape == a_ref.shape
+            and b_bounds == a_bounds
+        ):
+            combined_mask = np.ones(b_ref.shape, dtype=bool)
+            if before_mask.size > 0 and before_mask.shape == b_ref.shape:
+                combined_mask &= before_mask
+            if after_mask.size > 0 and after_mask.shape == a_ref.shape:
+                combined_mask &= after_mask
+
+            # Dimension threshold (< 10px -> unusable).
+            if b_ref.shape[0] < 10 or b_ref.shape[1] < 10:
+                combined_mask = np.zeros_like(combined_mask)
+
+            return PreparedPair(
+                before=dict(before.data),
+                after=dict(after.data),
+                mask=combined_mask,
+                crs=out_crs,
+                transform=tuple(Affine(*before.transform)) if before.transform else (),
+                bounds=(b_minx, b_miny, b_maxx, b_maxy),
+            )
+
         from rasterio.transform import from_bounds as transform_from_bounds
         dst_width = max(int(round((inter_maxx - inter_minx) / target_resolution)), 1)
         dst_height = max(int(round((inter_maxy - inter_miny) / target_resolution)), 1)

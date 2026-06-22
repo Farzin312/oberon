@@ -92,6 +92,13 @@ def read_window(
     _transform: Affine | None = None
     last_window: Window | None = None
 
+    # Reference grid for resolution harmonization. Sentinel-2 bands have
+    # mixed resolutions (10m for B02/B03/B04/B08, 20m for B05/B06/B07/B8A/B11/B12).
+    # We must resample all bands to a common grid so they can be stacked together.
+    ref_height: int | None = None
+    ref_width: int | None = None
+    ref_transform: Affine | None = None
+
     for band in bands:
         if band not in scene.assets:
             continue
@@ -128,6 +135,28 @@ def read_window(
 
                 last_window = win
                 band_data = src.read(1, window=win)
+
+                # Capture reference grid from the first band read.
+                if ref_height is None:
+                    ref_height = band_data.shape[0]
+                    ref_width = band_data.shape[1]
+                    ref_transform = src.transform
+                elif band_data.shape[0] != ref_height or band_data.shape[1] != ref_width:
+                    # This band is at a different native resolution (e.g. 20m
+                    # vs 10m reference). Resample to the reference grid.
+                    assert ref_height is not None and ref_width is not None
+                    resampled = np.zeros((ref_height, ref_width), dtype=band_data.dtype)
+                    rasterio.warp.reproject(
+                        source=band_data,
+                        destination=resampled,
+                        src_transform=src.transform,
+                        src_crs=src.crs,
+                        dst_transform=ref_transform or src.transform,
+                        dst_crs=src.crs,
+                        resampling=rasterio.enums.Resampling.bilinear,
+                    )
+                    band_data = resampled
+
                 data[band] = band_data
         except RasterioIOError as exc:
             raise FileNotFoundError(
@@ -166,6 +195,25 @@ def read_window(
                     )
 
                 scl_data = src.read(1, window=scl_win)
+
+                # Resample SCL to reference grid if needed.
+                if (
+                    ref_height is not None
+                    and ref_width is not None
+                    and (scl_data.shape[0] != ref_height or scl_data.shape[1] != ref_width)
+                ):
+                    resampled_scl = np.zeros((ref_height, ref_width), dtype=scl_data.dtype)
+                    rasterio.warp.reproject(
+                        source=scl_data,
+                        destination=resampled_scl,
+                        src_transform=src.transform,
+                        src_crs=src.crs,
+                        dst_transform=ref_transform or src.transform,
+                        dst_crs=src.crs,
+                        resampling=rasterio.enums.Resampling.nearest,
+                    )
+                    scl_data = resampled_scl
+
                 scl_mask = (~np.isin(scl_data, list(SCL_CLOUD_BITS))) & (scl_data != 0)
         except RasterioIOError:
             pass  # SCL missing is non-fatal — caller falls back to nodata-only mask
