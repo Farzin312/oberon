@@ -5,34 +5,40 @@
 ---
 
 ## Phase 0 — Comparison harness
-**Status:** [ ]
+**Status:** [x] DONE
 
-- [ ] [BE] `src/oberon/ai/comparison.py` — ComparisonReport dataclass
-- [ ] [BE] `src/oberon/ai/comparison.py` — compute_metrics() function
-- [ ] [BE] `src/oberon/ai/comparison.py` — evaluate() runs baseline+AI on benchmark
-- [ ] [BE] `scripts/run_evaluation.py` — CLI entry point
-- [ ] [TEST] `tests/ai/test_comparison.py` — precision@K with known inputs
-- [ ] [TEST] `tests/ai/test_comparison.py` — recall@K with known inputs
-- [ ] [TEST] `tests/ai/test_comparison.py` — fp_rate edge case (0 findings)
-- [ ] [TEST] `tests/ai/test_comparison.py` — abstention accuracy
-- [ ] [QA] ruff 0; pytest green; mypy 0
+- [x] [BE] `src/oberon/ai/comparison.py` — ExampleResult dataclass
+- [x] [BE] `src/oberon/ai/comparison.py` — ComparisonReport dataclass
+- [x] [BE] `src/oberon/ai/comparison.py` — compute_metrics() function
+- [x] [BE] `src/oberon/ai/comparison.py` — evaluate() runs baseline+AI comparison, produces decision
+- [x] [BE] `src/oberon/ai/comparison.py` — format_report() for markdown output
+- [x] [BE] `src/oberon/ai/__init__.py` — export comparison module
+- [x] [BE] `scripts/run_evaluation.py` — CLI entry point (--baseline-only / --ai-enabled / --both)
+- [x] [TEST] `tests/ai/test_comparison.py` — precision@K with known inputs (4 tests)
+- [x] [TEST] `tests/ai/test_comparison.py` — recall@K with known inputs (4 tests)
+- [x] [TEST] `tests/ai/test_comparison.py` — fp_rate edge case (4 tests)
+- [x] [TEST] `tests/ai/test_comparison.py` — abstention accuracy (4 tests)
+- [x] [TEST] `tests/ai/test_comparison.py` — compute_metrics aggregation (3 tests)
+- [x] [TEST] `tests/ai/test_comparison.py` — evaluate decision gate (6 tests)
+- [x] [TEST] `tests/ai/test_comparison.py` — format_report markdown (1 test)
+- [x] [QA] ruff 0; pytest green; mypy 0
 
 ## Phase 1 — Baseline run
-**Status:** [ ]
+**Status:** [ ] DEFERRED (requires live STAC network access)
 
 - [ ] [QA] Run `scripts/run_evaluation.py --baseline-only` on 004 benchmark
 - [ ] [QA] Record per-example baseline results
 - [ ] [QA] Compute aggregate baseline metrics
 
 ## Phase 2 — AI run
-**Status:** [ ]
+**Status:** [ ] DEFERRED (requires live STAC + Clay checkpoint)
 
 - [ ] [QA] Run `scripts/run_evaluation.py --ai-enabled` on same benchmark
 - [ ] [QA] Record per-example AI results
 - [ ] [QA] Compute aggregate AI metrics
 
 ## Phase 3 — Comparison
-**Status:** [ ]
+**Status:** [ ] DEFERRED (depends on Phase 1+2)
 
 - [ ] [QA] Compute AI vs baseline delta for every metric
 - [ ] [QA] Compute per-holdout-group breakdown
@@ -40,7 +46,7 @@
 - [ ] [QA] Produce final ComparisonReport
 
 ## Phase 4 — Decision gate
-**Status:** [ ]
+**Status:** [ ] DEFERRED (depends on Phase 3)
 
 - [ ] [DOC] Write `docs/EVALUATION_REPORT.md` with:
   - Executive summary (which column wins?)
@@ -59,4 +65,9 @@
 
 ### Progress
 
-_None yet. Depends on 003-clay-experiment + 004-benchmark-dataset._
+Phase 0 complete. 196 tests passing (157 original + 13 benchmark + 26 comparison).
+26 new tests: precision/recall/fp_rate/abstention metrics, compute_metrics aggregation,
+evaluate() decision gate logic, format_report markdown output.
+
+Phases 1-4 require live STAC/COG network + Clay checkpoint — run manually with:
+  `uv run python scripts/run_evaluation.py --both`

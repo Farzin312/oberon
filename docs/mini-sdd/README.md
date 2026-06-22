@@ -52,8 +52,8 @@ docs/mini-sdd/
 | `001-data-plane-pipeline` | **DONE** — 118 tests | Full data-plane pipeline: STAC discovery → scene quality → COG read → preparation → baselines → change detection → evidence bundles → CLI. Phase 7 cleanup closed out by 002. |
 | `002-baseline-fixes` | **DONE** — 114 tests | Complete pixel_delta stub, write task contract, close 001 Phase 7 |
 | `003-clay-experiment` | **DONE** — 157 tests | Clay v1.5 adapter, tiled inference, --use-ai flag. PROCEED WITH CAUTION to 005. |
-| `004-benchmark-dataset` | Ready (after 003) | Collect 12-18 reviewed before/after pairs, create golden integration tests |
-| `005-evaluation-harness` | Ready (after 003+004) | Full AI vs deterministic baseline comparison; decision gate |
+| `004-benchmark-dataset` | **FRAMEWORK DONE** — 12 examples, golden harness | Collect 12-18 reviewed before/after pairs, create golden integration tests. Calibration (Phase 3) deferred to live STAC run. |
+| `005-evaluation-harness` | **FRAMEWORK DONE** — 26 comparison tests | Full AI vs deterministic baseline comparison; decision gate. Live run (Phases 1-4) deferred to network access. |
 | `006-model-registry-provenance` | Ready (after 002+003) | Model registry, artifact index, COG cache, API contract alignment |
 | `007-packaging-deployment` | **DONE** — 131 tests | Docker Compose (CPU+GPU), structured logging, health check, verified in container |
 | `008-rust-control-plane` | Deferred (after 006+007) | Axum API, typed job contracts, SQLite state machine, Python subprocess |

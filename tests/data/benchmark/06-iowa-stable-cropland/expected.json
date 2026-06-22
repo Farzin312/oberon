@@ -1,0 +1,18 @@
+{
+  "expected_outcome": "findings",
+  "abstention_reason_substring": null,
+  "finding_count": {
+    "min": 0,
+    "max": 0
+  },
+  "ndvi_delta_range": [
+    -0.1,
+    0.1
+  ],
+  "area_ha_min": 0.0,
+  "region": "temperate",
+  "ecosystem": "cropland",
+  "time_interval_months": 3,
+  "season_comparison": "same_season",
+  "holdout_group": "geo_north_america"
+}

@@ -1,0 +1,18 @@
+{
+  "expected_outcome": "abstention",
+  "abstention_reason_substring": "seasonal",
+  "finding_count": {
+    "min": 0,
+    "max": 0
+  },
+  "ndvi_delta_range": [
+    -0.3,
+    0.0
+  ],
+  "area_ha_min": 0.0,
+  "region": "temperate",
+  "ecosystem": "temperate_forest",
+  "time_interval_months": 3,
+  "season_comparison": "cross_season",
+  "holdout_group": "temporal_cross_season"
+}

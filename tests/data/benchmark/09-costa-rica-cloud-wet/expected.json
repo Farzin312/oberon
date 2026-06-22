@@ -1,0 +1,18 @@
+{
+  "expected_outcome": "abstention",
+  "abstention_reason_substring": "cloud",
+  "finding_count": {
+    "min": 0,
+    "max": 0
+  },
+  "ndvi_delta_range": [
+    0.0,
+    0.0
+  ],
+  "area_ha_min": 0.0,
+  "region": "tropical",
+  "ecosystem": "rainforest",
+  "time_interval_months": 2,
+  "season_comparison": "same_season",
+  "holdout_group": "geo_central_america"
+}

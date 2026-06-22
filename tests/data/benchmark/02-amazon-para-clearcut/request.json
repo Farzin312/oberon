@@ -1,0 +1,14 @@
+{
+  "task": "vegetation_disturbance",
+  "before": [
+    "2024-01-01",
+    "2024-03-01"
+  ],
+  "after": [
+    "2024-07-01",
+    "2024-09-01"
+  ],
+  "max_cloud_fraction": 0.15,
+  "min_valid_pixels": 0.3,
+  "min_change_area_ha": 0.5
+}

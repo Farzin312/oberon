@@ -1,0 +1,18 @@
+{
+  "expected_outcome": "findings",
+  "abstention_reason_substring": null,
+  "finding_count": {
+    "min": 1,
+    "max": 4
+  },
+  "ndvi_delta_range": [
+    -0.5,
+    -0.2
+  ],
+  "area_ha_min": 1.0,
+  "region": "temperate",
+  "ecosystem": "temperate_forest",
+  "time_interval_months": 4,
+  "season_comparison": "same_season",
+  "holdout_group": "geo_europe"
+}
