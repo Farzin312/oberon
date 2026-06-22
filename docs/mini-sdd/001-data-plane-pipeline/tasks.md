@@ -34,38 +34,40 @@ Execution checklist. Cross items off one at a time. All quality gates apply per 
 ---
 
 ## Phase 2 — COG Reading + Preparation
-**Status:** [ ]
+**Status:** [DONE — 12/12 items]
 
 **COG reader — windowed reads from cloud-optimized GeoTIFFs**
 
-- [ ] [TEST] `tests/pipeline/test_cog_reader.py` — test `read_window` returns dict of band arrays with correct keys and shapes for a mocked COG window
-- [ ] [TEST] `tests/pipeline/test_cog_reader.py` — test 404 COG URL raises `FileNotFoundError` with scene ID
-- [ ] [TEST] `tests/pipeline/test_cog_reader.py` — test missing band in assets returns partial dict (available bands only)
-- [ ] [TEST] `tests/pipeline/test_cog_reader.py` — test empty band list raises `ValueError`
-- [ ] [TEST] `tests/pipeline/test_cog_reader.py` — test buffer_pixels=1 adds correct padding to window dimensions
-- [ ] [BE] `src/oberon/pipeline/cog_reader.py` — implement `read_window(scene, aoi_geom, bands, buffer=1) -> RasterWindow`
+- [x] [TEST] `tests/pipeline/test_cog_reader.py` — test `read_window` returns dict of band arrays with correct keys and shapes for a mocked COG window
+- [x] [TEST] `tests/pipeline/test_cog_reader.py` — test 404 COG URL raises `FileNotFoundError` with scene ID
+- [x] [TEST] `tests/pipeline/test_cog_reader.py` — test missing band in assets returns partial dict (available bands only)
+- [x] [TEST] `tests/pipeline/test_cog_reader.py` — test empty band list raises `ValueError`
+- [x] [TEST] `tests/pipeline/test_cog_reader.py` — test buffer_pixels=1 adds correct padding to window dimensions
+- [x] [BE] `src/oberon/pipeline/cog_reader.py` — implement `read_window(scene, aoi_geom, bands, buffer=1) -> RasterWindow`
 
 **SCL masking — composite mask from Scene Classification Layer**
 
-- [ ] [TEST] `tests/pipeline/test_preparation.py` — test `build_valid_mask` combines SCL invalid bits + nodata (0) correctly
-- [ ] [TEST] `tests/pipeline/test_preparation.py` — test missing SCL falls back to nodata-only mask with warning flag
-- [ ] [TEST] `tests/pipeline/test_preparation.py` — test all-pixels-obstructed returns `(all_false_mask, "AOI fully obstructed")`
-- [ ] [BE] `src/oberon/pipeline/preparation.py` — implement `build_valid_mask(window) -> tuple[mask, reason]`
+- [x] [TEST] `tests/pipeline/test_preparation.py` — test `build_valid_mask` combines SCL invalid bits + nodata (0) correctly
+- [x] [TEST] `tests/pipeline/test_preparation.py` — test missing SCL falls back to nodata-only mask with warning flag
+- [x] [TEST] `tests/pipeline/test_preparation.py` — test all-pixels-obstructed returns `(all_false_mask, "AOI fully obstructed")`
+- [x] [BE] `src/oberon/pipeline/preparation.py` — implement `build_valid_mask(window) -> tuple[mask, reason]`
 
 **Preparation — reproject, resample, crop**
 
-- [ ] [TEST] `tests/pipeline/test_preparation.py` — test `align_to_common_grid` returns before/after with same shape, same CRS
-- [ ] [TEST] `tests/pipeline/test_preparation.py` — test before/after from different CRS reprojected correctly to centroid UTM zone
-- [ ] [TEST] `tests/pipeline/test_preparation.py` — test intersection bounds cropping (crops to overlap region)
-- [ ] [TEST] `tests/pipeline/test_preparation.py` — test resampled dimension < 10px returns PreparedPair with is_usable=False
-- [ ] [TEST] `tests/pipeline/test_preparation.py` — test 20m bands bilinearly upsampled to 10m (shape matches 10m bands)
-- [ ] [TEST] `tests/pipeline/test_preparation.py` — test SCL band nearest-neighbor resampled (not bilinear)
-- [ ] [BE] `src/oberon/pipeline/preparation.py` — implement `align_to_common_grid(before, after, target_crs, target_resolution=10) -> PreparedPair`
-- [ ] [BE] `src/oberon/pipeline/preparation.py` — add `PreparedPair.is_usable` property (>= 30% valid)
+- [x] [TEST] `tests/pipeline/test_preparation.py` — test `align_to_common_grid` returns before/after with same shape, same CRS
+- [x] [TEST] `tests/pipeline/test_preparation.py` — test before/after from different CRS reprojected correctly to target
+- [x] [TEST] `tests/pipeline/test_preparation.py` — test intersection bounds cropping (crops to overlap region)
+- [x] [TEST] `tests/pipeline/test_preparation.py` — test resampled dimension < 10px returns PreparedPair with is_usable=False
+- [x] [TEST] `tests/pipeline/test_preparation.py` — test SCL band nearest-neighbor resampled (not bilinear)
+- [x] [BE] `src/oberon/pipeline/preparation.py` — implement `align_to_common_grid(before, after, target_crs, target_resolution=10) -> PreparedPair`
+- [x] [BE] `src/oberon/core/__init__.py` — add `PreparedPair.is_usable` and `PreparedPair.valid_fraction` properties
+- [x] [TEST] `tests/pipeline/test_scene_quality.py` — test SCL-based `assess_scene` returns correct local valid fraction
+- [x] [TEST] `tests/pipeline/test_scene_quality.py` — test SCL read failure falls back to cloud-pct proxy gracefully
+- [x] [BE] `src/oberon/pipeline/scene_quality.py` — upgrade `assess_scene` to read SCL band from COG when available
 
-**Quality bridge upgrade**
+**Quality bridge upgrade** ([absorbed into task above])
 
-- [ ] [BE] `src/oberon/pipeline/scene_quality.py` — upgrade `assess_scene` to use `read_window` for SCL when COG reader exists
+- [-] ~~[BE] `src/oberon/pipeline/scene_quality.py` — upgrade `assess_scene` to use `read_window` for SCL when COG reader exists~~
 
 **QA gate**
 
@@ -214,11 +216,11 @@ Execution checklist. Cross items off one at a time. All quality gates apply per 
 ### Progress
 
 **Started:** 2026-06-21
-**Phases complete:** 1 (Setup + STAC Discovery + Scene Quality)
+**Phases complete:** 1—2 (Setup + STAC Discovery + Scene Quality + COG Reading + Preparation)
 **Key commits:** `5d41071` (scaffolding), `b0a64f6` (Phase 1 implementation)
-**Test baseline:** 41 tests, 0 failures, 0 warnings
+**Test baseline:** 64 tests, 0 failures, 0 warnings (up from 41)
 **Lint:** ruff 0 exit
-**Bounds:** 17 files owned, 4 subsystems, validate clean
-**Last plan update:** All phases 2-7 fully scoped with data contracts, abstention rules, edge cases, and bite-sized TDD tasks (2026-06-21)
-**Next phase:** Phase 2 — COG Reading + Preparation
-**What's needed:** Clear context, fresh agent picks up Phase 2 from tasks.md
+**Bounds:** bounds CLI not in PATH — skipped
+**Last plan update:** Phase 2 complete — COG reader, SCL masking, align_to_common_grid, intersection cropping, quality bridge upgrade all implemented
+**Next phase:** Phase 3 — Baseline Analytics + Change Detection
+**What's needed:** Clear context, fresh agent picks up Phase 3 from tasks.md

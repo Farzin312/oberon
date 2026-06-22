@@ -71,6 +71,18 @@ class PreparedPair:
     transform: tuple[float, ...]
     bounds: tuple[float, float, float, float]
 
+    @property
+    def valid_fraction(self) -> float:
+        """Fraction of pixels that are valid (not masked) in the AOI."""
+        if self.mask.size == 0:
+            return 0.0
+        return float(self.mask.sum()) / self.mask.size
+
+    @property
+    def is_usable(self) -> bool:
+        """At least 30% of the AOI must be valid in both observations."""
+        return self.valid_fraction >= 0.30
+
 
 @dataclass
 class BaselineResult:

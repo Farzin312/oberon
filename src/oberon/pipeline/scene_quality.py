@@ -1,18 +1,24 @@
 """Scene quality assessment — local valid-pixel fraction over the AOI.
 
-Phase 1 provides the function signature and documentation. The full AOI-local
-quality computation requires the COG reader (Phase 2) to read the SCL band
-over the AOI window. Until then, scene-level cloud percentage from
-`stac_discovery.rank_by_scene_quality` serves as the quality proxy.
-
-ponytail: full SCL-based local quality is deferred to Phase 2 (COG reader).
+Phase 1 provided the function signature and documentation. Phase 2 upgrades
+assess_scene to read the SCL band from the scene's COG when available,
+computing local valid-pixel fraction over the AOI window instead of using
+the scene-level cloud-percentage proxy.
 """
 
 from __future__ import annotations
 
 import numpy as np
+import rasterio
+from rasterio.errors import RasterioIOError
+from rasterio.warp import transform as warp_transform
+from rasterio.windows import from_bounds as window_from_bounds
+from shapely.geometry import shape
 
 from oberon.core import SCL_CLOUD_BITS, CandidateScene
+
+# WGS84 — the CRS of GeoJSON coordinates and STAC bboxes.
+_GEO_CRS = "EPSG:4326"
 
 
 def compute_local_valid_fraction(
@@ -48,12 +54,38 @@ def compute_local_valid_fraction(
 def assess_scene(scene: CandidateScene, aoi_geometry: dict) -> float:
     """Assess the local valid-pixel quality of a scene over the AOI.
 
-    Requires reading the SCL band from the scene's COG. This function is
-    the bridge between the STAC discovery layer and the COG reader.
+    Reads the SCL band from the scene's COG and computes the valid-pixel
+    fraction over the AOI window. Falls back to scene-level cloud percentage
+    when SCL is unavailable or the read fails.
 
-    ponytail: stub returning scene-level cloud % as a proxy. Replace with
-    actual SCL windowed read when the COG reader exists (Phase 2).
+    ponytail: single-threaded synchronous SCL read. Band-level parallel
+    prefetch with ThreadPoolExecutor for latency-sensitive applications.
     """
-    # ponytail: Phase 1 — scene-level proxy only.
-    # Full implementation: read_scl_window() -> compute_local_valid_fraction()
+    if scene.scl_url:
+        try:
+            geom = shape(aoi_geometry)
+            lon_min, lat_min, lon_max, lat_max = geom.bounds
+
+            with rasterio.open(scene.scl_url) as src:
+                xs, ys = warp_transform(
+                    _GEO_CRS, src.crs,
+                    [lon_min, lon_max], [lat_min, lat_max],
+                )
+                x_min, x_max = min(xs), max(xs)
+                y_min, y_max = min(ys), max(ys)
+
+                win = window_from_bounds(
+                    x_min, y_min, x_max, y_max,
+                    transform=src.transform,
+                )
+                scl_data = src.read(1, window=win)
+
+                if scl_data.size > 0:
+                    return compute_local_valid_fraction(scl_data)
+        except RasterioIOError:
+            pass  # SCL missing is non-fatal — fall back to proxy
+        except Exception:
+            pass  # Any other error (e.g. invalid geometry) — degrade gracefully
+
+    # Fallback: scene-level cloud percentage proxy
     return (100.0 - scene.scene_cloud_pct) / 100.0

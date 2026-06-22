@@ -11,8 +11,11 @@ SCL analysis and the interface contract.
 from __future__ import annotations
 
 from datetime import datetime
+from unittest.mock import MagicMock, patch
 
 import numpy as np
+from affine import Affine
+from rasterio.errors import RasterioIOError
 
 from oberon.core import CandidateScene
 from oberon.pipeline.scene_quality import assess_scene, compute_local_valid_fraction
@@ -82,7 +85,7 @@ class TestAssessScene:
     """assess_scene(): bridge between STAC discovery and quality assessment."""
 
     def test_returns_derived_quality_from_cloud_pct(self):
-        """The Phase 1 stub should return (100 - cloud_pct) / 100 as a proxy quality score."""
+        """When scl_url is None, fall back to (100 - cloud_pct) / 100 proxy."""
         scene = CandidateScene(
             "test", datetime.now(), {}, (0, 0, 1, 1), {}, None, 25.0,
         )
@@ -90,7 +93,7 @@ class TestAssessScene:
         assert quality == 0.75  # (100 - 25) / 100
 
     def test_clear_scene_returns_near_1(self):
-        """A scene with 2% cloud should return a quality near 1.0."""
+        """A scene with 2% cloud and no scl_url should return quality near 1.0."""
         scene = CandidateScene(
             "clear-scene", datetime.now(), {}, (0, 0, 1, 1), {}, None, 2.0,
         )
@@ -98,9 +101,73 @@ class TestAssessScene:
         assert quality == 0.98
 
     def test_fully_cloudy_scene_returns_0(self):
-        """A scene with 100% cloud should return quality of 0.0."""
+        """A scene with 100% cloud and no scl_url should return quality of 0.0."""
         scene = CandidateScene(
             "fully-cloudy", datetime.now(), {}, (0, 0, 1, 1), {}, None, 100.0,
         )
         quality = assess_scene(scene, {})
         assert quality == 0.0
+
+    # ------------------------------------------------------------------ #
+    # SCL-based local quality (Phase 2 upgrade)
+    # ------------------------------------------------------------------ #
+
+    def _mock_scl_src(self, scl_data: np.ndarray, crs: str = "EPSG:32616"):
+        """Build a MagicMock that mimics a rasterio DatasetReader for SCL."""
+        mock_src = MagicMock()
+        mock_src.crs = crs
+        # Real Affine so window_from_bounds can compute pixel windows.
+        mock_src.transform = Affine(10.0, 0.0, 500000.0, 0.0, -10.0, 1000000.0)
+        mock_src.read.return_value = scl_data
+        return mock_src
+
+    @patch("oberon.pipeline.scene_quality.rasterio.open")
+    def test_scl_high_valid_uses_scl(self, mock_open: MagicMock):
+        """When scl_url is set and SCL has mostly clear pixels, the valid fraction should be near 1.0."""
+        scl_data = np.full((10, 10), 4, dtype=np.uint8)  # 4 = vegetation (valid)
+        mock_open.return_value.__enter__.return_value = self._mock_scl_src(scl_data)
+
+        scene = CandidateScene(
+            "scl-scene", datetime.now(), {}, (0, 0, 1, 1),
+            {}, "https://scl-url.example.com/cog.tif", 100.0,
+        )
+        # Coordinates near Costa Rica (~9°N, 86°W) — valid in UTM zone 16N (EPSG:32616)
+        quality = assess_scene(scene, {
+            "type": "Polygon",
+            "coordinates": [[[-86.1, 9.0], [-86.1, 9.2], [-85.9, 9.2], [-85.9, 9.0], [-86.1, 9.0]]],
+        })
+
+        # All clear SCL pixels → 1.0 (overriding scene cloud pct of 100%)
+        assert quality == 1.0
+
+    @patch("oberon.pipeline.scene_quality.rasterio.open")
+    def test_scl_low_valid_uses_scl(self, mock_open: MagicMock):
+        """When scl_url is set and SCL has mostly cloud, the valid fraction should be low."""
+        scl_data = np.full((10, 10), 8, dtype=np.uint8)  # 8 = medium-probability cloud (invalid)
+        mock_open.return_value.__enter__.return_value = self._mock_scl_src(scl_data)
+
+        scene = CandidateScene(
+            "scl-cloudy", datetime.now(), {}, (0, 0, 1, 1),
+            {}, "https://scl-url.example.com/cog.tif", 5.0,
+        )
+        quality = assess_scene(scene, {
+            "type": "Polygon",
+            "coordinates": [[[-86.1, 9.0], [-86.1, 9.2], [-85.9, 9.2], [-85.9, 9.0], [-86.1, 9.0]]],
+        })
+
+        # All cloud SCL pixels → 0.0 (overriding scene cloud pct of 5%)
+        assert quality == 0.0
+
+    @patch("oberon.pipeline.scene_quality.rasterio.open")
+    def test_scl_read_failure_falls_back_to_proxy(self, mock_open: MagicMock):
+        """When the SCL COG read raises RasterioIOError, fall back to cloud-pct proxy."""
+        mock_open.side_effect = RasterioIOError("SCL not found")
+
+        scene = CandidateScene(
+            "scl-missing", datetime.now(), {}, (0, 0, 1, 1),
+            {}, "https://scl-url.example.com/cog.tif", 30.0,
+        )
+        quality = assess_scene(scene, {"type": "Polygon", "coordinates": [[[0, 0], [0, 1], [1, 1], [1, 0], [0, 0]]]})
+
+        # Falls back to cloud-pct proxy: (100 - 30) / 100 = 0.70
+        assert quality == 0.70
