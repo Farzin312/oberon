@@ -94,42 +94,46 @@ Default for unknown tasks: `"absolute"` (current behaviour).
 
 ### 3.3 Seasonal abstention heuristic
 
-After thresholding, before extract_findings:
+After directional thresholding (signed), before extract_findings:
 ```python
-broad_change_fraction = change_mask.sum() / mask.sum()
-if broad_change_fraction > 0.40:
+if is_broad_change(change_mask, pair.mask):
     return _abstention_result(
-        f"Seasonal: change covers {broad_change_fraction:.0%} of valid AOI "
-        f"(threshold: 40%) — likely phenological shift, not targeted disturbance",
+        "Seasonal: broad NDVI change across the AOI "
+        "(threshold: 50%) — likely phenological shift, not targeted disturbance",
         output_dir,
     )
 ```
 
-### 3.4 Cross-season annotation
+Critical: broad-change check must run AFTER signed threshold, on the directional mask only.
+Checking the absolute mask before signed threshold catches green-up (positive deltas)
+and causes false abstention on stable/growing areas.
 
-When abstaining for pixel-quality reasons, check if before/after windows likely span different seasons:
-```python
-before_month = request.before[0].month
-after_month = request.after[0].month
-month_gap = abs(after_month - before_month)
-if month_gap >= 4:  # Cross-season if windows are 4+ months apart
-    reason = f"seasonal: {reason}"
-```
+### 3.4 ~~Cross-season annotation~~ (REMOVED)
+
+The cross-season date heuristic was removed. It incorrectly annotated scene-availability
+abstentions (03, 05 Borneo) as "seasonal" when the real issue was cloud coverage.
+The broad-change mask check is sufficient for seasonal detection.
 
 ### 3.5 Morphological closing
 
 ```python
 from scipy import ndimage as ndi
-change_mask = ndi.binary_closing(change_mask, structure=np.ones((5, 5)))
+change_mask = ndi.binary_closing(change_mask, structure=np.ones((15, 15)))
 ```
 
-### 3.6 Broad-change threshold constant
+### 3.6 ~~Broad-change threshold constant~~ (updated)
 
 ```python
-# When >40% of valid AOI pixels are in the change mask, the change is too
-# broad to be targeted disturbance — likely seasonal phenological shift.
-_BROAD_CHANGE_FRACTION = 0.40
+# 50% — catches uniform seasonal browning while letting concentrated
+# real fires through. Tuned from integration test iterations.
+_BROAD_CHANGE_FRACTION = 0.50
 ```
+
+Original plan was 40%, then 65% (too high — let seasonal through). 50% catches
+uniform senescence (08 Finland) while letting large real fires (11, 12) through.
+Iteration 2 showed 65% was too conservative; 40% on the abs mask caught too many
+false positives (green-up, cloud artifacts). 50% on the negative-direction mask
+is the sweet spot: runs AFTER signed threshold so only actual NDVI loss counts.
 
 ---
 

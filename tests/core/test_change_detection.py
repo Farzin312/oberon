@@ -261,17 +261,17 @@ class TestIsBroadChange:
         assert not is_broad_change(change, valid)
 
     def test_edge_value_just_below_threshold(self) -> None:
-        """Exactly 40% (at threshold) should NOT trigger (strict >)."""
+        """Exactly 50% (at threshold) should NOT trigger (strict >)."""
         valid = np.ones((100,), dtype=bool)
         change = np.zeros((100,), dtype=bool)
-        change[:40] = True  # exactly 40%
+        change[:50] = True  # exactly 50%
         assert not is_broad_change(change, valid)
 
     def test_edge_value_just_above_threshold(self) -> None:
-        """41% (>40%) should trigger."""
+        """51% (>50%) should trigger."""
         valid = np.ones((100,), dtype=bool)
         change = np.zeros((100,), dtype=bool)
-        change[:41] = True  # 41%
+        change[:51] = True  # 51%
         assert is_broad_change(change, valid)
 
     def test_valid_mask_restricts_to_valid_pixels(self) -> None:
@@ -292,22 +292,22 @@ class TestMorphologicalClosing:
     """apply_morphological_closing(): consolidate fragmented findings."""
 
     def test_merges_nearby_components(self) -> None:
-        """Two components within a 5-pixel gap should merge into one after closing."""
-        mask = np.zeros((20, 20), dtype=bool)
-        mask[2:5, 2:5] = True  # Component A
-        mask[2:5, 8:11] = True  # Component B, 3-pixel gap
-        closed = apply_morphological_closing(mask, kernel_size=5)
-        # After closing with 5x5, the gap should be filled → one component
+        """Two components within a 15-pixel gap should merge into one after closing."""
+        mask = np.zeros((30, 30), dtype=bool)
+        mask[5:10, 5:10] = True  # Component A
+        mask[5:10, 18:23] = True  # Component B, 8-pixel gap
+        closed = apply_morphological_closing(mask, kernel_size=15)
+        # After closing with 15x15, the gap should be filled -> one component
         from scipy import ndimage as ndi
         labeled, num = ndi.label(closed)
         assert num == 1, f"Expected 1 component, got {num}"
 
     def test_distant_components_remain_separate(self) -> None:
-        """Components separated by >10 pixels should NOT merge."""
-        mask = np.zeros((30, 30), dtype=bool)
-        mask[2:5, 2:5] = True  # Component A
-        mask[2:5, 20:23] = True  # Component B, >15-pixel gap
-        closed = apply_morphological_closing(mask, kernel_size=5)
+        """Components separated by >30 pixels should NOT merge."""
+        mask = np.zeros((50, 50), dtype=bool)
+        mask[5:10, 5:10] = True  # Component A
+        mask[5:10, 40:45] = True  # Component B, >30-pixel gap
+        closed = apply_morphological_closing(mask, kernel_size=15)
         from scipy import ndimage as ndi
         labeled, num = ndi.label(closed)
         assert num == 2, f"Expected 2 components, got {num}"
@@ -325,8 +325,8 @@ class TestMorphologicalClosing:
 
     def test_hole_in_middle_filled(self) -> None:
         """A hole within a larger component should be filled by closing."""
-        mask = np.ones((15, 15), dtype=bool)
-        mask[6:9, 6:9] = False  # 3x3 hole in the middle
-        closed = apply_morphological_closing(mask, kernel_size=5)
+        mask = np.ones((30, 30), dtype=bool)
+        mask[12:18, 12:18] = False  # 6x6 hole in the middle
+        closed = apply_morphological_closing(mask, kernel_size=15)
         # The interior hole should be filled (core region all True).
-        assert closed[6:9, 6:9].all(), "Hole in middle should be filled after closing"
+        assert closed[12:18, 12:18].all(), "Hole in middle should be filled after closing"

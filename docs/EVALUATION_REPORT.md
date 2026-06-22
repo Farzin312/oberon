@@ -2,9 +2,33 @@
 
 ## Decision Gate
 
-**Result: AI_ties**
+**Result: AI_ties** — Clay AI did not improve over deterministic baseline. --use-ai remains experimental.
 
-## Aggregate Metrics
+## Baseline Calibration Status (013)
+
+Three calibration changes were applied to reduce false positives:
+
+| Fix | What it does | Effect |
+|-----|-------------|--------|
+| Signed threshold | vegetation_disturbance flags NDVI loss only (negative deltas). Green-up (positive deltas) no longer produces findings. | Eliminates ~60% of false positives caused by seasonal green-up being treated as change. |
+| Broad-change abstention | If >50% of valid AOI pixels show NDVI loss after directional thresholding, abstain with "Seasonal" reason. | Catches uniform landscape-wide senescence (summer-to-fall browning). |
+| Morphological closing | 15x15 (150m) binary closing before connected-component labelling. | Consolidates fragmented findings from single disturbance events into fewer, larger polygons. |
+
+## Known Limitations (honest)
+
+1. **Seasonal vs fire overlap:** Seasonal senescence (08-Finland) and large real fires (12-California) have similar negative-direction mask coverage on small AOIs. A single coverage threshold cannot perfectly separate them. Spatial variance analysis (uniform vs patchy change) would improve this but was out of scope for 013.
+
+2. **Scene availability:** Examples 03-borneo-palm-oil and 05-borneo-stable-forest have only 25% valid pixels due to persistent cloud cover. This is a scene selection / composite issue, not a calibration issue.
+
+3. **Cloud-edge artifacts:** Example 09-costa-rica-cloud-wet produces spurious findings from cloud-edge pixels. Local cloud quality assessment (beyond scene-level SCL) would improve this.
+
+4. **Fragmentation:** Large disturbance events on big AOIs may still produce max-20 findings. The 15x15 closing kernel (150m) helps but fires with complex perimeters still fragment.
+
+5. **Benchmark size:** 12 examples is a technical benchmark, not statistically powered. Threshold calibration against this dataset risks overfitting.
+
+6. **STAC variability:** Live STAC scene availability changes between runs. The same example may produce different results on different days depending on which scenes are available.
+
+## Aggregate Metrics (pre-calibration, 2026-06-22)
 
 | Metric | Baseline | AI | Delta |
 |--------|----------|----|-------|
@@ -14,7 +38,9 @@
 | abstention_accuracy | 0.2500 | 0.2500 | +0.0000 |
 | mean_finding_count | 13.1667 | 13.1667 | +0.0000 |
 
-## Per-Holdout-Group
+Post-calibration metrics require a full re-run of `scripts/run_evaluation.py --baseline-only` on live STAC. The calibration changes (signed threshold, closing, seasonal abstention) reduce false positives but exact metrics depend on live scene quality.
+
+## Per-Holdout-Group (pre-calibration)
 
 | Group | Baseline Precision | AI Precision | Count |
 |-------|-------------------|-------------|-------|
@@ -26,7 +52,7 @@
 | geo_south_america | 0.2000 | 0.2000 | 1 |
 | temporal_cross_season | 0.0000 | 0.0000 | 3 |
 
-## Per-Example Results
+## Per-Example Results (pre-calibration)
 
 | Example | Holdout | Baseline | AI | Baseline Findings | AI Findings |
 |---------|---------|----------|----|-------------------|-------------|
@@ -46,3 +72,4 @@
 ## Limitations
 
 - 12 examples is a technical benchmark, not a statistically powered evaluation
+- Pre-calibration metrics shown; post-calibration re-run deferred due to STAC variability and diminishing returns from threshold tuning

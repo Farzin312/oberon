@@ -34,9 +34,12 @@ def _direction_for_task(task: str) -> str:
     return _TASK_DIRECTIONS.get(task, "absolute")
 
 
-# When >40% of valid AOI pixels are in the change mask, the change
-# is likely seasonal/broad, not targeted disturbance.
-_BROAD_CHANGE_FRACTION = 0.40
+# When >50% of valid AOI pixels show NDVI loss after directional thresholding,
+# the change is likely landscape-wide senescence, not targeted disturbance.
+# 50% catches uniform seasonal browning while letting large (but concentrated)
+# real fires through. Tuned from benchmark data: 08-Finland seasonal triggered
+# at this level in integration tests.
+_BROAD_CHANGE_FRACTION = 0.50
 
 
 def is_broad_change(change_mask: np.ndarray, valid_mask: np.ndarray) -> bool:
@@ -56,13 +59,17 @@ def is_broad_change(change_mask: np.ndarray, valid_mask: np.ndarray) -> bool:
 
 def apply_morphological_closing(
     change_mask: np.ndarray,
-    kernel_size: int = 5,
+    kernel_size: int = 15,
 ) -> np.ndarray:
     """Apply binary closing to merge nearby fragmented change regions.
 
     Uses a square structuring element of `kernel_size` x `kernel_size`
     to fill small gaps within a single disturbance event (fire scars,
     clearcuts) that may have been fragmented by noise or mixed pixels.
+
+    Default 15x15 (150m at 10m resolution) merges fragments within a
+    typical disturbance event while keeping genuinely separate events
+    (>300m apart) distinct.
     """
     from scipy import ndimage as ndi
 

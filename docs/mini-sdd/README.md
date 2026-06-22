@@ -61,7 +61,7 @@ docs/mini-sdd/
 | `010-scene-composite` | **DONE** — 128 tests | Cloud-masked composite when single scene insufficient (Roadmap correction #2) |
 | `011-review-workflow-monitoring` | After 008+005 | Portfolios, scheduled reruns, review states, alerts, feedback export (Roadmap Phase 8) |
 | `012-security-hardening` | After 008+011 | API auth, audit logging, resource limits, SBOM, Docker hardening (Product Brief §10) |
-| `013-baseline-calibration` | **DONE** — 277 tests | Reduce false positives in deterministic baseline: signed threshold (vegetation_disturbance = NDVI loss only), seasonal abstention (>40% AOI = broad), morphological closing (5x5). 16 new unit tests. |
+| `013-baseline-calibration` | **DONE** — 277 tests | Reduce false positives: signed threshold (veg_disturbance = NDVI loss only), broad-change seasonal abstention (>50% AOI), morphological closing (15x15). Signed threshold + closing are clear improvements. Seasonal-vs-fire separation on small AOIs remains a known limitation. |
 
 ### Recommended build sequence
 

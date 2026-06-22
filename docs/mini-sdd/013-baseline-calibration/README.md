@@ -21,9 +21,9 @@ Calibrate the deterministic baseline to reduce false positives exposed by the 00
 | # | Decision | Choice |
 |---|----------|--------|
 | 1 | Task-direction-aware threshold | `vegetation_disturbance` flags NDVI loss only (negative deltas). Green-up (positive deltas) is not disturbance. Direction defaults to "absolute" for backwards compat and unknown tasks. |
-| 2 | Broad-change seasonal abstention | If the absolute change mask covers >40% of valid AOI area, abstain with reason containing "seasonal". Phenological shifts affect the entire landscape; targeted disturbance does not. |
-| 3 | Cross-season date annotation | When abstaining for pixel-quality reasons AND before/after windows span different seasons, prepend "seasonal" to the abstention reason so the golden tests recognise it. |
-| 4 | Morphological closing | Apply binary closing (5x5 structure) before connected-component labelling. Merges pixel-level fragmentation within a single disturbance event (fire scars, clearcuts). |
+| 2 | Broad-change seasonal abstention | If the signed (negative-direction) change mask covers >50% of valid AOI area, abstain with reason containing "Seasonal". Must run AFTER directional threshold, not before. 50% catches uniform seasonal browning while letting concentrated real fires (even large ones) through. |
+| 3 | ~~Cross-season date annotation~~ REMOVED | Date-based cross-season annotation incorrectly flagged scene-availability abstentions (cloud-blocked Borneo) as "seasonal". Broad-change mask check is sufficient. |
+| 4 | Morphological closing | Apply binary closing (15x15 structure, ~150m at 10m) before connected-component labelling. Merges pixel-level fragmentation within a single disturbance event (fire scars, clearcuts). 5x5 was too small — still left 20 fragments for fires. |
 | 5 | max_findings stays 20 | No contract change. The combination of fixes above naturally reduces finding counts without lowering the cap. |
 
 ---
