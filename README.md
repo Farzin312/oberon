@@ -1,4 +1,4 @@
-# Oberon
+# <img src="docs/assets/logo.jpg" width="48" height="48" align="center" style="border-radius: 8px;" /> Oberon
 
 **Open, self-hostable Earth observation monitoring engine.**
 

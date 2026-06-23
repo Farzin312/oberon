@@ -36,6 +36,12 @@ pub async fn serve_static(State(state): State<AppState>, Path(file): Path<String
                 "text/css"
             } else if file.ends_with(".png") {
                 "image/png"
+            } else if file.ends_with(".jpg") || file.ends_with(".jpeg") {
+                "image/jpeg"
+            } else if file.ends_with(".svg") {
+                "image/svg+xml"
+            } else if file.ends_with(".ico") {
+                "image/x-icon"
             } else {
                 "application/octet-stream"
             };

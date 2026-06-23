@@ -1,4 +1,4 @@
-// Oberon Dashboard — Redesigned Client Logic
+// Oberon dashboard client logic.
 // Vanilla Javascript + Leaflet Map. Exposes client actions to WebMCP for AI.
 
 const API = window.location.origin + '/v1';
@@ -11,6 +11,14 @@ let pollTimeoutId = null;
 let approvedCount = 0;
 let rejectedCount = 0;
 
+// Interactive Drawing States
+let isDrawing = false;
+let drawMode = null; // 'polygon' or 'bbox'
+let drawPoints = [];
+let drawLayerGroup = null;
+let drawPreviewLine = null;
+let drawMarkers = [];
+
 // ---- Native Dialog References ----
 let newPortfolioDialog = null;
 let addPolygonDialog = null;
@@ -20,17 +28,53 @@ let guideDialog = null;
 
 // ---- Initialization ----
 document.addEventListener('DOMContentLoaded', () => {
-    // Initialize map with a dark basemap styled to look premium
+    // Setup basemaps.
+    const darkMap = L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+        maxZoom: 19
+    });
+
+    const satelliteMap = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+        attribution: 'Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP, and the GIS User Community',
+        maxZoom: 19
+    });
+
+    const streetMap = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+        maxZoom: 19
+    });
+
+    // Initialize map with Satellite view as default (not dark and messy by default)
     map = L.map('map', {
-        zoomControl: false // We will position zoom control customly
+        zoomControl: false
     }).setView([-7.475, -55.175], 11);
     
+    satelliteMap.addTo(map);
+
     L.control.zoom({ position: 'topleft' }).addTo(map);
 
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
-        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
-        maxZoom: 19,
-    }).addTo(map);
+    // Layer control to switch views
+    const baseMaps = {
+        "Satellite Imagery": satelliteMap,
+        "Dark map": darkMap,
+        "Standard Street Map": streetMap
+    };
+    L.control.layers(baseMaps, null, { position: 'topright' }).addTo(map);
+
+    // Initialize drawing layer group
+    drawLayerGroup = L.layerGroup().addTo(map);
+
+    // Coordinate display tracking mouse movements
+    map.on('mousemove', (e) => {
+        const lat = e.latlng.lat.toFixed(5);
+        const lng = e.latlng.lng.toFixed(5);
+        const el = document.getElementById('map-coords-badge');
+        if (el) el.textContent = `Lat: ${lat}, Lon: ${lng}`;
+    });
+
+    // Handle clicks/double clicks for drawing
+    map.on('click', handleMapClick);
+    map.on('dblclick', handleMapDblClick);
 
     // Initialize Dialogs
     newPortfolioDialog = document.getElementById('new-portfolio-dialog');
@@ -64,6 +108,27 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('close-detail').addEventListener('click', () => {
         document.getElementById('detail-panel').classList.add('hidden');
     });
+
+    // Drawer Collapse Toggle Action
+    const toggleBtn = document.getElementById('toggle-run-panel-btn');
+    if (toggleBtn) {
+        toggleBtn.addEventListener('click', () => {
+            document.body.classList.toggle('run-panel-collapsed');
+        });
+    }
+
+    // Drawing Trigger Actions
+    const drawPolyBtn = document.getElementById('draw-poly-btn');
+    if (drawPolyBtn) drawPolyBtn.addEventListener('click', () => startDrawing('polygon'));
+    
+    const drawBBoxBtn = document.getElementById('draw-bbox-btn');
+    if (drawBBoxBtn) drawBBoxBtn.addEventListener('click', () => startDrawing('bbox'));
+    
+    const drawFinishBtn = document.getElementById('drawing-finish-btn');
+    if (drawFinishBtn) drawFinishBtn.addEventListener('click', finishDrawing);
+    
+    const drawCancelBtn = document.getElementById('drawing-cancel-btn');
+    if (drawCancelBtn) drawCancelBtn.addEventListener('click', cancelDrawing);
 
     // Form Submissions (WebMCP support)
     document.getElementById('create-portfolio-form').addEventListener('submit', handleCreatePortfolio);
@@ -112,7 +177,6 @@ function showToast(message, type = 'info') {
     
     // Auto-remove after 4 seconds
     setTimeout(() => {
-        toast.style.animation = 'fadeIn 0.3s reverse';
         setTimeout(() => toast.remove(), 300);
     }, 4000);
 }
@@ -147,21 +211,27 @@ function renderPortfolioList(portfolios) {
         if (p.id === activePortfolioId) div.classList.add('active');
         
         const taskLabel = p.task === 'vegetation_disturbance' ? 'Veg Disturbance' : 'Burn Severity';
-        const aiBadge = p.use_ai ? '<span class="status-pill completed" style="font-size: 8px; padding: 2px 5px; margin-left: 6px;">AI</span>' : '';
+        const aiBadge = p.use_ai ? '<span class="ai-chip">AI</span>' : '';
         
         div.innerHTML = `
             <div>
                 <div class="name">${escapeHtml(p.name)} ${aiBadge}</div>
-                <div class="meta">${taskLabel} · Cloud: ${Math.round(p.max_cloud_fraction * 100)}%</div>
-                <div class="meta" style="font-size: 10px; margin-top: 2px; color: var(--color-primary);">
-                    Date Range: ${p.before_from} to ${p.after_to}
-                </div>
+                <div class="meta">${taskLabel} / Cloud max ${Math.round(p.max_cloud_fraction * 100)}%</div>
+                <div class="date-range">${p.before_from} to ${p.after_to}</div>
             </div>
             <div class="actions">
-                <button class="btn-secondary" onclick="event.stopPropagation(); selectPortfolio('${p.id}')">Map</button>
-                <button class="btn-primary-gradient" onclick="event.stopPropagation(); runPortfolioConfirm('${p.id}')">Run</button>
-                <button class="btn-secondary" onclick="event.stopPropagation(); addPolygonOpen('${p.id}')">+ AOI</button>
-                <button class="btn-secondary" style="color: var(--color-danger);" onclick="event.stopPropagation(); deletePortfolioConfirm('${p.id}', '${escapeHtml(p.name)}')">Del</button>
+                <button class="btn btn-secondary btn-small" title="View on Map" onclick="event.stopPropagation(); selectPortfolio('${p.id}')">
+                    Map
+                </button>
+                <button class="btn btn-primary btn-small" title="Run Analysis" onclick="event.stopPropagation(); runPortfolioConfirm('${p.id}')">
+                    Run
+                </button>
+                <button class="btn btn-secondary btn-small" title="Add Area of Interest" onclick="event.stopPropagation(); addPolygonOpen('${p.id}')">
+                    AOI
+                </button>
+                <button class="btn btn-danger btn-small" title="Delete" onclick="event.stopPropagation(); deletePortfolioConfirm('${p.id}', '${escapeHtml(p.name)}')">
+                    Delete
+                </button>
             </div>`;
         
         div.addEventListener('click', () => selectPortfolio(p.id));
@@ -373,14 +443,21 @@ window.selectPortfolio = async function(id) {
         metaPill.textContent = portfolio.task === 'vegetation_disturbance' ? 'Veg Disturbance' : 'Burn Severity';
         metaPill.classList.remove('hidden');
 
-        // Parallel fetch of polygons and findings
-        const [polyRes, findingsRes] = await Promise.all([
+        // Parallel fetch of polygons, findings, and reviews
+        const [polyRes, findingsRes, reviewsRes] = await Promise.all([
             fetch(`${API}/portfolios/${id}/polygons`),
             fetch(`${API}/portfolios/${id}/findings`),
+            fetch(`${API}/reviews?portfolio=${id}`),
         ]);
         
         const polygons = await polyRes.json();
         const findings = await findingsRes.json();
+        const reviews = await reviewsRes.json();
+        
+        // Count approved/rejected states from database to ensure persistence on load
+        approvedCount = reviews.filter(r => r.state === 'approved').length;
+        rejectedCount = reviews.filter(r => r.state === 'rejected').length;
+        updateCalibrationUI();
         
         displayOnMap(polygons, findings);
         
@@ -406,7 +483,7 @@ function displayOnMap(polygons, findings) {
         const layer = L.geoJSON(geom, {
             style: { color: '#388bfd', weight: 2.5, fillOpacity: 0.05, dashArray: '4, 4' },
         });
-        layer.bindPopup(`<div style="font-family: var(--font-body); font-size:12px;"><b>AOI: ${escapeHtml(poly.label || 'Unnamed Plot')}</b></div>`);
+        layer.bindPopup(`<strong>AOI: ${escapeHtml(poly.label || 'Unnamed plot')}</strong>`);
         group.addLayer(layer);
         
         if (!firstBounds) {
@@ -424,11 +501,9 @@ function displayOnMap(polygons, findings) {
                 const area = props.changed_area_m2 || Math.round((props.area_ha || 0) * 10000);
                 
                 layer.bindPopup(
-                    `<div style="font-family: var(--font-body); font-size:12px;">` +
-                    `<b style="color:var(--color-warning)">Change Finding</b><br>` +
+                    `<strong>Change finding</strong><br>` +
                     `Score: <b>${score.toFixed(3)}</b><br>` +
-                    `Area: <b>${area.toLocaleString()} m²</b>` +
-                    `</div>`
+                    `Area: <b>${area.toLocaleString()} m2</b>`
                 );
                 
                 layer.on('click', () => showFindingDetail(feature));
@@ -505,13 +580,13 @@ function renderRunHistory(runs) {
 
         const tr = document.createElement('tr');
         tr.innerHTML = `
-            <td style="font-family: monospace; font-size:11px;">${r.id.substring(0,8)}...</td>
+            <td class="mono-cell">${r.id.substring(0,8)}...</td>
             <td>Plot AOI</td>
             <td><span class="status-pill ${statusClass}">${statusLabel}</span></td>
             <td><strong>${r.findings_count}</strong></td>
             <td>${created}</td>
             <td>${completed}</td>
-            <td style="max-width: 250px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${escapeHtml(r.error_message || '')}">${details}</td>
+            <td class="details-cell" title="${escapeHtml(r.error_message || '')}">${details}</td>
         `;
         tbody.appendChild(tr);
     });
@@ -556,9 +631,9 @@ function showFindingDetail(feature) {
                     <span class="lbl">Change Score</span>
                     <span class="score">${score.toFixed(3)}</span>
                 </div>
-                <div class="finding-score-label" style="text-align:right">
+                <div class="finding-score-label align-right">
                     <span class="lbl">Area Changed</span>
-                    <span class="score" style="color:var(--color-text-bright); font-size: 20px;">${area.toLocaleString()} m²</span>
+                    <span class="score score-area">${area.toLocaleString()} m2</span>
                 </div>
             </div>
 
@@ -566,11 +641,11 @@ function showFindingDetail(feature) {
             <div class="finding-metrics">
                 <div class="metric-pill">
                     <span class="lbl">NDVI Delta</span>
-                    <span class="val" style="color:${ndvi < 0 ? 'var(--color-danger)' : 'var(--color-success)'}">${ndvi.toFixed(3)}</span>
+                    <span class="val ${ndvi < 0 ? 'text-danger' : 'text-success'}">${ndvi.toFixed(3)}</span>
                 </div>
                 <div class="metric-pill">
                     <span class="lbl">NBR Delta</span>
-                    <span class="val" style="color:${nbr < 0 ? 'var(--color-danger)' : 'var(--color-success)'}">${nbr.toFixed(3)}</span>
+                    <span class="val ${nbr < 0 ? 'text-danger' : 'text-success'}">${nbr.toFixed(3)}</span>
                 </div>
             </div>
 
@@ -590,8 +665,8 @@ function showFindingDetail(feature) {
             </div>
 
             <!-- Review Actions (Human-in-the-Loop) -->
-            <div style="margin-top:8px;">
-                <span class="lbl" style="font-size:10px; font-weight:700; color:var(--color-text-muted); text-transform:uppercase;">Submit Review Assessment</span>
+            <div>
+                <span class="section-label">Submit Review</span>
                 <div class="review-actions">
                     <button class="review-btn btn-approve" onclick="submitReview('${runId}', ${findingIdx}, 'approved')">Approve</button>
                     <button class="review-btn btn-reject" onclick="submitReview('${runId}', ${findingIdx}, 'rejected')">Reject</button>
@@ -600,27 +675,22 @@ function showFindingDetail(feature) {
             </div>
 
             <!-- Downloadable Artifacts -->
-            <div style="margin-top:16px; border-top: 1px solid var(--border-color); padding-top:16px;">
-                <span class="lbl" style="font-size:10px; font-weight:700; color:var(--color-text-muted); text-transform:uppercase;">Download Run Artifacts</span>
-                <div class="download-links" style="display: flex; flex-direction: column; gap: 8px; margin-top: 8px;">
-                    <a href="${beforeUrl}" download="before-${runId}.png" class="btn btn-secondary" style="font-size:11px; padding:6px 12px; justify-content: flex-start; text-decoration:none; display:flex; align-items:center; gap:8px;">
-                        <svg class="btn-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+            <div class="artifact-section">
+                <span class="section-label">Run Artifacts</span>
+                <div class="download-links">
+                    <a href="${beforeUrl}" download="before-${runId}.png" class="btn btn-secondary">
                         Before Image (PNG)
                     </a>
-                    <a href="${afterUrl}" download="after-${runId}.png" class="btn btn-secondary" style="font-size:11px; padding:6px 12px; justify-content: flex-start; text-decoration:none; display:flex; align-items:center; gap:8px;">
-                        <svg class="btn-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                    <a href="${afterUrl}" download="after-${runId}.png" class="btn btn-secondary">
                         After Image (PNG)
                     </a>
-                    <a href="${overlayUrl}" download="overlay-${runId}.png" class="btn btn-secondary" style="font-size:11px; padding:6px 12px; justify-content: flex-start; text-decoration:none; display:flex; align-items:center; gap:8px;">
-                        <svg class="btn-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                    <a href="${overlayUrl}" download="overlay-${runId}.png" class="btn btn-secondary">
                         Change Overlay (PNG)
                     </a>
-                    <a href="${API}/jobs/${runId}/artifacts/findings.geojson" download="findings-${runId}.geojson" class="btn btn-secondary" style="font-size:11px; padding:6px 12px; justify-content: flex-start; text-decoration:none; display:flex; align-items:center; gap:8px;">
-                        <svg class="btn-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                    <a href="${API}/jobs/${runId}/artifacts/findings.geojson" download="findings-${runId}.geojson" class="btn btn-secondary">
                         Findings (GeoJSON)
                     </a>
-                    <a href="${API}/jobs/${runId}/artifacts/provenance.json" download="provenance-${runId}.json" class="btn btn-secondary" style="font-size:11px; padding:6px 12px; justify-content: flex-start; text-decoration:none; display:flex; align-items:center; gap:8px;">
-                        <svg class="btn-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                    <a href="${API}/jobs/${runId}/artifacts/provenance.json" download="provenance-${runId}.json" class="btn btn-secondary">
                         Provenance (JSON)
                     </a>
                 </div>
@@ -661,7 +731,7 @@ window.submitReview = async function(runId, findingIdx, state) {
                 finding_idx: findingIdx,
                 portfolio_id: activePortfolioId,
                 state,
-                reviewer_notes: "Reviewed via Oberon Redesigned Web Dashboard"
+                reviewer_notes: "Reviewed via Oberon dashboard"
             }),
         });
 
@@ -672,8 +742,8 @@ window.submitReview = async function(runId, findingIdx, state) {
         // Visual indicator of review saved
         const card = document.querySelector('.finding-card');
         if (card) {
-            card.style.border = '1px solid var(--color-success)';
-            setTimeout(() => card.style.border = 'none', 1000);
+            card.classList.add('review-saved');
+            setTimeout(() => card.classList.remove('review-saved'), 1000);
         }
 
         // Increment calibration counter
@@ -706,10 +776,10 @@ function updateCalibrationUI() {
         if (total >= 20) {
             calibrateBtn.disabled = false;
             calibrateBtn.classList.remove('btn-secondary');
-            calibrateBtn.classList.add('btn-primary-gradient');
+            calibrateBtn.classList.add('btn-primary');
         } else {
             calibrateBtn.disabled = true;
-            calibrateBtn.classList.remove('btn-primary-gradient');
+            calibrateBtn.classList.remove('btn-primary');
             calibrateBtn.classList.add('btn-secondary');
         }
     }
@@ -736,4 +806,176 @@ function escapeHtml(s) {
     const d = document.createElement('div');
     d.textContent = s;
     return d.innerHTML;
+}
+
+// ---- Interactive Map Drawing Functions ----
+function startDrawing(mode) {
+    addPolygonDialog.close();
+    isDrawing = true;
+    drawMode = mode;
+    drawPoints = [];
+    drawMarkers.forEach(m => map.removeLayer(m));
+    drawMarkers = [];
+    if (drawPreviewLine) {
+        map.removeLayer(drawPreviewLine);
+        drawPreviewLine = null;
+    }
+    drawLayerGroup.clearLayers();
+
+    // Disable double click zoom while drawing
+    map.doubleClickZoom.disable();
+
+    // Show toolbar
+    const toolbar = document.getElementById('drawing-toolbar');
+    toolbar.classList.remove('hidden');
+    
+    const instructions = document.getElementById('drawing-instructions');
+    if (mode === 'polygon') {
+        instructions.textContent = "Click map to add vertices. Double-click or click first point to close polygon.";
+    } else {
+        instructions.textContent = "Click map for Point 1 (corner), then opposite corner for Point 2.";
+    }
+
+    document.getElementById('map').style.cursor = 'crosshair';
+}
+
+function handleMapClick(e) {
+    if (!isDrawing) return;
+    
+    const latlng = e.latlng;
+    
+    if (drawMode === 'polygon') {
+        drawPoints.push(latlng);
+        
+        // Circle vertex marker
+        const marker = L.circleMarker(latlng, {
+            radius: 5,
+            fillColor: '#58a6ff',
+            color: '#fff',
+            weight: 1.5,
+            fillOpacity: 1
+        }).addTo(map);
+        drawMarkers.push(marker);
+
+        // Click first point to finish
+        if (drawPoints.length > 2) {
+            marker.on('click', (ev) => {
+                L.DomEvent.stopPropagation(ev);
+                finishDrawing();
+            });
+        }
+        
+        if (drawPreviewLine) map.removeLayer(drawPreviewLine);
+        
+        if (drawPoints.length > 1) {
+            drawPreviewLine = L.polygon(drawPoints, {
+                color: '#58a6ff',
+                weight: 2,
+                fillOpacity: 0.1,
+                dashArray: '3, 5'
+            }).addTo(map);
+        }
+    } else if (drawMode === 'bbox') {
+        drawPoints.push(latlng);
+        
+        const marker = L.circleMarker(latlng, {
+            radius: 5,
+            fillColor: '#3fbc55',
+            color: '#fff',
+            weight: 1.5,
+            fillOpacity: 1
+        }).addTo(map);
+        drawMarkers.push(marker);
+        
+        if (drawPoints.length === 1) {
+            document.getElementById('drawing-instructions').textContent = "Corner 1 saved. Click opposite corner to complete bounding box.";
+        } else if (drawPoints.length === 2) {
+            if (drawPreviewLine) map.removeLayer(drawPreviewLine);
+            
+            const bounds = L.latLngBounds(drawPoints[0], drawPoints[1]);
+            drawPreviewLine = L.rectangle(bounds, {
+                color: '#3fbc55',
+                weight: 2,
+                fillOpacity: 0.1
+            }).addTo(map);
+            
+            finishDrawing();
+        }
+    }
+}
+
+function handleMapDblClick(e) {
+    if (isDrawing && drawMode === 'polygon') {
+        finishDrawing();
+    }
+}
+
+function finishDrawing() {
+    if (!isDrawing) return;
+    
+    let geojson = null;
+    
+    if (drawMode === 'polygon') {
+        if (drawPoints.length < 3) {
+            showToast("Polygon requires at least 3 vertices.", "warning");
+            return;
+        }
+        const coords = drawPoints.map(p => [p.lng, p.lat]);
+        coords.push(coords[0]); // close loop
+        geojson = {
+            type: "Polygon",
+            coordinates: [coords]
+        };
+    } else if (drawMode === 'bbox') {
+        if (drawPoints.length < 2) {
+            showToast("Bounding box requires 2 corners.", "warning");
+            return;
+        }
+        const p1 = drawPoints[0];
+        const p2 = drawPoints[1];
+        const minLng = Math.min(p1.lng, p2.lng);
+        const maxLng = Math.max(p1.lng, p2.lng);
+        const minLat = Math.min(p1.lat, p2.lat);
+        const maxLat = Math.max(p1.lat, p2.lat);
+        
+        geojson = {
+            type: "Polygon",
+            coordinates: [[
+                [minLng, minLat],
+                [maxLng, minLat],
+                [maxLng, maxLat],
+                [minLng, maxLat],
+                [minLng, minLat]
+            ]]
+        };
+    }
+    
+    if (geojson) {
+        document.getElementById('poly-geometry').value = JSON.stringify(geojson, null, 2);
+        showToast("Geometry generated successfully from map.", "success");
+    }
+    
+    cleanupDrawing();
+    addPolygonDialog.showModal();
+}
+
+function cancelDrawing() {
+    cleanupDrawing();
+    addPolygonDialog.showModal();
+}
+
+function cleanupDrawing() {
+    isDrawing = false;
+    drawMode = null;
+    drawPoints = [];
+    drawMarkers.forEach(m => map.removeLayer(m));
+    drawMarkers = [];
+    if (drawPreviewLine) {
+        map.removeLayer(drawPreviewLine);
+        drawPreviewLine = null;
+    }
+    
+    map.doubleClickZoom.enable();
+    document.getElementById('drawing-toolbar').classList.add('hidden');
+    document.getElementById('map').style.cursor = '';
 }
