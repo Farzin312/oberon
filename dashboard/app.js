@@ -598,6 +598,33 @@ function showFindingDetail(feature) {
                     <button class="review-btn btn-uncertain" onclick="submitReview('${runId}', ${findingIdx}, 'uncertain')">Uncertain</button>
                 </div>
             </div>
+
+            <!-- Downloadable Artifacts -->
+            <div style="margin-top:16px; border-top: 1px solid var(--border-color); padding-top:16px;">
+                <span class="lbl" style="font-size:10px; font-weight:700; color:var(--color-text-muted); text-transform:uppercase;">Download Run Artifacts</span>
+                <div class="download-links" style="display: flex; flex-direction: column; gap: 8px; margin-top: 8px;">
+                    <a href="${beforeUrl}" download="before-${runId}.png" class="btn btn-secondary" style="font-size:11px; padding:6px 12px; justify-content: flex-start; text-decoration:none; display:flex; align-items:center; gap:8px;">
+                        <svg class="btn-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                        Before Image (PNG)
+                    </a>
+                    <a href="${afterUrl}" download="after-${runId}.png" class="btn btn-secondary" style="font-size:11px; padding:6px 12px; justify-content: flex-start; text-decoration:none; display:flex; align-items:center; gap:8px;">
+                        <svg class="btn-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                        After Image (PNG)
+                    </a>
+                    <a href="${overlayUrl}" download="overlay-${runId}.png" class="btn btn-secondary" style="font-size:11px; padding:6px 12px; justify-content: flex-start; text-decoration:none; display:flex; align-items:center; gap:8px;">
+                        <svg class="btn-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                        Change Overlay (PNG)
+                    </a>
+                    <a href="${API}/jobs/${runId}/artifacts/findings.geojson" download="findings-${runId}.geojson" class="btn btn-secondary" style="font-size:11px; padding:6px 12px; justify-content: flex-start; text-decoration:none; display:flex; align-items:center; gap:8px;">
+                        <svg class="btn-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                        Findings (GeoJSON)
+                    </a>
+                    <a href="${API}/jobs/${runId}/artifacts/provenance.json" download="provenance-${runId}.json" class="btn btn-secondary" style="font-size:11px; padding:6px 12px; justify-content: flex-start; text-decoration:none; display:flex; align-items:center; gap:8px;">
+                        <svg class="btn-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+                        Provenance (JSON)
+                    </a>
+                </div>
+            </div>
         </div>`;
         
     panel.classList.remove('hidden');
