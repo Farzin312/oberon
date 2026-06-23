@@ -10,4 +10,4 @@
 - [x] [CHECK] Run focused dashboard static tests
 - [x] [CHECK] Run `bounds validate --quick`
 - [x] [CHECK] Run Rust control-plane tests
-- [ ] [CHECK] Browser smoke-test dashboard layout
+- [x] [CHECK] Browser smoke-test dashboard layout
