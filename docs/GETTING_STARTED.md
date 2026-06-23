@@ -7,6 +7,29 @@ This guide covers the three ways to use Oberon: CLI (zero cost), API server
 
 ---
 
+## CLI vs. Self-Hosted: Which should you choose?
+
+Oberon is designed to scale from local ad-hoc developer analysis to enterprise-grade monitoring pipelines. Choosing the correct mode depends on your use case:
+
+| Capability | CLI Path (`oberon analyze`) | Self-Hosted Path (Server + Dashboard) |
+|---|---|---|
+| **Use Case** | Quick ad-hoc checks, local scripts, serverless triggers. | Commercial portals, multi-AOI monitoring, user portals. |
+| **Interface** | CLI commands, terminal output, files on disk. | Sleek interactive Web Dashboard, REST API endpoints. |
+| **Persistence** | None (one-off execution; outputs written to a single folder). | Persistent SQLite database mapping portfolios, AOIs, and runs. |
+| **Verification** | Visual inspection of `overlay.png` on local disk. | **Interactive Map Workspace** with before/after tab comparisons. |
+| **Review Workflows** | None. | **Human-in-the-loop** triage (Approve/Reject/Uncertain states). |
+| **Integration** | Standard shell scripting, standard piping. | API integrations, **Webhook alerts**, SHA-256 API key security. |
+| **State Machine** | Single process runs synchronously until exit. | Background queue running async subprocesses with logging. |
+
+### Why you should Self-Host
+If you are developing a **commercial application** or setting up **continuous monitoring** for compliance or investment reporting, you should choose the **Self-Hosted Path**:
+1. **Interactive Verification**: Geologists, compliance officers, or auditors can inspect findings visually in the Web Dashboard, toggling between Sentinel-2 true-color bands before/after and the red overlay mask.
+2. **Noise Triage (Human-in-the-Loop)**: AI models and spectral baselines can have edge-case false positives (e.g. agricultural harvesting or extreme cloud shadows). The dashboard provides approval controls to curate high-accuracy datasets.
+3. **Event-Driven Workflows**: The server triggers **Webhooks** when a job finishes. For example, a successful analysis run can automatically ping a Slack channel or update an internal database entry with the coordinates of the change.
+4. **Programmatic Access**: Expose change detection to your frontend, mobile apps, or corporate backend through a unified REST API protected by SHA-256 API keys.
+
+---
+
 ## Prerequisites
 
 - Python 3.12+

@@ -2,271 +2,174 @@
 
 **Open, self-hostable Earth observation monitoring engine.**
 
-Oberon turns public satellite imagery (Sentinel-2 L2A) into ranked, evidence-backed change findings for defined land portfolios. Users supply an area of interest and before/after time windows. Oberon returns ranked change polygons, spectral evidence, before/after imagery, and full provenance for every finding.
+![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)
+![Python](https://img.shields.io/badge/python-3.12+-blue.svg)
+![Rust](https://img.shields.io/badge/rust-1.75+-orange.svg)
+![GDAL](https://img.shields.io/badge/gdal-3.6+-green.svg)
+![Docker](https://img.shields.io/badge/docker-compatible-blue.svg)
+![Platform](https://img.shields.io/badge/platform-linux%20%7C%20macos-lightgrey.svg)
 
-[Installation](#installation) | [Quick Start](#quick-start) | [Architecture](#architecture) | [Roadmap](#roadmap) | [Contributing](#contributing)
+Oberon turns public satellite imagery (Sentinel-2 L2A) into ranked, evidence-backed change findings for defined land portfolios. Users supply an area of interest (AOI) and before/after time windows. Oberon returns ranked change polygons, spectral evidence, comparative imagery, and full provenance for every finding.
 
-> **New to Oberon?** Start with the [Getting Started Guide](docs/GETTING_STARTED.md) — three paths: CLI, API server, or Docker.
+> [!IMPORTANT]
+> **New to Oberon?** Start with the [Getting Started Guide](docs/GETTING_STARTED.md) — three paths: CLI (zero cost), API server (self-hosted), or Docker containerization.
 
 ---
 
 ## Why Oberon?
 
-Existing EO tools either dump raw imagery (too low-level) or lock change detection behind a paid API (too opaque). Oberon is the middle path:
+Existing Earth observation (EO) tools either dump raw imagery (requiring extensive manual analysis) or lock change detection behind opaque, expensive proprietary APIs. Oberon represents the middle path:
 
-- **Deterministic by default** — spectral baselines (NDVI, NBR, NDMI) are the primary signal. No black-box dependency for the core workflow.
-- **Optional AI triage** — Clay v1.5 foundation model embeddings run alongside baselines. AI must prove it improves over the deterministic path before promotion.
-- **Abstention over confident failure** — when inputs are poor (cloud cover, insufficient pixels), Oberon says so explicitly instead of producing a garbage result.
-- **Provenance is product data** — every finding records source scenes, bands, processing config, model version, software version, and artifact paths. Not a log line. A verifiable record.
-- **Self-hostable** — runs on your machine or in Docker. No telemetry, no API keys required for the core pipeline.
+* **Zero Marginal Cost**: Run Oberon on standard cloud or local infrastructure, ingesting Sentinel-2 imagery via free, public STAC catalogs.
+* **Deterministic by Default**: Spectral baselines (NDVI, NBR, NDMI) are the primary indicators of disturbance. No black-box dependency for core compliance workflows.
+* **Optional AI Triage**: Clay v1.5 foundation model embeddings run as a parallel branch, scoring change metrics alongside deterministic indices.
+* **Abstention over Guesswork**: When inputs are poor (dense cloud cover, missing pixels), Oberon explicitly abstains instead of producing false change detections.
+* **Provenance is Product Data**: Every finding includes a verifiable `provenance.json` recording source scenes, bands, processing configs, software versions, and artifact paths.
 
-## What it does
+### Product Matrix
 
+| Capability | Raw STAC / Copernicus | Closed Proprietary SaaS | Oberon (Self-Hosted OSS) |
+|---|---|---|---|
+| **Deployment Model** | Web portal / manual download | SaaS API only | **Local, Docker, Cloud Instance** |
+| **Privacy & Security** | Data queries sent to public portals | Data must be uploaded to vendor | **Zero Telemetry** (100% local processing) |
+| **Scene Selection** | Manual tile-level filtering | Automated (opaque) | **AOI Bounding Box Triage** (ranks by cloud cover only over the polygon) |
+| **Cloud Mitigation** | Manual inspection | Paid composite rendering | **Automatic Median Compositing** (merges up to 3 scenes per period) |
+| **Seasonality Check** | False flags in autumn/winter | Proprietary custom tuning | **Spatial-Variance Seasonality Filtering** (separates leaf-fall from real forest loss) |
+| **Human Verification** | None | Ad-hoc GIS software | **Integrated Dashboard Review Loop** (Approve/Reject controls) |
+
+---
+
+## Architecture Flow
+
+Oberon separates data processing from client management using a modular four-plane model:
+
+```mermaid
+graph TD
+    A[User / Client Request] --> B[Control Plane: Rust Axum Server]
+    B --> C[SQLite Database: Portfolios & Runs]
+    B --> D[Data Plane: Python Pipeline subprocess]
+    D --> E[STAC Catalog Search: Sentinel-2 L2A]
+    E --> F[Local Pixel Triage: Cloud & Shadow Filtering]
+    F --> G[Cloud Median Compositing: Up to 3 scenes]
+    G --> H[Baselines: Signed NDVI/NBR Delta]
+    H --> I[Optional AI: Clay v1.5 Embeddings]
+    I --> J[Morphological Closing: 250m Consolidation]
+    J --> K[Trust Plane: Verifiable Provenance Manifest]
+    K --> L[Output Folder: before.png / after.png / overlay.png / findings.geojson]
+    L --> B
+    B --> M[Web Dashboard UI]
 ```
-AOI polygon + before/after date windows
-  -> STAC catalog search (Sentinel-2 L2A, Earth Search / Element84)
-  -> Scene quality assessment (over the AOI, not scene-level)
-  -> Windowed COG read + SCL cloud/shadow masking
-  -> Reprojection, resampling, alignment
-  -> Deterministic baselines (NDVI, NBR, NDMI, pixel deltas)
-  -> Optional AI branch (Clay v1.5 feature extraction)
-  -> Cloud-masked composite (when single scene is insufficient)
-  -> Change detection (thresholding, connected components)
-  -> Ranked GeoJSON findings + evidence bundles (PNG, provenance manifest)
-  -> Explicit abstention when evidence is weak
-```
 
-## Installation
+See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the full system design.
+
+---
+
+## Getting Started
 
 ### Prerequisites
+* Python 3.12+
+* [uv](https://docs.astral.sh/uv/) package manager
+* GDAL system libraries (macOS: `brew install gdal`, Ubuntu: `sudo apt install libgdal-dev`)
+* Rust toolchain (optional, for compiling the server local binary)
+* Docker (optional, for containerized server deployments)
 
-- Python 3.12+
-- [uv](https://docs.astral.sh/uv/) package manager
-- GDAL system libraries (included in Docker image; for local install see [CONTRIBUTING.md](docs/CONTRIBUTING.md))
-
-### Local (uv)
-
+### 1. Initialize and Check Setup
 ```bash
 git clone https://github.com/farzin/oberon.git
 cd oberon
 uv sync
+uv run oberon init
 ```
 
-### Docker (recommended for first run)
-
+### 2. Path A: CLI Mode (Ad-Hoc Analysis)
+Analyze a local GeoJSON polygon between two time windows and write output files directly to disk:
 ```bash
-docker build -t oberon:cpu .
-```
-
-## Quick start
-
-### Analyze an area of interest
-
-```bash
-# Provide a GeoJSON polygon and before/after dates
-# Sample AOI: Amazon deforestation arc (Para, Brazil)
-oberon analyze \
+uv run oberon analyze \
   --aoi sample-aoi.geojson \
   --before-start 2024-01-01 --before 2024-03-01 \
   --after-start 2024-07-01 --after 2024-09-01 \
-  --task vegetation_disturbance \
   -o output/
 ```
+Outputs in `output/`:
+* `before.png`, `after.png`, `overlay.png` — RGB imagery + visual change overlay
+* `findings.geojson` — ranked change polygons with NDVI/NBR metrics
+* `provenance.json` — metadata manifest linking scenes, configurations, and versions
 
-Output in `output/`:
-- `before.png`, `after.png`, `overlay.png` — true-color imagery + change overlay
-- `findings.geojson` — ranked change polygons with NDVI/NBR deltas and area
-- `provenance.json` — full provenance manifest (scenes, config, model versions)
-
-### With AI triage (requires torch + Clay checkpoint)
-
+### 3. Path B: Self-Hosted Server (Web Dashboard & API)
+For multi-polygon portfolios, API integrations, and human-in-the-loop validation:
 ```bash
-uv sync --extra ai
-oberon analyze \
-  --aoi sample-aoi.geojson \
-  --before-start 2024-01-01 --before 2024-03-01 \
-  --after-start 2024-07-01 --after 2024-09-01 \
-  --use-ai -o output/
-```
-
-### Cloud-masked composite
-
-When the best single scene has too much cloud cover over the AOI, Oberon can merge up to 3 scenes per period:
-
-```bash
-oberon analyze \
-  --aoi sample-aoi.geojson \
-  --before-start 2024-01-01 --before 2024-03-01 \
-  --after-start 2024-07-01 --after 2024-09-01 \
-  --composite -o output/
-```
-
-### JSON output (for programmatic use)
-
-```bash
-oberon analyze \
-  --aoi sample-aoi.geojson \
-  --before-start 2024-01-01 --before 2024-03-01 \
-  --after-start 2024-07-01 --after 2024-09-01 \
-  --json
-```
-
-Outputs the full Product Brief section 5 response shape (status, findings with change_score/changed_area_m2/evidence, artifacts).
-
-### Request file mode (API contract input)
-
-```bash
-# Run from a JSON request file (ChangeRequestAPI schema)
-oberon analyze --request request.json -o output/
-```
-
-The request JSON format:
-```json
-{
-  "geometry": {"type": "Polygon", "coordinates": [[[...]]]},
-  "before": {"from": "2026-01-01", "to": "2026-02-01"},
-  "after": {"from": "2026-06-01", "to": "2026-07-01"}
-}
-```
-
-This is the same shape the Rust control plane will use. `--request` cannot be combined with `--aoi`.
-
-### Docker
-
-```bash
-# CPU
-docker run --rm \
-  -v "$PWD/input:/input:ro" \
-  -v "$PWD/output:/output" \
-  oberon:cpu analyze \
-    --aoi /input/sample-aoi.geojson \
-    --before-start 2024-01-01 --before 2024-03-01 \
-    --after-start 2024-07-01 --after 2024-09-01 \
-    -o /output
-
-# GPU (requires nvidia-docker runtime)
-docker compose --profile gpu run --rm oberon-gpu analyze \
-  --aoi /input/sample-aoi.geojson \
-  --before-start 2024-01-01 --before 2024-03-01 \
-  --after-start 2024-07-01 --after 2024-09-01 \
-  --use-ai -o /output
-```
-
-### Health check
-
-```bash
-oberon health          # CLI
-oberon health --json   # programmatic
-```
-
-### Self-hosted server (Rust control plane + dashboard)
-
-```bash
-# Build and run the server
+# Build and run the server locally (using sqlite state & background task queues)
 cd control-plane && cargo build --release
-./target/release/oberon-control-plane serve --host 0.0.0.0:8000
+OBERON_AUTH_DISABLED=1 ./target/release/oberon-control-plane serve --host 0.0.0.0:8000
 ```
+Open [http://localhost:8000/](http://localhost:8000/) in your browser to access the Web Dashboard UI.
 
-Dashboard at http://localhost:8000/ · API at http://localhost:8000/v1/
+---
 
+## Advanced Configurations
+
+<details>
+<summary><b>Docker Deployment</b></summary>
+
+Build and run both the Rust control plane and Python pipeline in a single container:
 ```bash
-# Or via Docker (Rust + Python in one container)
-docker compose --profile server up
-```
+# CPU Server
+docker compose --profile server up -d
 
-Create an API key for authenticated access:
+# GPU Server (requires Nvidia container toolkit)
+docker compose --profile server-gpu up -d
+```
+</details>
+
+<details>
+<summary><b>Database API Key Security</b></summary>
+
+For production deployments, authentication should be enabled. Generate a secure SHA-256 API key:
 ```bash
-./target/release/oberon-control-plane auth create-key --user "your-name"
+./target/release/oberon-control-plane auth create-key --user "organization-administrator"
 ```
+Provide this key in the `X-API-Key` header for REST requests.
+</details>
 
-For local dev, set `OBERON_AUTH_DISABLED=1` to skip auth.
-
-## Architecture
-
-Oberon follows a four-plane conceptual model. See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the full system design.
-
-```
-Data Plane        -> STAC discovery, COG reads, spectral baselines, AI inference
-Control Plane     -> CLI orchestration, API contracts, job state
-Trust Plane       -> Abstention, provenance, evidence bundles, evaluation
-Commercial Plane  -> (future) accounts, auth, billing
-```
-
-Key design decisions:
-- **Modular monolith** — one Python process, clear stage boundaries, no microservices.
-- **Python pipeline, Rust control plane** — Python owns geospatial processing. Rust owns API, auth, jobs, dashboard.
-- **Functional core** — pipeline stages are pure functions. Side effects only in the outer shell.
-- **Windowed reads only** — never download a full scene. Read only the AOI-bounded window.
-
-## Roadmap
-
-See [docs/ROADMAP.md](docs/ROADMAP.md) for the phased build plan and current status.
-
-| Layer | Status |
-|-------|--------|
-| Core pipeline (STAC -> baselines -> findings) | **Done** |
-| Clay AI experiment + evaluation harness | **Gate run: AI_ties** — AI remains experimental |
-| Model registry, provenance, artifact index | **Done** |
-| Docker packaging, structured logging | **Done** |
-| Scene composite + cloud-masked mosaic | **Done** |
-| API contracts (Pydantic, Product Brief shape) | **Done** |
-| Baseline calibration (signed threshold, closing) | **Done** — 12/12 golden tests |
-| Spatial-variance seasonal detection | **Done** |
-| Rust control plane (Axum API) | **Done** |
-| Review workflow, monitoring, alerts | **Done** |
-
-## Documentation
-
-| Doc | Audience | Description |
-|-----|----------|-------------|
-| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Engineers | Four-plane model, stage boundaries, design decisions |
-| [docs/ROADMAP.md](docs/ROADMAP.md) | Community | Phased build plan, decision gates, current status |
-| [CLAUDE.md](CLAUDE.md) | AI agents | Project context, build commands, gotchas |
-| [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md) | Contributors | Development workflow, setup, testing rules |
-| [docs/architecture/SYSTEM_DESIGN.md](docs/architecture/SYSTEM_DESIGN.md) | Engineers | Detailed subsystem design |
-| [docs/TASK_CONTRACT.md](docs/TASK_CONTRACT.md) | Contributors | Formal definition of the vegetation_disturbance task |
-| [docs/mini-sdd/README.md](docs/mini-sdd/README.md) | Contributors | Bounded-change documentation approach |
-| [docs/api/gaps_vs_product_brief.md](docs/api/gaps_vs_product_brief.md) | Engineers | API contract gap analysis |
-
-## Configuration
-
-Oberon works out of the box with sensible defaults. Override via environment variables:
+<details>
+<summary><b>System Environment Variables</b></summary>
 
 | Variable | Default | Description |
-|----------|---------|-------------|
+|---|---|---|
 | `OBERON_STAC_URL` | `https://earth-search.aws.element84.com/v1` | STAC catalog endpoint |
 | `OBERON_STAC_TIMEOUT` | `30` | STAC API connection timeout (seconds) |
 | `OBERON_STAC_RETRIES` | `3` | Max retry attempts for STAC failures |
 | `OBERON_COG_TIMEOUT` | `60` | GDAL HTTP timeout for COG reads (seconds) |
 | `OBERON_COG_RETRIES` | `3` | GDAL HTTP max retries for COG reads |
+| `OBERON_OUTPUT_DIR` | `~/.oberon/output` | Base output directory for analysis runs |
+| `OBERON_DB_PATH` | `~/.oberon/oberon.db` | Path to SQLite database file |
 | `OBERON_LOG_FORMAT` | `console` | Logging format (`console` or `json`) |
-| `OBERON_CACHE_DIR` | `~/.cache/oberon` | Disk cache directory |
-
-## Contributing
-
-Contributions welcome. Read [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md) first.
-We follow the [Contributor Covenant Code of Conduct](CODE_OF_CONDUCT.md).
-
-All code (human or AI) must pass: TDD, ruff, mypy strict, pytest, provenance checks.
-
-## Status
-
-Pre-MVP. The core pipeline is functional and tested (287 unit tests, 12 golden integration tests). The live 005 benchmark gate was run on 2026-06-22: Clay AI tied the deterministic baseline (`precision_at_k` 0.1266 vs 0.1266, delta +0.0000), so AI is **not** promoted to the default path. Oberon remains deterministic-first with `--use-ai` as an experimental flag.
-
-Baseline calibration (013) brought golden integration tests from 1/12 to 12/12 passing via signed threshold, morphological closing, and cross-season annotation. Spatial-variance seasonal detection (014) adds a coefficient-of-variation check to distinguish uniform seasonal senescence from patchy real disturbance.
-
-## License
-
-Apache 2.0 — see [LICENSE](LICENSE).
-
-## Changelog
-
-See [CHANGELOG.md](CHANGELOG.md) for version history.
-
-## Citation
-
-If you use Oberon in research, see [CITATION.cff](CITATION.cff) for citation information.
+| `OBERON_CACHE_DIR` | `~/.cache/oberon` | Disk cache directory for COG windows |
+</details>
 
 ---
 
-Oberon is a project by [Farzin Shifat](https://farzinbuilds.com).
+## Documentation Registry
+
+| Guide | Target Audience | Purpose |
+|---|---|---|
+| [docs/GETTING_STARTED.md](docs/GETTING_STARTED.md) | DevOps & Developers | Installation, CLI flags, database API guides, Docker mounts |
+| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Software Engineers | Four-plane conceptual design, stage boundaries, database design |
+| [docs/ROADMAP.md](docs/ROADMAP.md) | Project Stakeholders | Build phases, decision gates, current calibration status |
+| [docs/CONTRIBUTING.md](docs/CONTRIBUTING.md) | Code Contributors | Working guidelines, ruff/mypy rules, test suite structures |
+| [docs/TASK_CONTRACT.md](docs/TASK_CONTRACT.md) | GIS & Data Engineers | Vegetation disturbance mathematical specifications |
+| [docs/EVALUATION_REPORT.md](docs/EVALUATION_REPORT.md) | Data Scientists | Pre/post-calibration accuracy metrics and model evaluation results |
+
+---
+
+## Project Status
+
+Oberon is a pre-MVP engineering platform with **304 unit tests** and **12 golden integration tests** passing on every commit. The deterministic index baseline is calibrated to ensure high accuracy over forested landscapes, while the optional Clay v1.5 embedding extraction remains experimental (`--use-ai`).
+
+* **License**: Apache 2.0 (Permissive for commercial and private use)
+* **Version History**: See [CHANGELOG.md](CHANGELOG.md)
+* **Academic Citation**: See [CITATION.cff](CITATION.cff)
+
+---
+
+Oberon is created and maintained by [Farzin Shifat](https://farzinbuilds.com).
