@@ -930,16 +930,20 @@ body.run-panel-collapsed #toggle-run-panel-icon {
 
 dialog {
     position: fixed;
-    inset: 0;
-    width: min(560px, calc(100vw - 32px));
+    top: 50dvh;
+    right: auto;
+    bottom: auto;
+    left: 50dvw;
+    width: min(560px, calc(100dvw - 32px));
     max-height: calc(100dvh - 32px);
-    margin: auto;
+    margin: 0;
     padding: 0;
     border: 0;
     border-radius: var(--radius);
     background: transparent;
     color: var(--text);
     overflow: hidden;
+    transform: translate(-50%, -50%);
 }
 
 dialog::backdrop {
@@ -962,7 +966,7 @@ dialog::backdrop {
 }
 
 .guide-dialog {
-    width: min(680px, calc(100vw - 32px));
+    width: min(680px, calc(100dvw - 32px));
 }
 
 .modal-header,
