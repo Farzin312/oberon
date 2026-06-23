@@ -1,0 +1,176 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 400" width="100%" height="100%" style="background:#080b11; font-family:system-ui, -apple-system, sans-serif; border-radius: 8px; overflow: hidden; border: 1px solid #1b2536;">
+  <defs>
+    <!-- Background Gradients -->
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#080b11" />
+      <stop offset="100%" stop-color="#0d1424" />
+    </linearGradient>
+    <linearGradient id="forest" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#14532d" />
+      <stop offset="100%" stop-color="#166534" />
+    </linearGradient>
+    <linearGradient id="clay" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#451a03" />
+      <stop offset="100%" stop-color="#78350f" />
+    </linearGradient>
+    <linearGradient id="glass" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="rgba(30, 41, 59, 0.7)" />
+      <stop offset="100%" stop-color="rgba(15, 23, 42, 0.85)" />
+    </linearGradient>
+    
+    <!-- Shadow Filter -->
+    <filter id="card-shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="6" stdDeviation="10" flood-color="#000000" flood-opacity="0.6" />
+    </filter>
+  </defs>
+
+  <style>
+    /* Continuous Slide Animation */
+    @keyframes sliderMove {
+      0%, 100% { clip-path: polygon(0 0, 260px 0, 260px 320px, 0 320px); }
+      50% { clip-path: polygon(0 0, 480px 0, 480px 320px, 0 320px); }
+    }
+    @keyframes barMove {
+      0%, 100% { transform: translateX(260px); }
+      50% { transform: translateX(480px); }
+    }
+    @keyframes pathPulse {
+      0%, 100% { stroke-opacity: 0.5; stroke-width: 2; }
+      50% { stroke-opacity: 1; stroke-width: 3.5; }
+    }
+
+    .anim-slider { animation: sliderMove 8s ease-in-out infinite; }
+    .anim-bar { animation: barMove 8s ease-in-out infinite; }
+    .anim-pulse { animation: pathPulse 2.5s ease-in-out infinite; }
+  </style>
+
+  <!-- Canvas Background -->
+  <rect width="100%" height="100%" fill="url(#bg)" />
+
+  <!-- Grid overlay -->
+  <path d="M 0,80 L 800,80 M 0,160 L 800,160 M 0,240 L 800,240 M 0,320 L 800,320 M 160,0 L 160,400 M 320,0 L 320,400 M 480,0 L 480,400 M 640,0 L 640,400" stroke="rgba(255, 255, 255, 0.015)" stroke-width="1" />
+
+  <!-- ================= MAIN MAP PLATFORM ================= -->
+  <g transform="translate(40, 40)" filter="url(#card-shadow)">
+    <!-- Map Frame Base (After - Cleared Soil State) -->
+    <rect width="720" height="320" rx="6" fill="url(#clay)" stroke="#1e293b" stroke-width="1.5" />
+    
+    <!-- Sparse soil patches -->
+    <path d="M 120,80 C 150,60 180,90 200,70" stroke="#a16207" stroke-width="1.5" stroke-linecap="round" fill="none" opacity="0.3" />
+    <path d="M 380,240 C 410,220 440,250 460,230" stroke="#a16207" stroke-width="1.5" stroke-linecap="round" fill="none" opacity="0.3" />
+    <path d="M 520,90 C 550,70 580,100 600,80" stroke="#a16207" stroke-width="1.5" stroke-linecap="round" fill="none" opacity="0.3" />
+
+    <!-- Deforest Disturbance Polygons (Target Areas) -->
+    <!-- Large center anomaly -->
+    <path d="M 320,120 Q 400,90 440,150 Q 480,210 410,230 Q 330,240 310,180 Z" fill="#451a03" stroke="#f85149" stroke-width="2" class="anim-pulse" />
+    <path d="M 320,120 Q 400,90 440,150 Q 480,210 410,230 Q 330,240 310,180 Z" fill="rgba(248, 81, 73, 0.06)" />
+
+    <!-- Small side anomaly -->
+    <path d="M 560,180 Q 600,165 620,190 Q 640,215 605,225 Q 570,230 565,205 Z" fill="#451a03" stroke="#f85149" stroke-width="1.5" class="anim-pulse" />
+
+    <!-- ================= BEFORE IMAGE: SLIDER CLIPPED AREA ================= -->
+    <!-- Green canopy elements clipped on the left of the slider bar -->
+    <g class="anim-slider">
+      <!-- Background Green Forest -->
+      <rect width="720" height="320" rx="6" fill="url(#forest)" stroke="#1e293b" stroke-width="1.5" />
+      
+      <!-- Forest Canopy textures (overlapping clean shapes) -->
+      <circle cx="80" cy="120" r="45" fill="#15803d" opacity="0.4" />
+      <circle cx="110" cy="150" r="50" fill="#166534" opacity="0.5" />
+      <circle cx="160" cy="90" r="40" fill="#166534" opacity="0.3" />
+      
+      <circle cx="340" cy="110" r="45" fill="#15803d" opacity="0.4" />
+      <circle cx="380" cy="140" r="55" fill="#166534" opacity="0.5" />
+      <circle cx="430" cy="100" r="40" fill="#166534" opacity="0.3" />
+
+      <circle cx="580" cy="190" r="45" fill="#15803d" opacity="0.4" />
+      <circle cx="610" cy="220" r="55" fill="#166534" opacity="0.5" />
+      <circle cx="660" cy="180" r="40" fill="#166534" opacity="0.3" />
+      
+      <circle cx="210" cy="260" r="50" fill="#15803d" opacity="0.4" />
+      <circle cx="250" cy="280" r="40" fill="#166534" opacity="0.3" />
+    </g>
+
+    <!-- ================= SLIDER SEPARATOR BAR ================= -->
+    <g class="anim-bar">
+      <!-- White Separator Line -->
+      <line x1="0" y1="0" x2="0" y2="320" stroke="#ffffff" stroke-width="2" />
+      <!-- Round Handle Widget -->
+      <circle cx="0" cy="160" r="14" fill="#ffffff" stroke="#1e293b" stroke-width="1.5" />
+      <line x1="-3" y1="154" x2="-3" y2="166" stroke="#64748b" stroke-width="1.5" />
+      <line x1="3" y1="154" x2="3" y2="166" stroke="#64748b" stroke-width="1.5" />
+    </g>
+
+    <!-- ================= FLOATING GLASS HUD CARDS ================= -->
+    <!-- 1. Label Indicators (Before vs After) -->
+    <g transform="translate(15, 15)">
+      <rect width="180" height="28" rx="14" fill="url(#glass)" stroke="rgba(255,255,255,0.08)" stroke-width="1" />
+      <text x="15" y="18" fill="#e2e8f0" font-size="10" font-weight="700" letter-spacing="0.5">BEFORE: Sentinel-2 RGB</text>
+    </g>
+
+    <g transform="translate(525, 15)">
+      <rect width="180" height="28" rx="14" fill="url(#glass)" stroke="rgba(255,255,255,0.08)" stroke-width="1" />
+      <text x="15" y="18" fill="#e2e8f0" font-size="10" font-weight="700" letter-spacing="0.5">AFTER: Change Overlay</text>
+    </g>
+
+    <!-- 2. Selected Polygon Anomaly Info (Floating Card) -->
+    <g transform="translate(15, 185)">
+      <rect width="180" height="120" rx="8" fill="url(#glass)" stroke="rgba(255,255,255,0.08)" stroke-width="1" />
+      
+      <text x="15" y="24" fill="#f85149" font-size="10" font-weight="800" letter-spacing="0.5">ANOMALY DETECTED</text>
+      
+      <text x="15" y="48" fill="#94a3b8" font-size="9" font-weight="600">TASK TYPE</text>
+      <text x="15" y="60" fill="#e2e8f0" font-size="10" font-weight="700">Veg Disturbance</text>
+      
+      <text x="15" y="86" fill="#94a3b8" font-size="9" font-weight="600">AREA DETECTED</text>
+      <text x="15" y="98" fill="#ffffff" font-size="12" font-weight="800">14.2 Hectares</text>
+    </g>
+
+    <g transform="translate(15, 313)" font-size="8" fill="#475569">
+      <!-- Spatial indicators -->
+      <text x="0" y="0">CRS: EPSG:32721</text>
+      <text x="110" y="0">AOI Size: 300 ha</text>
+    </g>
+
+    <!-- 3. Dynamic Index Delta Dashboard (Right Floating Panel) -->
+    <g transform="translate(525, 205)">
+      <rect width="180" height="100" rx="8" fill="url(#glass)" stroke="rgba(255,255,255,0.08)" stroke-width="1" />
+      
+      <text x="15" y="24" fill="#94a3b8" font-size="9" font-weight="700">CLASSIFICATION FEED</text>
+      
+      <!-- NDVI delta row -->
+      <text x="15" y="48" fill="#e2e8f0" font-size="10" font-weight="600">NDVI Delta:</text>
+      <text x="165" y="48" fill="#f85149" font-size="11" font-weight="800" text-anchor="end">-0.421</text>
+      <line x1="15" y1="56" x2="165" y2="56" stroke="rgba(255,255,255,0.04)" stroke-width="1" />
+
+      <!-- NBR delta row -->
+      <text x="15" y="74" fill="#e2e8f0" font-size="10" font-weight="600">NBR Delta:</text>
+      <text x="165" y="74" fill="#f85149" font-size="11" font-weight="800" text-anchor="end">-0.285</text>
+    </g>
+
+    <!-- 4. Interactive Tabs Mockup (Top Center) -->
+    <g transform="translate(255, 15)">
+      <rect width="210" height="28" rx="14" fill="url(#glass)" stroke="rgba(255,255,255,0.08)" stroke-width="1" />
+      
+      <!-- Tab 1 -->
+      <text x="35" y="18" fill="#94a3b8" font-size="9" font-weight="700" text-anchor="middle">Before</text>
+      <line x1="70" y1="6" x2="70" y2="22" stroke="rgba(255,255,255,0.1)" stroke-width="1" />
+      
+      <!-- Tab 2 -->
+      <text x="105" y="18" fill="#94a3b8" font-size="9" font-weight="700" text-anchor="middle">After</text>
+      <line x1="140" y1="6" x2="140" y2="22" stroke="rgba(255,255,255,0.1)" stroke-width="1" />
+
+      <!-- Tab 3 (Active) -->
+      <rect x="142" y="2" width="66" height="24" rx="12" fill="#1f6feb" />
+      <text x="175" y="17" fill="#ffffff" font-size="9" font-weight="800" text-anchor="middle">Overlay</text>
+    </g>
+
+    <!-- Map Zoom controls -->
+    <g transform="translate(685, 275)">
+      <rect width="20" height="38" rx="4" fill="url(#glass)" stroke="rgba(255,255,255,0.08)" stroke-width="1" />
+      <text x="10" y="15" fill="#ffffff" font-size="12" font-weight="700" text-anchor="middle">+</text>
+      <line x1="4" y1="20" x2="16" y2="20" stroke="rgba(255,255,255,0.1)" stroke-width="1" />
+      <text x="10" y="32" fill="#ffffff" font-size="12" font-weight="700" text-anchor="middle">-</text>
+    </g>
+  </g>
+</svg>

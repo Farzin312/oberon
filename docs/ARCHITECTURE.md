@@ -60,65 +60,32 @@ Accounts, auth, billing, alerts, enterprise integration. Not built during MVP.
 
 ## Pipeline flow
 
-```
-                    ChangeRequest (AOI + dates + thresholds)
-                              |
-                              v
-                    +-------------------+
-                    | STAC Discovery    |  search_catalog()
-                    | (Earth Search)    |  -> list[CandidateScene]
-                    +-------------------+
-                              |
-                              v
-                    +-------------------+
-                    | Scene Quality     |  rank_by_scene_quality()
-                    | Assessment        |  -> list[SelectedScene]
-                    +-------------------+
-                              |
-                    +---------+---------+
-                    |                   |
-                    v                   v
-             +-----------+       +-----------+
-             | Before    |       | After     |
-             | COG Read  |       | COG Read  |  read_window()
-             +-----------+       +-----------+
-                    |                   |
-                    |     (composite    |
-                    |      if needed)   |
-                    v                   v
-                    +-------------------+
-                    | Preparation       |  align_to_common_grid()
-                    | (mask, reproject, |  -> PreparedPair
-                    |  align)           |
-                    +-------------------+
-                              |
-                    +---------+---------+
-                    |                   |
-                    v                   v
-             +-----------+       +-----------+
-             | Baselines |       | AI (opt)  |
-             | NDVI/NBR  |       | Clay v1.5 |
-             | NDMI      |       | embeddings|
-             +-----------+       +-----------+
-                    |                   |
-                    +---------+---------+
-                              |
-                              v
-                    +-------------------+
-                    | Change Detection  |  extract_findings()
-                    | (threshold + CC)  |  deduplicate_and_rank()
-                    +-------------------+
-                              |
-                              v
-                    +-------------------+
-                    | Evidence Bundle   |  build_evidence_bundle()
-                    | (GeoJSON, PNG,    |  -> EvidenceBundle
-                    |  provenance)      |
-                    +-------------------+
-                              |
-                              v
-                    ChangeResponse (API shape)
-                    or EvidenceBundle (CLI)
+```mermaid
+graph TD
+    A([ChangeRequest<br/>AOI, dates, thresholds]) --> B[STAC Discovery<br/>search_catalog]
+    B --> C[Scene Quality Assessment<br/>rank_by_scene_quality]
+    C --> D[Before COG Read<br/>read_window]
+    C --> E[After COG Read<br/>read_window]
+    D --> F[Preparation<br/>align_to_common_grid]
+    E --> F
+    F --> G[Baseline Analytics<br/>NDVI / NBR / NDMI]
+    F --> H[Optional AI Branch<br/>Clay v1.5 Embeddings]
+    G --> I[Change Detection<br/>extract_findings / deduplicate_and_rank]
+    H --> I
+    I --> J[Evidence Bundle Production<br/>build_evidence_bundle]
+    J --> K([ChangeResponse<br/>API shape])
+
+    style A fill:#0b1220,stroke:#1e293b,stroke-width:1.5px,color:#94a3b8
+    style K fill:#0b1220,stroke:#1e293b,stroke-width:1.5px,color:#94a3b8
+    style B fill:#070a13,stroke:#1f6feb,stroke-width:1px,color:#e2e8f0
+    style C fill:#070a13,stroke:#1f6feb,stroke-width:1px,color:#e2e8f0
+    style D fill:#070a13,stroke:#1f6feb,stroke-width:1px,color:#e2e8f0
+    style E fill:#070a13,stroke:#1f6feb,stroke-width:1px,color:#e2e8f0
+    style F fill:#070a13,stroke:#1f6feb,stroke-width:1px,color:#e2e8f0
+    style G fill:#070a13,stroke:#1f6feb,stroke-width:1px,color:#e2e8f0
+    style H fill:#070a13,stroke:#475569,stroke-width:1px,color:#94a3b8
+    style I fill:#070a13,stroke:#f85149,stroke-width:1.5px,color:#e2e8f0
+    style J fill:#070a13,stroke:#3fbc55,stroke-width:1.5px,color:#e2e8f0
 ```
 
 ## Boundary: Rust vs Python (008, deferred)

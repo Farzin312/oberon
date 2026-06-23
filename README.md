@@ -9,6 +9,10 @@
 ![Docker](https://img.shields.io/badge/docker-compatible-blue.svg)
 ![Platform](https://img.shields.io/badge/platform-linux%20%7C%20macos-lightgrey.svg)
 
+<p align="center">
+  <img src="docs/assets/oberon-animation.svg" alt="Oberon Orbital Scan and Change Detection Analysis Map" width="100%" />
+</p>
+
 Oberon turns public satellite imagery (Sentinel-2 L2A) into ranked, evidence-backed change findings for defined land portfolios. Users supply an area of interest (AOI) and before/after time windows. Oberon returns ranked change polygons, spectral evidence, comparative imagery, and full provenance for every finding.
 
 > [!IMPORTANT]
