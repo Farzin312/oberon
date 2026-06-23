@@ -1,10 +1,10 @@
 use axum::extract::{Path, State};
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Json as AxumJson};
-use serde_json::json;
-use uuid::Uuid;
 use chrono::Utc;
+use serde_json::json;
 use tracing::{error, info};
+use uuid::Uuid;
 
 use super::AppState;
 use oberon_control_plane::db;
@@ -30,11 +30,10 @@ pub async fn post_change(
         created_at: now,
         completed_at: None,
     };
-    db::create_run(&state.db, &run)
-        .map_err(|e| {
-            error!(operation = "create_run", error = %e, "db.error");
-            (StatusCode::INTERNAL_SERVER_ERROR, e.to_string())
-        })?;
+    db::create_run(&state.db, &run).map_err(|e| {
+        error!(operation = "create_run", error = %e, "db.error");
+        (StatusCode::INTERNAL_SERVER_ERROR, e.to_string())
+    })?;
 
     info!(job_id = %job_id, "job.created");
 
@@ -43,6 +42,7 @@ pub async fn post_change(
     let python_path = state.python_path.clone();
     let jid = job_id.clone();
     let metrics = state.job_metrics.clone();
+    let output_dir = state.output_dir.clone();
 
     tokio::spawn(async move {
         let _guard = metrics.start();
@@ -51,7 +51,9 @@ pub async fn post_change(
         // Update status to running.
         let _ = db::update_run_status(&db, &jid, "running", 0, None, None);
 
-        match oberon_control_plane::pipeline::run_pipeline(&python_path, &req, &jid).await {
+        match oberon_control_plane::pipeline::run_pipeline(&python_path, &req, &jid, &output_dir)
+            .await
+        {
             Ok(result) => {
                 let now = Utc::now().to_rfc3339();
                 let _ = db::update_run_status(
@@ -91,9 +93,8 @@ pub async fn post_change(
             Err(e) => {
                 let now = Utc::now().to_rfc3339();
                 let duration_ms = timer.elapsed_ms();
-                let _ = db::update_run_status(
-                    &db, &jid, "failed", 0, Some(&e.to_string()), Some(&now),
-                );
+                let _ =
+                    db::update_run_status(&db, &jid, "failed", 0, Some(&e.to_string()), Some(&now));
                 error!(
                     job_id = %jid,
                     error = %e,
@@ -118,14 +119,17 @@ pub async fn get_job(
         .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
 
     match run {
-        Some(r) => Ok((StatusCode::OK, AxumJson(json!({
-            "id": r.id,
-            "status": r.status,
-            "findings_count": r.findings_count,
-            "error": r.error_message,
-            "created_at": r.created_at,
-            "completed_at": r.completed_at,
-        })))),
+        Some(r) => Ok((
+            StatusCode::OK,
+            AxumJson(json!({
+                "id": r.id,
+                "status": r.status,
+                "findings_count": r.findings_count,
+                "error": r.error_message,
+                "created_at": r.created_at,
+                "completed_at": r.completed_at,
+            })),
+        )),
         None => Err((StatusCode::NOT_FOUND, format!("Job {id} not found"))),
     }
 }
@@ -139,11 +143,19 @@ pub async fn get_artifact(
 
     let run = run.ok_or((StatusCode::NOT_FOUND, "Job not found".to_string()))?;
 
-    let output_dir = run.output_dir
-        .ok_or((StatusCode::NOT_FOUND, "No artifacts for this job".to_string()))?;
+    let output_dir = run.output_dir.ok_or((
+        StatusCode::NOT_FOUND,
+        "No artifacts for this job".to_string(),
+    ))?;
 
     // Only allow known artifact names (prevent path traversal).
-    let allowed = ["before.png", "after.png", "overlay.png", "findings.geojson", "provenance.json"];
+    let allowed = [
+        "before.png",
+        "after.png",
+        "overlay.png",
+        "findings.geojson",
+        "provenance.json",
+    ];
     if !allowed.contains(&name.as_str()) {
         return Err((StatusCode::BAD_REQUEST, format!("Unknown artifact: {name}")));
     }
@@ -153,7 +165,8 @@ pub async fn get_artifact(
         return Err((StatusCode::NOT_FOUND, format!("Artifact {name} not found")));
     }
 
-    let data = tokio::fs::read(&path).await
+    let data = tokio::fs::read(&path)
+        .await
         .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
 
     // Determine content type.

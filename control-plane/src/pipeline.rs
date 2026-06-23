@@ -9,7 +9,7 @@ use crate::models::ChangeRequestAPI;
 /// State machine for a pipeline job.
 #[derive(Debug, Clone)]
 pub struct JobResult {
-    pub status: String,       // "completed" | "failed" | "abstained"
+    pub status: String, // "completed" | "failed" | "abstained"
     pub findings_count: usize,
     pub error_message: Option<String>,
     pub output_dir: PathBuf,
@@ -25,10 +25,11 @@ pub async fn run_pipeline(
     python_path: &str,
     request: &ChangeRequestAPI,
     job_id: &str,
+    output_base_dir: &Path,
 ) -> Result<JobResult> {
     let tmp_dir = std::env::temp_dir();
     let request_path = tmp_dir.join(format!("oberon-job-{job_id}.json"));
-    let output_dir = tmp_dir.join(format!("oberon-output-{job_id}"));
+    let output_dir = output_base_dir.join(format!("oberon-output-{job_id}"));
 
     // Write request JSON.
     let request_json = serde_json::to_string_pretty(request)?;
@@ -39,15 +40,22 @@ pub async fn run_pipeline(
     let request_path_str = request_path.to_string_lossy().to_string();
     let py = python_path.to_string();
 
+    let use_ai = request.use_ai;
     let result = tokio::task::spawn_blocking(move || {
-        Command::new(&py)
-            .args([
-                "-m", "oberon.cli", "analyze",
-                "--request", &request_path_str,
-                "-o", &output_dir_str,
-                "--json",
-            ])
-            .output()
+        let mut args = vec![
+            "-m",
+            "oberon.cli",
+            "analyze",
+            "--request",
+            &request_path_str,
+            "-o",
+            &output_dir_str,
+            "--json",
+        ];
+        if use_ai {
+            args.push("--use-ai");
+        }
+        Command::new(&py).args(&args).output()
     })
     .await
     .map_err(|e| {
@@ -79,11 +87,10 @@ pub async fn run_pipeline(
 
     // Parse the --json stdout for status.
     let stdout = String::from_utf8_lossy(&result.stdout);
-    let response: serde_json::Value = serde_json::from_str(&stdout)
-        .map_err(|e| {
-            error!(job_id = %job_id, error = %e, "pipeline.spawn_error");
-            anyhow!("failed to parse pipeline JSON output: {e}")
-        })?;
+    let response: serde_json::Value = serde_json::from_str(&stdout).map_err(|e| {
+        error!(job_id = %job_id, error = %e, "pipeline.spawn_error");
+        anyhow!("failed to parse pipeline JSON output: {e}")
+    })?;
 
     let status = response
         .get("status")

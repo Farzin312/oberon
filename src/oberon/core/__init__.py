@@ -26,6 +26,7 @@ class ChangeRequest:
     max_cloud_fraction: float = 0.15
     min_valid_pixels: float = 0.30
     min_change_area_ha: float = 0.5
+    use_ai: bool = False
 
 
 @dataclass

@@ -8,15 +8,14 @@ pub struct Config {
     pub python_path: String,
     pub auth_disabled: bool,
     pub dashboard_dir: PathBuf,
+    pub output_dir: PathBuf,
 }
 
 impl Default for Config {
     fn default() -> Self {
         let db_path = env::var("OBERON_DB_PATH")
             .map(PathBuf::from)
-            .unwrap_or_else(|_| {
-                dirs_home().join(".oberon").join("oberon.db")
-            });
+            .unwrap_or_else(|_| dirs_home().join(".oberon").join("oberon.db"));
 
         let dashboard_dir = env::var("OBERON_DASHBOARD_DIR")
             .map(PathBuf::from)
@@ -27,16 +26,23 @@ impl Default for Config {
                     .join("dashboard")
             });
 
+        let output_dir = env::var("OBERON_OUTPUT_DIR")
+            .map(PathBuf::from)
+            .unwrap_or_else(|_| dirs_home().join(".oberon").join("output"));
+
         Self {
             bind_addr: env::var("OBERON_BIND_ADDR").unwrap_or_else(|_| "0.0.0.0:8000".into()),
             db_path,
             python_path: env::var("OBERON_PYTHON_PATH").unwrap_or_else(|_| "python".into()),
             auth_disabled: env::var("OBERON_AUTH_DISABLED").as_deref() == Ok("1"),
             dashboard_dir,
+            output_dir,
         }
     }
 }
 
 fn dirs_home() -> PathBuf {
-    env::var("HOME").map(PathBuf::from).unwrap_or_else(|_| PathBuf::from("."))
+    env::var("HOME")
+        .map(PathBuf::from)
+        .unwrap_or_else(|_| PathBuf::from("."))
 }

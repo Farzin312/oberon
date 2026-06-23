@@ -24,10 +24,7 @@ pub async fn auth_middleware(
 
     let path = req.uri().path().to_string();
 
-    let key = req
-        .headers()
-        .get("x-api-key")
-        .and_then(|v| v.to_str().ok());
+    let key = req.headers().get("x-api-key").and_then(|v| v.to_str().ok());
 
     if key.is_none() {
         warn!(reason = "missing_key", path = %path, "auth.rejected");

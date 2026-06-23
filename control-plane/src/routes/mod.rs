@@ -1,22 +1,22 @@
-pub mod health;
+pub mod audit;
 pub mod change;
+pub mod dashboard;
+pub mod health;
 pub mod portfolio;
 pub mod review;
-pub mod audit;
-pub mod dashboard;
 
 use axum::{
     Router,
-    routing::{get, post},
     middleware::from_fn_with_state,
+    routing::{get, post},
 };
 use std::path::PathBuf;
-use tower_http::cors::CorsLayer;
 use tower_http::compression::CompressionLayer;
+use tower_http::cors::CorsLayer;
 
-use oberon_control_plane::db::Db;
-use crate::middleware::auth;
 use crate::middleware::audit::audit_middleware;
+use crate::middleware::auth;
+use oberon_control_plane::db::Db;
 
 #[derive(Clone)]
 pub struct AppState {
@@ -24,6 +24,7 @@ pub struct AppState {
     pub auth_disabled: bool,
     pub python_path: String,
     pub dashboard_dir: PathBuf,
+    pub output_dir: PathBuf,
     pub job_metrics: oberon_control_plane::telemetry::JobMetrics,
 }
 
@@ -32,12 +33,14 @@ pub fn build_app(
     auth_disabled: bool,
     python_path: String,
     dashboard_dir: PathBuf,
+    output_dir: PathBuf,
 ) -> Router {
     let state = AppState {
         db: db.clone(),
         auth_disabled,
         python_path,
         dashboard_dir,
+        output_dir,
         job_metrics: oberon_control_plane::telemetry::JobMetrics::default(),
     };
 
@@ -46,22 +49,31 @@ pub fn build_app(
         .route("/v1/change", post(change::post_change))
         .route("/v1/jobs/{id}", get(change::get_job))
         .route("/v1/jobs/{id}/artifacts/{name}", get(change::get_artifact))
-        .route("/v1/portfolios", post(portfolio::create_portfolio).get(portfolio::list_portfolios))
-        .route("/v1/portfolios/{id}", get(portfolio::get_portfolio).delete(portfolio::delete_portfolio))
-        .route("/v1/portfolios/{id}/polygons", post(portfolio::add_polygon).get(portfolio::list_polygons))
+        .route(
+            "/v1/portfolios",
+            post(portfolio::create_portfolio).get(portfolio::list_portfolios),
+        )
+        .route(
+            "/v1/portfolios/{id}",
+            get(portfolio::get_portfolio).delete(portfolio::delete_portfolio),
+        )
+        .route(
+            "/v1/portfolios/{id}/polygons",
+            post(portfolio::add_polygon).get(portfolio::list_polygons),
+        )
         .route("/v1/portfolios/{id}/run", post(portfolio::run_portfolio))
+        .route("/v1/portfolios/{id}/runs", get(portfolio::list_runs))
         .route("/v1/portfolios/{id}/findings", get(portfolio::get_findings))
-        .route("/v1/reviews", get(review::list_reviews).post(review::create_review))
+        .route(
+            "/v1/reviews",
+            get(review::list_reviews).post(review::create_review),
+        )
         .route("/v1/reviews/export", get(review::export_feedback))
         .route("/v1/audit/export", get(audit::export_audit))
-        .layer(from_fn_with_state(
-            state.clone(),
-            auth::auth_middleware,
-        ));
+        .layer(from_fn_with_state(state.clone(), auth::auth_middleware));
 
     // Public routes.
-    let public = Router::new()
-        .route("/v1/health", get(health::get_health));
+    let public = Router::new().route("/v1/health", get(health::get_health));
 
     // Dashboard (static files, no auth for local dev).
     let dashboard = Router::new()

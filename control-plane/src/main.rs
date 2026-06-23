@@ -1,5 +1,5 @@
-mod routes;
 mod middleware;
+mod routes;
 
 use anyhow::Result;
 use clap::{Parser, Subcommand};
@@ -61,6 +61,7 @@ async fn main() -> Result<()> {
                 config.auth_disabled,
                 config.python_path.clone(),
                 config.dashboard_dir.clone(),
+                config.output_dir.clone(),
             )
             .layer(TraceLayer::new_for_http());
 

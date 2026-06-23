@@ -1,5 +1,5 @@
 use oberon_control_plane::db;
-use oberon_control_plane::models::{Portfolio, Polygon, Run, Review};
+use oberon_control_plane::models::{Polygon, Portfolio, Review, Run};
 
 fn tmp_db() -> db::Db {
     let path = std::env::temp_dir().join(format!(
@@ -18,6 +18,11 @@ fn test_create_and_get_portfolio() {
         name: "Test Portfolio".into(),
         task: "vegetation_disturbance".into(),
         max_cloud_fraction: 0.15,
+        before_from: "2026-01-01".into(),
+        before_to: "2026-01-31".into(),
+        after_from: "2026-06-01".into(),
+        after_to: "2026-06-30".into(),
+        use_ai: false,
         alert_webhook_url: None,
         created_at: "2026-06-22T00:00:00Z".into(),
     };
@@ -46,6 +51,11 @@ fn test_list_portfolios() {
             name: format!("Portfolio {i}"),
             task: "vegetation_disturbance".into(),
             max_cloud_fraction: 0.15,
+            before_from: "2026-01-01".into(),
+            before_to: "2026-01-31".into(),
+            after_from: "2026-06-01".into(),
+            after_to: "2026-06-30".into(),
+            use_ai: false,
             alert_webhook_url: None,
             created_at: format!("2026-06-22T00:0{i}:00Z"),
         };
@@ -63,6 +73,11 @@ fn test_delete_portfolio() {
         name: "Delete Me".into(),
         task: "vegetation_disturbance".into(),
         max_cloud_fraction: 0.15,
+        before_from: "2026-01-01".into(),
+        before_to: "2026-01-31".into(),
+        after_from: "2026-06-01".into(),
+        after_to: "2026-06-30".into(),
+        use_ai: false,
         alert_webhook_url: None,
         created_at: "2026-06-22T00:00:00Z".into(),
     };
@@ -79,6 +94,11 @@ fn test_add_and_list_polygons() {
         name: "PF".into(),
         task: "vegetation_disturbance".into(),
         max_cloud_fraction: 0.15,
+        before_from: "2026-01-01".into(),
+        before_to: "2026-01-31".into(),
+        after_from: "2026-06-01".into(),
+        after_to: "2026-06-30".into(),
+        use_ai: false,
         alert_webhook_url: None,
         created_at: "2026-06-22T00:00:00Z".into(),
     };
@@ -107,6 +127,11 @@ fn test_create_and_get_run() {
         name: "PF".into(),
         task: "vegetation_disturbance".into(),
         max_cloud_fraction: 0.15,
+        before_from: "2026-01-01".into(),
+        before_to: "2026-01-31".into(),
+        after_from: "2026-06-01".into(),
+        after_to: "2026-06-30".into(),
+        use_ai: false,
         alert_webhook_url: None,
         created_at: "2026-06-22T00:00:00Z".into(),
     };
@@ -138,7 +163,15 @@ fn test_create_and_get_run() {
     assert_eq!(got.findings_count, 0);
 
     // Update status.
-    db::update_run_status(&db, "run-1", "completed", 3, None, Some("2026-06-22T01:00:00Z")).unwrap();
+    db::update_run_status(
+        &db,
+        "run-1",
+        "completed",
+        3,
+        None,
+        Some("2026-06-22T01:00:00Z"),
+    )
+    .unwrap();
     let got = db::get_run(&db, "run-1").unwrap().unwrap();
     assert_eq!(got.status, "completed");
     assert_eq!(got.findings_count, 3);
@@ -153,6 +186,11 @@ fn test_review_lifecycle() {
         name: "PF".into(),
         task: "vegetation_disturbance".into(),
         max_cloud_fraction: 0.15,
+        before_from: "2026-01-01".into(),
+        before_to: "2026-01-31".into(),
+        after_from: "2026-06-01".into(),
+        after_to: "2026-06-30".into(),
+        use_ai: false,
         alert_webhook_url: None,
         created_at: "2026-06-22T00:00:00Z".into(),
     };

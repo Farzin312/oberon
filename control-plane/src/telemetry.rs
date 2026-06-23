@@ -1,6 +1,6 @@
+use std::env;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::Instant;
-use std::env;
 use tracing_subscriber::fmt;
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
@@ -183,14 +183,20 @@ pub fn child_peak_rss_mb() -> u64 {
         if rc == 0 {
             // ru_maxrss is in KB on Linux, bytes on macOS.
             #[cfg(target_os = "linux")]
-            { return usage.ru_maxrss as u64 / 1024; }
+            {
+                return usage.ru_maxrss as u64 / 1024;
+            }
             #[cfg(not(target_os = "linux"))]
-            { return usage.ru_maxrss as u64 / 1024 / 1024; }
+            {
+                return usage.ru_maxrss as u64 / 1024 / 1024;
+            }
         }
         0
     }
     #[cfg(not(unix))]
-    { 0 }
+    {
+        0
+    }
 }
 
 /// Timing helper for instrumenting pipeline jobs with wall-clock duration.
@@ -200,7 +206,9 @@ pub struct Timer {
 
 impl Timer {
     pub fn start() -> Self {
-        Self { start: Instant::now() }
+        Self {
+            start: Instant::now(),
+        }
     }
 
     pub fn elapsed_ms(&self) -> u128 {

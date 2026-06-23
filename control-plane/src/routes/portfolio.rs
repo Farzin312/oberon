@@ -1,13 +1,15 @@
 use axum::extract::{Path, State};
 use axum::http::StatusCode;
 use axum::response::{IntoResponse, Json};
+use chrono::Utc;
 use serde_json::json;
 use uuid::Uuid;
-use chrono::Utc;
 
 use super::AppState;
 use oberon_control_plane::db;
-use oberon_control_plane::models::{CreatePortfolioRequest, AddPolygonRequest, Portfolio, Polygon, Run};
+use oberon_control_plane::models::{
+    AddPolygonRequest, CreatePortfolioRequest, Polygon, Portfolio, Run,
+};
 
 pub async fn create_portfolio(
     State(state): State<AppState>,
@@ -20,6 +22,11 @@ pub async fn create_portfolio(
         name: req.name,
         task: req.task,
         max_cloud_fraction: req.max_cloud_fraction,
+        before_from: req.before_from,
+        before_to: req.before_to,
+        after_from: req.after_from,
+        after_to: req.after_to,
+        use_ai: req.use_ai,
         alert_webhook_url: req.alert_webhook_url,
         created_at: now,
     };
@@ -95,9 +102,9 @@ pub async fn run_portfolio(
     Path(id): Path<String>,
 ) -> Result<impl IntoResponse, (StatusCode, String)> {
     // Verify portfolio exists.
-    let _ = db::get_portfolio(&state.db, &id)
+    let portfolio = db::get_portfolio(&state.db, &id)
         .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?
-        .ok_or((StatusCode::NOT_FOUND, format!("Portfolio {id} not not found")))?;
+        .ok_or((StatusCode::NOT_FOUND, format!("Portfolio {id} not found")))?;
 
     let polygons = db::list_polygons(&state.db, &id)
         .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
@@ -124,41 +131,63 @@ pub async fn run_portfolio(
         // Spawn pipeline for this polygon.
         let db_clone = state.db.clone();
         let python_path = state.python_path.clone();
+        let output_dir = state.output_dir.clone();
         let jid = job_id.clone();
         let geometry: serde_json::Value = serde_json::from_str(&poly.geometry_json)
             .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
 
-        // Build a ChangeRequestAPI from the polygon geometry.
-        // Use default time windows — real impl would use portfolio config.
+        // Build a ChangeRequestAPI from the polygon geometry using portfolio config.
         let req = oberon_control_plane::models::ChangeRequestAPI {
             geometry,
             before: oberon_control_plane::models::TimeWindow {
-                from: "2026-01-01".into(),
-                to: "2026-01-31".into(),
+                from: portfolio.before_from.clone(),
+                to: portfolio.before_to.clone(),
             },
             after: oberon_control_plane::models::TimeWindow {
-                from: "2026-06-01".into(),
-                to: "2026-06-30".into(),
+                from: portfolio.after_from.clone(),
+                to: portfolio.after_to.clone(),
             },
-            task: "vegetation_disturbance".into(),
-            max_cloud_fraction: 0.15,
+            task: portfolio.task.clone(),
+            max_cloud_fraction: portfolio.max_cloud_fraction,
+            use_ai: portfolio.use_ai,
         };
 
         tokio::spawn(async move {
             let _ = db::update_run_status(&db_clone, &jid, "running", 0, None, None);
-            match oberon_control_plane::pipeline::run_pipeline(&python_path, &req, &jid).await {
+            match oberon_control_plane::pipeline::run_pipeline(
+                &python_path,
+                &req,
+                &jid,
+                &output_dir,
+            )
+            .await
+            {
                 Ok(result) => {
                     let now = Utc::now().to_rfc3339();
                     let _ = db::update_run_status(
-                        &db_clone, &jid, &result.status,
+                        &db_clone,
+                        &jid,
+                        &result.status,
                         result.findings_count as i64,
-                        result.error_message.as_deref(), Some(&now),
+                        result.error_message.as_deref(),
+                        Some(&now),
                     );
-                    let _ = db::update_run_output_dir(&db_clone, &jid, &result.output_dir.to_string_lossy());
+                    let _ = db::update_run_output_dir(
+                        &db_clone,
+                        &jid,
+                        &result.output_dir.to_string_lossy(),
+                    );
                 }
                 Err(e) => {
                     let now = Utc::now().to_rfc3339();
-                    let _ = db::update_run_status(&db_clone, &jid, "failed", 0, Some(&e.to_string()), Some(&now));
+                    let _ = db::update_run_status(
+                        &db_clone,
+                        &jid,
+                        "failed",
+                        0,
+                        Some(&e.to_string()),
+                        Some(&now),
+                    );
                 }
             }
         });
@@ -190,7 +219,16 @@ pub async fn get_findings(
                 && let Ok(geojson) = serde_json::from_str::<serde_json::Value>(&data)
                 && let Some(feat_array) = geojson.get("features").and_then(|f| f.as_array())
             {
-                features.extend(feat_array.iter().cloned());
+                for feat in feat_array {
+                    let mut feat_clone = feat.clone();
+                    if let Some(obj) = feat_clone.as_object_mut()
+                        && let Some(props) =
+                            obj.get_mut("properties").and_then(|p| p.as_object_mut())
+                    {
+                        props.insert("run_id".to_string(), serde_json::json!(run.id));
+                    }
+                    features.push(feat_clone);
+                }
             }
         }
     }
@@ -199,4 +237,13 @@ pub async fn get_findings(
         "type": "FeatureCollection",
         "features": features,
     })))
+}
+
+pub async fn list_runs(
+    State(state): State<AppState>,
+    Path(id): Path<String>,
+) -> Result<impl IntoResponse, (StatusCode, String)> {
+    let list = db::list_runs(&state.db, &id)
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+    Ok(Json(json!(list)))
 }

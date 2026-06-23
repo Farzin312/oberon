@@ -55,6 +55,7 @@ class ChangeRequestAPI(BaseModel):
     after: TimeWindow
     task: str = Field("vegetation_disturbance", description="Task type (currently: vegetation_disturbance)")
     max_cloud_fraction: float = Field(0.15, ge=0.0, le=1.0, description="Max cloud fraction (0.0-1.0)")
+    use_ai: bool = Field(False, description="Whether to use AI feature extraction alongside baselines")
 
     @field_validator("geometry")
     @classmethod

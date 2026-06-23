@@ -24,6 +24,11 @@ fn init_schema(conn: &Connection) -> Result<()> {
             name TEXT NOT NULL,
             task TEXT NOT NULL DEFAULT 'vegetation_disturbance',
             max_cloud_fraction REAL NOT NULL DEFAULT 0.15,
+            before_from TEXT NOT NULL DEFAULT '2026-01-01',
+            before_to TEXT NOT NULL DEFAULT '2026-01-31',
+            after_from TEXT NOT NULL DEFAULT '2026-06-01',
+            after_to TEXT NOT NULL DEFAULT '2026-06-30',
+            use_ai INTEGER NOT NULL DEFAULT 0,
             alert_webhook_url TEXT,
             created_at TEXT NOT NULL
         );
@@ -78,6 +83,29 @@ fn init_schema(conn: &Connection) -> Result<()> {
         );
         ",
     )?;
+
+    // Safe schema migrations for existing databases
+    let _ = conn.execute(
+        "ALTER TABLE portfolios ADD COLUMN before_from TEXT NOT NULL DEFAULT '2026-01-01'",
+        [],
+    );
+    let _ = conn.execute(
+        "ALTER TABLE portfolios ADD COLUMN before_to TEXT NOT NULL DEFAULT '2026-01-31'",
+        [],
+    );
+    let _ = conn.execute(
+        "ALTER TABLE portfolios ADD COLUMN after_from TEXT NOT NULL DEFAULT '2026-06-01'",
+        [],
+    );
+    let _ = conn.execute(
+        "ALTER TABLE portfolios ADD COLUMN after_to TEXT NOT NULL DEFAULT '2026-06-30'",
+        [],
+    );
+    let _ = conn.execute(
+        "ALTER TABLE portfolios ADD COLUMN use_ai INTEGER NOT NULL DEFAULT 0",
+        [],
+    );
+
     Ok(())
 }
 
@@ -88,8 +116,8 @@ use crate::models::Portfolio;
 pub fn create_portfolio(db: &Db, p: &Portfolio) -> Result<()> {
     let conn = db.lock().map_err(|e| anyhow!("db lock: {e}"))?;
     conn.execute(
-        "INSERT INTO portfolios (id, name, task, max_cloud_fraction, alert_webhook_url, created_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
-        rusqlite::params![p.id, p.name, p.task, p.max_cloud_fraction, p.alert_webhook_url, p.created_at],
+        "INSERT INTO portfolios (id, name, task, max_cloud_fraction, before_from, before_to, after_from, after_to, use_ai, alert_webhook_url, created_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)",
+        rusqlite::params![p.id, p.name, p.task, p.max_cloud_fraction, p.before_from, p.before_to, p.after_from, p.after_to, p.use_ai as i32, p.alert_webhook_url, p.created_at],
     )?;
     Ok(())
 }
@@ -97,16 +125,22 @@ pub fn create_portfolio(db: &Db, p: &Portfolio) -> Result<()> {
 pub fn get_portfolio(db: &Db, id: &str) -> Result<Option<Portfolio>> {
     let conn = db.lock().map_err(|e| anyhow!("db lock: {e}"))?;
     let mut stmt = conn.prepare(
-        "SELECT id, name, task, max_cloud_fraction, alert_webhook_url, created_at FROM portfolios WHERE id = ?1",
+        "SELECT id, name, task, max_cloud_fraction, before_from, before_to, after_from, after_to, use_ai, alert_webhook_url, created_at FROM portfolios WHERE id = ?1",
     )?;
     let row = stmt.query_row(rusqlite::params![id], |row| {
+        let use_ai_int: i32 = row.get(8)?;
         Ok(Portfolio {
             id: row.get(0)?,
             name: row.get(1)?,
             task: row.get(2)?,
             max_cloud_fraction: row.get(3)?,
-            alert_webhook_url: row.get(4)?,
-            created_at: row.get(5)?,
+            before_from: row.get(4)?,
+            before_to: row.get(5)?,
+            after_from: row.get(6)?,
+            after_to: row.get(7)?,
+            use_ai: use_ai_int != 0,
+            alert_webhook_url: row.get(9)?,
+            created_at: row.get(10)?,
         })
     });
     match row {
@@ -119,16 +153,22 @@ pub fn get_portfolio(db: &Db, id: &str) -> Result<Option<Portfolio>> {
 pub fn list_portfolios(db: &Db) -> Result<Vec<Portfolio>> {
     let conn = db.lock().map_err(|e| anyhow!("db lock: {e}"))?;
     let mut stmt = conn.prepare(
-        "SELECT id, name, task, max_cloud_fraction, alert_webhook_url, created_at FROM portfolios ORDER BY created_at DESC",
+        "SELECT id, name, task, max_cloud_fraction, before_from, before_to, after_from, after_to, use_ai, alert_webhook_url, created_at FROM portfolios ORDER BY created_at DESC",
     )?;
     let items = stmt.query_map([], |row| {
+        let use_ai_int: i32 = row.get(8)?;
         Ok(Portfolio {
             id: row.get(0)?,
             name: row.get(1)?,
             task: row.get(2)?,
             max_cloud_fraction: row.get(3)?,
-            alert_webhook_url: row.get(4)?,
-            created_at: row.get(5)?,
+            before_from: row.get(4)?,
+            before_to: row.get(5)?,
+            after_from: row.get(6)?,
+            after_to: row.get(7)?,
+            use_ai: use_ai_int != 0,
+            alert_webhook_url: row.get(9)?,
+            created_at: row.get(10)?,
         })
     })?;
     let mut out = Vec::new();
@@ -140,7 +180,10 @@ pub fn list_portfolios(db: &Db) -> Result<Vec<Portfolio>> {
 
 pub fn delete_portfolio(db: &Db, id: &str) -> Result<bool> {
     let conn = db.lock().map_err(|e| anyhow!("db lock: {e}"))?;
-    let n = conn.execute("DELETE FROM portfolios WHERE id = ?1", rusqlite::params![id])?;
+    let n = conn.execute(
+        "DELETE FROM portfolios WHERE id = ?1",
+        rusqlite::params![id],
+    )?;
     Ok(n > 0)
 }
 
@@ -279,7 +322,11 @@ pub fn create_review(db: &Db, r: &Review) -> Result<()> {
     Ok(())
 }
 
-pub fn list_reviews(db: &Db, portfolio_id: &str, state_filter: Option<&str>) -> Result<Vec<Review>> {
+pub fn list_reviews(
+    db: &Db,
+    portfolio_id: &str,
+    state_filter: Option<&str>,
+) -> Result<Vec<Review>> {
     let conn = db.lock().map_err(|e| anyhow!("db lock: {e}"))?;
     let mut stmt = if let Some(sf) = state_filter {
         let mut rows = conn.prepare(

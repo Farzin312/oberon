@@ -108,6 +108,7 @@ def _request_from_file(path: str) -> ChangeRequest:
         task=api_req.task,
         max_cloud_fraction=api_req.max_cloud_fraction,
         min_valid_pixels=0.30,
+        use_ai=api_req.use_ai,
     )
 
 
@@ -273,10 +274,11 @@ def analyze(
         if not as_json:
             click.echo(msg, err=True)
 
+    effective_use_ai = use_ai or request.use_ai
     bundle = run_analysis(
         request, output_dir,
         force_composite=force_composite,
-        use_ai=use_ai,
+        use_ai=effective_use_ai,
         progress=_progress,
     )
 

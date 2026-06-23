@@ -8,6 +8,11 @@ pub struct Portfolio {
     pub name: String,
     pub task: String,
     pub max_cloud_fraction: f64,
+    pub before_from: String,
+    pub before_to: String,
+    pub after_from: String,
+    pub after_to: String,
+    pub use_ai: bool,
     pub alert_webhook_url: Option<String>,
     pub created_at: String,
 }
@@ -19,6 +24,16 @@ pub struct CreatePortfolioRequest {
     pub task: String,
     #[serde(default = "default_cloud")]
     pub max_cloud_fraction: f64,
+    #[serde(default = "default_before_from")]
+    pub before_from: String,
+    #[serde(default = "default_before_to")]
+    pub before_to: String,
+    #[serde(default = "default_after_from")]
+    pub after_from: String,
+    #[serde(default = "default_after_to")]
+    pub after_to: String,
+    #[serde(default = "default_use_ai")]
+    pub use_ai: bool,
     pub alert_webhook_url: Option<String>,
 }
 
@@ -27,6 +42,21 @@ fn default_task() -> String {
 }
 fn default_cloud() -> f64 {
     0.15
+}
+fn default_before_from() -> String {
+    "2026-01-01".into()
+}
+fn default_before_to() -> String {
+    "2026-01-31".into()
+}
+fn default_after_from() -> String {
+    "2026-06-01".into()
+}
+fn default_after_to() -> String {
+    "2026-06-30".into()
+}
+fn default_use_ai() -> bool {
+    false
 }
 
 // ---- Polygon ----
@@ -126,6 +156,8 @@ pub struct ChangeRequestAPI {
     pub task: String,
     #[serde(default = "default_cloud")]
     pub max_cloud_fraction: f64,
+    #[serde(default = "default_use_ai")]
+    pub use_ai: bool,
 }
 
 #[derive(Deserialize, Serialize)]
