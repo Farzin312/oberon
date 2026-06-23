@@ -46,6 +46,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Initialize map with Satellite view as default (not dark and messy by default)
     map = L.map('map', {
+        attributionControl: false,
         zoomControl: false
     }).setView([-7.475, -55.175], 11);
     
@@ -60,17 +61,21 @@ document.addEventListener('DOMContentLoaded', () => {
         "Standard Street Map": streetMap
     };
     L.control.layers(baseMaps, null, { position: 'topright' }).addTo(map);
+    setupAttributionToggle();
+    setupDraggableWelcomeCard();
 
     // Initialize drawing layer group
     drawLayerGroup = L.layerGroup().addTo(map);
 
-    // Coordinate display tracking mouse movements
-    map.on('mousemove', (e) => {
+    // Coordinate display tracking mouse and touch/click movements
+    const updateCoords = (e) => {
         const lat = e.latlng.lat.toFixed(5);
         const lng = e.latlng.lng.toFixed(5);
         const el = document.getElementById('map-coords-badge');
         if (el) el.textContent = `Lat: ${lat}, Lon: ${lng}`;
-    });
+    };
+    map.on('mousemove', updateCoords);
+    map.on('click', updateCoords);
 
     // Handle clicks/double clicks for drawing
     map.on('click', handleMapClick);
@@ -177,8 +182,51 @@ function showToast(message, type = 'info') {
     
     // Auto-remove after 4 seconds
     setTimeout(() => {
-        setTimeout(() => toast.remove(), 300);
+        toast.remove();
     }, 4000);
+}
+
+function setupAttributionToggle() {
+    const button = document.getElementById('map-attribution-toggle');
+    const panel = document.getElementById('map-attribution-panel');
+    if (!button || !panel) return;
+
+    button.addEventListener('click', () => {
+        const isHidden = panel.classList.toggle('hidden');
+        button.setAttribute('aria-expanded', String(!isHidden));
+    });
+}
+
+function setupDraggableWelcomeCard() {
+    const card = document.querySelector('.empty-state-panel');
+    const workspace = document.getElementById('workspace-container');
+    if (!card || !workspace) return;
+
+    let drag = null;
+    card.addEventListener('pointerdown', (event) => {
+        if (event.target.closest('button')) return;
+        card.setPointerCapture(event.pointerId);
+        const cardRect = card.getBoundingClientRect();
+        drag = {
+            offsetX: event.clientX - cardRect.left,
+            offsetY: event.clientY - cardRect.top,
+        };
+    });
+
+    card.addEventListener('pointermove', (event) => {
+        if (!drag) return;
+        const workspaceRect = workspace.getBoundingClientRect();
+        const maxLeft = workspaceRect.width - card.offsetWidth - 12;
+        const maxTop = workspaceRect.height - card.offsetHeight - 12;
+        const left = Math.max(12, Math.min(maxLeft, event.clientX - workspaceRect.left - drag.offsetX));
+        const top = Math.max(12, Math.min(maxTop, event.clientY - workspaceRect.top - drag.offsetY));
+        card.style.left = `${left}px`;
+        card.style.top = `${top}px`;
+    });
+
+    card.addEventListener('pointerup', () => {
+        drag = null;
+    });
 }
 
 // ---- Portfolios API Operations ----
@@ -210,7 +258,7 @@ function renderPortfolioList(portfolios) {
         div.className = 'portfolio-item';
         if (p.id === activePortfolioId) div.classList.add('active');
         
-        const taskLabel = p.task === 'vegetation_disturbance' ? 'Veg Disturbance' : 'Burn Severity';
+        const taskLabel = p.task === 'vegetation_disturbance' ? 'Vegetation loss' : p.task;
         const aiBadge = p.use_ai ? '<span class="ai-chip">AI</span>' : '';
         
         div.innerHTML = `
@@ -226,8 +274,8 @@ function renderPortfolioList(portfolios) {
                 <button class="btn btn-primary btn-small" title="Run Analysis" onclick="event.stopPropagation(); runPortfolioConfirm('${p.id}')">
                     Run
                 </button>
-                <button class="btn btn-secondary btn-small" title="Add Area of Interest" onclick="event.stopPropagation(); addPolygonOpen('${p.id}')">
-                    AOI
+                <button class="btn btn-secondary btn-small" title="Draw or paste an AOI" onclick="event.stopPropagation(); addPolygonOpen('${p.id}')">
+                    Add AOI
                 </button>
                 <button class="btn btn-danger btn-small" title="Delete" onclick="event.stopPropagation(); deletePortfolioConfirm('${p.id}', '${escapeHtml(p.name)}')">
                     Delete
@@ -271,11 +319,10 @@ async function handleCreatePortfolio(event) {
         if (!res.ok) throw new Error(await res.text());
         const data = await res.json();
         
-        showToast(`Portfolio "${name}" created successfully.`, 'success');
+        showToast(`Portfolio "${name}" created. Add an AOI to define the location.`, 'success');
         loadPortfolios();
-        
-        // Select newly created portfolio
-        selectPortfolio(data.id);
+        await selectPortfolio(data.id);
+        setTimeout(() => addPolygonOpen(data.id), 150);
         return `Portfolio ${name} created with ID ${data.id}`;
     }).catch(e => {
         showToast(`Create failed: ${e.message}`, 'danger');
@@ -385,7 +432,7 @@ async function runPortfolioConfirm(id) {
         const polygons = await res.json();
         
         if (!polygons || polygons.length === 0) {
-            showToast("This portfolio has no polygons. Click '+ AOI' to add a polygon first.", 'warning');
+            showToast("This portfolio has no AOIs. Click Add AOI to draw a location or paste GeoJSON first.", 'warning');
             return;
         }
 
@@ -394,7 +441,7 @@ async function runPortfolioConfirm(id) {
         const p = await portRes.json();
 
         document.getElementById('run-confirm-poly-count').textContent = polygons.length;
-        document.getElementById('run-confirm-task').textContent = p.task;
+        document.getElementById('run-confirm-task').textContent = p.task === 'vegetation_disturbance' ? 'Vegetation disturbance (NDVI loss)' : 'Unsupported task';
         document.getElementById('run-confirm-before').textContent = `${p.before_from} to ${p.before_to}`;
         document.getElementById('run-confirm-after').textContent = `${p.after_from} to ${p.after_to}`;
         document.getElementById('run-confirm-cloud').textContent = `${Math.round(p.max_cloud_fraction * 100)}%`;
@@ -440,7 +487,7 @@ window.selectPortfolio = async function(id) {
         
         document.getElementById('active-portfolio-title').textContent = portfolio.name;
         const metaPill = document.getElementById('active-portfolio-meta');
-        metaPill.textContent = portfolio.task === 'vegetation_disturbance' ? 'Veg Disturbance' : 'Burn Severity';
+        metaPill.textContent = portfolio.task === 'vegetation_disturbance' ? 'Vegetation loss' : 'Unsupported task';
         metaPill.classList.remove('hidden');
 
         // Parallel fetch of polygons, findings, and reviews

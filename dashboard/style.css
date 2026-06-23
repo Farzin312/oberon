@@ -60,7 +60,7 @@ textarea {
 
 #app {
     display: grid;
-    grid-template-columns: 320px minmax(0, 1fr);
+    grid-template-columns: 336px minmax(0, 1fr);
     max-width: 100vw;
 }
 
@@ -69,10 +69,11 @@ textarea {
     min-width: 0;
     min-height: 0;
     flex-direction: column;
-    gap: 18px;
-    padding: 20px;
-    background: var(--surface);
+    gap: 14px;
+    padding: 18px;
+    background: #0f1317;
     border-right: 1px solid var(--line);
+    overflow-y: auto;
 }
 
 .brand {
@@ -82,8 +83,8 @@ textarea {
 }
 
 .brand-mark {
-    width: 34px;
-    height: 34px;
+    width: 36px;
+    height: 36px;
     border-radius: 7px;
     object-fit: cover;
 }
@@ -98,7 +99,7 @@ textarea {
 }
 
 .brand h1 {
-    font-size: 23px;
+    font-size: 24px;
     line-height: 1.05;
 }
 
@@ -111,17 +112,51 @@ textarea {
 
 .brand p,
 .eyebrow {
-    font-size: 11px;
+    font-size: 10px;
     font-weight: 700;
     text-transform: uppercase;
+}
+
+.scope-panel {
+    display: grid;
+    gap: 1px;
+    overflow: hidden;
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    background: var(--line);
+}
+
+.scope-panel div {
+    display: grid;
+    gap: 3px;
+    padding: 10px 12px;
+    background: #12171c;
+}
+
+.scope-panel span {
+    color: var(--quiet);
+    font-size: 10px;
+    font-weight: 800;
+    text-transform: uppercase;
+}
+
+.scope-panel strong {
+    color: var(--text);
+    font-size: 13px;
+}
+
+.scope-panel small {
+    color: var(--muted);
+    font-size: 11px;
+    line-height: 1.35;
 }
 
 .sidebar-section {
     min-height: 0;
     display: flex;
-    flex: 1;
+    flex: 0 0 auto;
     flex-direction: column;
-    gap: 10px;
+    gap: 9px;
 }
 
 .section-heading,
@@ -178,10 +213,10 @@ textarea {
     display: flex;
     min-width: 0;
     flex-direction: column;
-    gap: 12px;
-    margin-bottom: 10px;
-    padding: 14px;
-    background: var(--surface-2);
+    gap: 11px;
+    margin-bottom: 8px;
+    padding: 12px;
+    background: transparent;
     border: 1px solid var(--line);
     border-radius: var(--radius);
     cursor: pointer;
@@ -193,26 +228,27 @@ textarea {
 }
 
 .portfolio-item.active {
-    background: #172031;
+    background: #111a2a;
+    box-shadow: inset 3px 0 0 var(--primary);
 }
 
 .portfolio-item .name {
     color: var(--text);
-    font-size: 15px;
+    font-size: 14px;
     font-weight: 750;
 }
 
 .portfolio-item .meta,
 .portfolio-item .date-range {
     color: var(--muted);
-    font-size: 12px;
+    font-size: 11px;
     line-height: 1.35;
 }
 
 .portfolio-item .actions {
     display: grid;
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-    gap: 8px;
+    grid-template-columns: 0.8fr 0.9fr 1fr 0.9fr;
+    gap: 6px;
 }
 
 .portfolio-item .actions .btn {
@@ -254,7 +290,7 @@ textarea {
 }
 
 .btn {
-    min-height: 38px;
+    min-height: 34px;
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -302,9 +338,9 @@ textarea {
 }
 
 .btn-small {
-    min-height: 30px;
-    padding: 5px 9px;
-    font-size: 12px;
+    min-height: 31px;
+    padding: 5px 8px;
+    font-size: 11px;
 }
 
 .btn-icon {
@@ -330,16 +366,17 @@ button:disabled {
     min-width: 0;
     flex-direction: column;
     gap: 10px;
-    padding: 14px;
+    padding: 12px;
     border: 1px solid var(--line);
     border-radius: var(--radius);
-    background: #101419;
+    background: transparent;
 }
 
 .calibration-panel p {
     margin: 0;
     color: var(--muted);
-    line-height: 1.45;
+    font-size: 12px;
+    line-height: 1.42;
 }
 
 .review-counts {
@@ -354,7 +391,7 @@ button:disabled {
     flex-direction: column;
     align-items: center;
     gap: 2px;
-    padding: 10px;
+    padding: 8px;
     border: 1px solid var(--line);
     border-radius: 7px;
     background: var(--surface-2);
@@ -365,7 +402,7 @@ button:disabled {
 }
 
 .count {
-    font-size: 20px;
+    font-size: 18px;
     line-height: 1;
 }
 
@@ -432,13 +469,41 @@ button:disabled {
 .leaflet-bar,
 .leaflet-control-layers {
     border: 1px solid var(--line) !important;
-    box-shadow: var(--shadow) !important;
+    box-shadow: 0 10px 28px rgba(0, 0, 0, 0.34) !important;
 }
 
 .leaflet-bar a,
 .leaflet-control-layers {
     background: var(--surface) !important;
     color: var(--text) !important;
+}
+
+.leaflet-control-layers {
+    padding: 8px 10px !important;
+    border-radius: 8px !important;
+    font-size: 12px !important;
+    line-height: 1.2 !important;
+}
+
+.leaflet-control-layers-list {
+    display: grid;
+    gap: 8px;
+}
+
+.leaflet-control-layers label {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    margin: 0;
+    color: var(--muted);
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.leaflet-control-layers input {
+    width: 14px;
+    min-height: 14px;
+    accent-color: var(--primary);
 }
 
 .leaflet-bar a:hover {
@@ -466,25 +531,62 @@ button:disabled {
     font-size: 12px;
 }
 
+.map-attribution-toggle {
+    position: absolute;
+    right: 16px;
+    bottom: 16px;
+    z-index: 500;
+    width: 30px;
+    height: 30px;
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    background: var(--surface);
+    color: var(--muted);
+    font-weight: 800;
+    cursor: pointer;
+}
+
+.map-attribution-toggle:hover {
+    color: var(--text);
+    border-color: var(--line-strong);
+}
+
+.map-attribution-panel {
+    position: absolute;
+    right: 16px;
+    bottom: 54px;
+    z-index: 500;
+    max-width: min(440px, calc(100% - 32px));
+    padding: 8px 10px;
+    border: 1px solid var(--line);
+    border-radius: 7px;
+    background: var(--surface);
+    color: var(--muted);
+    font-size: 11px;
+    line-height: 1.35;
+    box-shadow: var(--shadow);
+}
+
 .empty-state {
     position: absolute;
     inset: 0;
     z-index: 450;
-    display: flex;
-    align-items: flex-start;
-    justify-content: flex-start;
-    padding: 28px;
     pointer-events: none;
 }
 
 .empty-state-panel {
-    width: min(430px, 100%);
+    position: absolute;
+    top: 28px;
+    left: 72px;
+    width: min(410px, calc(100% - 96px));
     padding: 18px;
     border: 1px solid var(--line);
     border-radius: var(--radius);
     background: rgba(18, 22, 27, 0.94);
     box-shadow: var(--shadow);
+    cursor: move;
     pointer-events: auto;
+    user-select: none;
 }
 
 .empty-state h2 {
@@ -827,13 +929,17 @@ body.run-panel-collapsed #toggle-run-panel-icon {
 }
 
 dialog {
-    width: min(94vw, 560px);
-    max-height: 92vh;
+    position: fixed;
+    inset: 0;
+    width: min(560px, calc(100vw - 32px));
+    max-height: calc(100dvh - 32px);
+    margin: auto;
     padding: 0;
     border: 0;
     border-radius: var(--radius);
     background: transparent;
     color: var(--text);
+    overflow: hidden;
 }
 
 dialog::backdrop {
@@ -841,7 +947,10 @@ dialog::backdrop {
 }
 
 .modal-card {
+    max-height: calc(100dvh - 32px);
     overflow: hidden;
+    display: flex;
+    flex-direction: column;
     border: 1px solid var(--line);
     border-radius: var(--radius);
     background: var(--surface);
@@ -849,7 +958,11 @@ dialog::backdrop {
 }
 
 .modal-wide {
-    width: min(94vw, 680px);
+    width: auto;
+}
+
+.guide-dialog {
+    width: min(680px, calc(100vw - 32px));
 }
 
 .modal-header,
@@ -873,6 +986,8 @@ dialog::backdrop {
 .modal-body,
 form {
     padding: 18px 20px;
+    min-height: 0;
+    overflow-y: auto;
 }
 
 form {
@@ -908,7 +1023,8 @@ legend {
 
 input,
 select,
-textarea {
+textarea,
+.readonly-field {
     width: 100%;
     min-height: 40px;
     padding: 9px 11px;
@@ -924,6 +1040,13 @@ textarea {
     font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
     font-size: 12px;
     line-height: 1.45;
+}
+
+.readonly-field {
+    display: flex;
+    align-items: center;
+    color: var(--text);
+    font-weight: 750;
 }
 
 input:focus,
@@ -958,6 +1081,26 @@ textarea:focus {
 .toggle-row input {
     width: 20px;
     min-height: 20px;
+}
+
+.next-step-note {
+    display: grid;
+    gap: 3px;
+    padding: 10px 12px;
+    border: 1px solid #27446d;
+    border-radius: var(--radius);
+    background: #132035;
+}
+
+.next-step-note strong {
+    color: var(--text);
+    font-size: 13px;
+}
+
+.next-step-note span {
+    color: var(--muted);
+    font-size: 12px;
+    line-height: 1.4;
 }
 
 .field-header {
@@ -1010,7 +1153,7 @@ code {
 }
 
 .guide-body {
-    max-height: 430px;
+    max-height: min(430px, calc(100vh - 180px));
     overflow-y: auto;
 }
 
@@ -1127,10 +1270,11 @@ code {
         max-height: none;
         border-right: 0;
         border-bottom: 1px solid var(--line);
+        overflow: visible;
     }
 
     .portfolio-list {
-        max-height: 220px;
+        max-height: none;
     }
 
     #main {
@@ -1150,6 +1294,7 @@ code {
 @media (max-width: 680px) {
     body {
         overflow: auto;
+        font-size: 13px;
     }
 
     #app {
@@ -1158,19 +1303,52 @@ code {
     }
 
     #main {
-        grid-template-rows: 68px 520px auto;
+        grid-template-rows: 66px min(520px, 68vh) auto;
     }
 
     #sidebar {
+        gap: 13px;
         padding: 16px;
+        width: 100%;
     }
 
     .status-dot {
         display: none;
     }
 
-    .portfolio-item .actions,
-    .review-counts,
+    .portfolio-item {
+        padding: 12px;
+    }
+
+    .portfolio-item .actions {
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+    }
+
+    .portfolio-item .actions .btn {
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .portfolio-item .name {
+        font-size: 14px;
+    }
+
+    .btn-small {
+        font-size: 11px;
+        padding-right: 6px;
+        padding-left: 6px;
+    }
+
+    .scope-panel {
+        grid-template-columns: 1fr;
+    }
+
+    .review-counts {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
     .finding-score-header,
     .finding-metrics,
     .review-actions,
@@ -1178,9 +1356,41 @@ code {
         grid-template-columns: 1fr;
     }
 
-    .empty-state {
-        align-items: flex-start;
-        padding: 18px;
+    .brand h1 {
+        font-size: 22px;
+    }
+
+    .empty-state-panel {
+        top: 72px;
+        right: 14px;
+        left: 14px;
+        width: auto;
+        padding: 15px;
+    }
+
+    .empty-state h2 {
+        font-size: 20px;
+    }
+
+    .map-coords-badge {
+        right: 54px;
+        left: 12px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .map-attribution-toggle {
+        right: 12px;
+        bottom: 14px;
+    }
+
+    .modal-header,
+    .modal-footer,
+    .modal-body,
+    form {
+        padding-right: 16px;
+        padding-left: 16px;
     }
 
     .floating-toolbar {

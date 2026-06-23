@@ -6,11 +6,18 @@ DASHBOARD = ROOT / "dashboard"
 
 def test_dashboard_uses_local_operational_shell() -> None:
     html = (DASHBOARD / "index.html").read_text()
+    js = (DASHBOARD / "app.js").read_text()
 
     assert "fonts.googleapis.com" not in html
     assert "style=" not in html
     assert "Welcome to Oberon" not in html
     assert "Select or create a portfolio" in html
+    assert 'value="vegetation_disturbance"' in html
+    assert 'id="port-task"' in html
+    assert '<select id="port-task"' not in html
+    assert "After creation, add an AOI" in html
+    assert "burn_severity" not in html
+    assert "Burn Severity" not in js
 
 
 def test_dashboard_css_avoids_decorative_ai_tropes() -> None:

@@ -6,6 +6,9 @@
 - [x] [UI] Replace decorative shell with operational layout
 - [x] [UI] Remove imported fonts, inline styles, old runtime classes, and marketing feature cards
 - [x] [UX] Rewrite empty state, portfolio cards, run table, dialogs, and finding detail panel copy
+- [x] [UX] Make welcome prompt draggable, hide attribution behind an info toggle, and restyle basemap control
+- [x] [BE] Reject unsupported portfolio tasks in the control plane
+- [x] [DOC] Correct task scope: vegetation disturbance only; burn severity is future scope
 - [x] [DOC] Add mini-SDD and update index
 - [x] [CHECK] Run focused dashboard static tests
 - [x] [CHECK] Run `bounds validate --quick`

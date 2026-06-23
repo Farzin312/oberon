@@ -21,6 +21,19 @@
 
         <button id="new-portfolio-btn" class="btn btn-primary">Create Portfolio</button>
 
+        <section class="scope-panel">
+            <div>
+                <span>Analysis</span>
+                <strong>Vegetation disturbance</strong>
+                <small>NDVI loss with supporting spectral evidence</small>
+            </div>
+            <div>
+                <span>Locations</span>
+                <strong>AOI polygons</strong>
+                <small>Draw on the map or paste GeoJSON</small>
+            </div>
+        </section>
+
         <section class="sidebar-section">
             <div class="section-heading">
                 <h2>Portfolios</h2>
@@ -64,12 +77,16 @@
         <section id="workspace-container">
             <div id="map"></div>
             <div id="map-coords-badge" class="map-coords-badge">Lat: 0.00000, Lon: 0.00000</div>
+            <button id="map-attribution-toggle" class="map-attribution-toggle" title="Map attribution" aria-expanded="false" aria-controls="map-attribution-panel">!</button>
+            <div id="map-attribution-panel" class="map-attribution-panel hidden">
+                Leaflet | Tiles (c) Esri, OpenStreetMap, CARTO, and source contributors.
+            </div>
 
             <div id="welcome-screen" class="empty-state">
                 <div class="empty-state-panel">
                     <p class="eyebrow">Start here</p>
                     <h2>Select or create a portfolio</h2>
-                    <p>Define a place, choose the date windows, add an AOI, then run analysis. The map remains the primary workspace.</p>
+                    <p>Define date windows, add an AOI by drawing on the map or pasting GeoJSON, then run analysis.</p>
                     <button id="welcome-create-btn" class="btn btn-primary">Create Portfolio</button>
                 </div>
             </div>
@@ -131,11 +148,10 @@
                 <input type="text" id="port-name" name="name" placeholder="Amazon Deforestation Arc" required toolparamdescription="The descriptive name of the portfolio">
             </div>
             <div class="form-group">
-                <label for="port-task">Task type</label>
-                <select id="port-task" name="task" toolparamdescription="Geospatial monitoring analysis task type">
-                    <option value="vegetation_disturbance" selected>Vegetation disturbance</option>
-                    <option value="burn_severity">Burn severity</option>
-                </select>
+                <label>Analysis type</label>
+                <input type="hidden" id="port-task" name="task" value="vegetation_disturbance" toolparamdescription="Geospatial monitoring analysis task type">
+                <div class="readonly-field">Vegetation disturbance (NDVI loss)</div>
+                <p class="help-text">Only vegetation disturbance is currently implemented. Burn severity and recovery are future task heads.</p>
             </div>
             <div class="form-group">
                 <label for="port-cloud">Max cloud cover (%)</label>
@@ -171,6 +187,10 @@
                 <span>Enable Clay v1.5 model</span>
                 <input type="checkbox" id="port-use-ai" name="use_ai" value="true" toolparamdescription="True to enable Clay v1.5 Foundation Model embeddings extraction alongside baselines">
             </label>
+            <div class="next-step-note">
+                <strong>Next step</strong>
+                <span>After creation, add an AOI by drawing on the map or pasting GeoJSON.</span>
+            </div>
             <footer class="modal-footer">
                 <button type="button" class="btn btn-secondary" onclick="document.getElementById('new-portfolio-dialog').close()">Cancel</button>
                 <button type="submit" class="btn btn-primary">Create</button>
@@ -252,7 +272,7 @@
     </div>
 </dialog>
 
-<dialog id="guide-dialog" closedby="any" aria-labelledby="modal-guide-title">
+<dialog id="guide-dialog" class="guide-dialog" closedby="any" aria-labelledby="modal-guide-title">
     <div class="modal-card modal-wide">
         <header class="modal-header">
             <h3 id="modal-guide-title">Oberon Guide</h3>

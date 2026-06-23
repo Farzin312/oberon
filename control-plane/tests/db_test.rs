@@ -1,5 +1,5 @@
 use oberon_control_plane::db;
-use oberon_control_plane::models::{Polygon, Portfolio, Review, Run};
+use oberon_control_plane::models::{Polygon, Portfolio, Review, Run, is_supported_task};
 
 fn tmp_db() -> db::Db {
     let path = std::env::temp_dir().join(format!(
@@ -8,6 +8,12 @@ fn tmp_db() -> db::Db {
         uuid::Uuid::new_v4()
     ));
     db::open(&path).expect("open db")
+}
+
+#[test]
+fn test_supported_task_scope() {
+    assert!(is_supported_task("vegetation_disturbance"));
+    assert!(!is_supported_task("burn_severity"));
 }
 
 #[test]

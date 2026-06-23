@@ -8,13 +8,23 @@ use uuid::Uuid;
 use super::AppState;
 use oberon_control_plane::db;
 use oberon_control_plane::models::{
-    AddPolygonRequest, CreatePortfolioRequest, Polygon, Portfolio, Run,
+    AddPolygonRequest, CreatePortfolioRequest, Polygon, Portfolio, Run, is_supported_task,
 };
 
 pub async fn create_portfolio(
     State(state): State<AppState>,
     Json(req): Json<CreatePortfolioRequest>,
 ) -> Result<impl IntoResponse, (StatusCode, String)> {
+    if !is_supported_task(&req.task) {
+        return Err((
+            StatusCode::BAD_REQUEST,
+            format!(
+                "Unsupported task '{}'. Supported tasks: vegetation_disturbance",
+                req.task
+            ),
+        ));
+    }
+
     let id = Uuid::new_v4().to_string();
     let now = Utc::now().to_rfc3339();
     let p = Portfolio {
@@ -105,6 +115,15 @@ pub async fn run_portfolio(
     let portfolio = db::get_portfolio(&state.db, &id)
         .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?
         .ok_or((StatusCode::NOT_FOUND, format!("Portfolio {id} not found")))?;
+    if !is_supported_task(&portfolio.task) {
+        return Err((
+            StatusCode::BAD_REQUEST,
+            format!(
+                "Unsupported task '{}'. Supported tasks: vegetation_disturbance",
+                portfolio.task
+            ),
+        ));
+    }
 
     let polygons = db::list_polygons(&state.db, &id)
         .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;

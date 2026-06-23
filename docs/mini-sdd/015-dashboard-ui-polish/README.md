@@ -11,18 +11,19 @@ Revamp the Rust control-plane dashboard into a restrained land-monitoring operat
 - Use system fonts and local assets only. Remove imported marketing-style font treatment.
 - Keep dark mode, but use neutral contrast, flat controls, and a small set of semantic colors.
 - Hide technical depth behind workflow: portfolio -> AOI -> run -> review -> artifacts.
+- Expose only `vegetation_disturbance`. Burn severity is not a supported task yet; the task contract explicitly treats burn-specific severity as future expansion.
 
 ## Scope
 
 - `dashboard/index.html`
 - `dashboard/style.css`
 - `dashboard/app.js`
+- `control-plane/src/routes/portfolio.rs` task guard
 - Static regression tests for the dashboard shell
 - Documentation index updates
 
 ## Non-goals
 
 - New frontend framework
-- New API behavior
 - New icon package
 - Pipeline or model changes

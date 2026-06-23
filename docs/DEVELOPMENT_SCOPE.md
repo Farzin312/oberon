@@ -10,9 +10,9 @@ An open, self-hostable Earth observation monitoring engine that turns public sat
 
 "Show me where this land portfolio materially changed between two periods, rank the findings, explain the evidence, and let my team verify or dismiss each result."
 
-### First product: Oberon Vegetation Monitor
+### First product: Oberon Vegetation Disturbance Monitor
 
-Monitor vegetation disturbance and restoration across defined polygons. Detect likely loss or recovery, rank the most important regions, and provide before/after imagery, spectral evidence, change geometry, quality flags, and model provenance.
+Monitor material vegetation loss across defined polygons. Detect likely disturbance, rank the most important regions, and provide before/after imagery, spectral evidence, change geometry, quality flags, and model provenance.
 
 ## What Oberon is NOT
 
@@ -28,7 +28,7 @@ Monitor vegetation disturbance and restoration across defined polygons. Detect l
 ### In scope & Implemented
 
 - Sentinel-2 L2A only (STAC search + cloud-masked median composite reads)
-- Core task: vegetation disturbance detection (NDVI/NBR delta, pixel delta)
+- Core task: vegetation disturbance detection (NDVI loss primary, pixel_delta secondary, NBR as supporting evidence)
 - CLI tool (`oberon analyze`) for direct programmatic runs
 - Multi-polygon portfolios for repeated site monitoring
 - Ephemeral subprocess background job pipeline

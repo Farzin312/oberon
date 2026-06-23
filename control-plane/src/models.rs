@@ -1,5 +1,11 @@
 use serde::{Deserialize, Serialize};
 
+pub const SUPPORTED_TASKS: &[&str] = &["vegetation_disturbance"];
+
+pub fn is_supported_task(task: &str) -> bool {
+    SUPPORTED_TASKS.contains(&task)
+}
+
 // ---- Portfolio ----
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
