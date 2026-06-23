@@ -32,3 +32,12 @@ def test_dashboard_css_avoids_decorative_ai_tropes() -> None:
     ]
     for token in banned:
         assert token not in css
+
+
+def test_dashboard_mobile_dialogs_are_viewport_bounded() -> None:
+    css = (DASHBOARD / "style.css").read_text()
+
+    assert "top: 50dvh;" in css
+    assert "left: 50dvw;" in css
+    assert "max-height: calc(100dvh - 32px);" in css
+    assert "overflow-y: auto;" in css

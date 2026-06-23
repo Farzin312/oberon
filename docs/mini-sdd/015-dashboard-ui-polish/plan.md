@@ -25,9 +25,10 @@ The dashboard should feel like an operations console used by land managers, anal
 2. Replace the decorative shell with a neutral operational layout.
 3. Remove inline runtime styles from JS-generated UI.
 4. Hide default Leaflet attribution behind an info toggle and restyle the basemap menu.
-5. Reject unsupported control-plane portfolio tasks.
-6. Update docs and mini-SDD index.
-7. Run static tests, project gates, Rust tests, and browser smoke verification.
+5. Make the create flow continue into AOI definition so location setup is not hidden.
+6. Reject unsupported control-plane portfolio tasks.
+7. Update docs and mini-SDD index.
+8. Run static tests, project gates, Rust tests, and browser smoke verification.
 
 ## Risk Register
 
