@@ -11,6 +11,7 @@
 - [x] [UX] Fix mobile dialog viewport centering and internal scrolling
 - [x] [BE] Reject unsupported portfolio tasks in the control plane
 - [x] [DOC] Correct task scope: vegetation disturbance only; burn severity is future scope
+- [x] [UX] Enable direct drawing of shapes on map, bypass confirmation modal, and support real-time dragging & resizing updates with auto-save
 - [x] [DOC] Add mini-SDD and update index
 - [x] [CHECK] Run focused dashboard static tests
 - [x] [CHECK] Run `bounds validate --quick`

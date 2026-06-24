@@ -171,7 +171,7 @@ Provide this key in the `X-API-Key` header for REST requests.
 Oberon is a pre-MVP engineering platform with **304 unit tests** and **12 golden integration tests** passing on every commit. The deterministic index baseline is calibrated to ensure high accuracy over forested landscapes, while the optional Clay v1.5 embedding extraction remains experimental (`--use-ai`).
 
 * **License**: Apache 2.0 (Permissive for commercial and private use)
-* **Version History**: See [CHANGELOG.md](CHANGELOG.md)
+* **Version History**: See [docs/CHANGELOG.md](docs/CHANGELOG.md)
 * **Academic Citation**: See [CITATION.cff](CITATION.cff)
 
 ---

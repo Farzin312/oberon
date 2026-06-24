@@ -266,3 +266,30 @@ pub async fn list_runs(
         .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
     Ok(Json(json!(list)))
 }
+
+pub async fn delete_polygon(
+    State(state): State<AppState>,
+    Path(id): Path<String>,
+) -> Result<impl IntoResponse, (StatusCode, String)> {
+    db::delete_polygon(&state.db, &id)
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+    Ok(StatusCode::NO_CONTENT)
+}
+
+#[derive(serde::Deserialize)]
+pub struct UpdatePolygonRequest {
+    pub geometry: serde_json::Value,
+    pub label: String,
+}
+
+pub async fn update_polygon(
+    State(state): State<AppState>,
+    Path(id): Path<String>,
+    Json(req): Json<UpdatePolygonRequest>,
+) -> Result<impl IntoResponse, (StatusCode, String)> {
+    let geom_str = serde_json::to_string(&req.geometry)
+        .map_err(|e| (StatusCode::BAD_REQUEST, e.to_string()))?;
+    db::update_polygon(&state.db, &id, &geom_str, &req.label)
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+    Ok(StatusCode::NO_CONTENT)
+}

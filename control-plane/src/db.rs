@@ -179,11 +179,25 @@ pub fn list_portfolios(db: &Db) -> Result<Vec<Portfolio>> {
 }
 
 pub fn delete_portfolio(db: &Db, id: &str) -> Result<bool> {
-    let conn = db.lock().map_err(|e| anyhow!("db lock: {e}"))?;
-    let n = conn.execute(
+    let mut conn = db.lock().map_err(|e| anyhow!("db lock: {e}"))?;
+    let tx = conn.transaction()?;
+    tx.execute(
+        "DELETE FROM reviews WHERE portfolio_id = ?1",
+        rusqlite::params![id],
+    )?;
+    tx.execute(
+        "DELETE FROM runs WHERE portfolio_id = ?1",
+        rusqlite::params![id],
+    )?;
+    tx.execute(
+        "DELETE FROM portfolio_polygons WHERE portfolio_id = ?1",
+        rusqlite::params![id],
+    )?;
+    let n = tx.execute(
         "DELETE FROM portfolios WHERE id = ?1",
         rusqlite::params![id],
     )?;
+    tx.commit()?;
     Ok(n > 0)
 }
 
@@ -219,6 +233,34 @@ pub fn list_polygons(db: &Db, portfolio_id: &str) -> Result<Vec<Polygon>> {
         out.push(item?);
     }
     Ok(out)
+}
+
+pub fn delete_polygon(db: &Db, id: &str) -> Result<bool> {
+    let mut conn = db.lock().map_err(|e| anyhow!("db lock: {e}"))?;
+    let tx = conn.transaction()?;
+    tx.execute(
+        "DELETE FROM reviews WHERE run_id IN (SELECT id FROM runs WHERE polygon_id = ?1)",
+        rusqlite::params![id],
+    )?;
+    tx.execute(
+        "DELETE FROM runs WHERE polygon_id = ?1",
+        rusqlite::params![id],
+    )?;
+    let n = tx.execute(
+        "DELETE FROM portfolio_polygons WHERE id = ?1",
+        rusqlite::params![id],
+    )?;
+    tx.commit()?;
+    Ok(n > 0)
+}
+
+pub fn update_polygon(db: &Db, id: &str, geometry_json: &str, label: &str) -> Result<bool> {
+    let conn = db.lock().map_err(|e| anyhow!("db lock: {e}"))?;
+    let n = conn.execute(
+        "UPDATE portfolio_polygons SET geometry_json = ?1, label = ?2 WHERE id = ?3",
+        rusqlite::params![geometry_json, label, id],
+    )?;
+    Ok(n > 0)
 }
 
 // ---- Run CRUD ----

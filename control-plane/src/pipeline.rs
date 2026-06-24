@@ -106,10 +106,20 @@ pub async fn run_pipeline(
 
     if status == "abstained" {
         info!(job_id = %job_id, "job.abstained");
+        let error_message = match fs::read_to_string(output_dir.join("provenance.json")).await {
+            Ok(content) => {
+                let prov: serde_json::Value = serde_json::from_str(&content).unwrap_or(serde_json::Value::Null);
+                prov.get("abstention")
+                    .and_then(|a| a.get("reason"))
+                    .and_then(|r| r.as_str())
+                    .map(|s| s.to_string())
+            }
+            Err(_) => None,
+        };
         return Ok(JobResult {
             status: "abstained".into(),
             findings_count: 0,
-            error_message: None,
+            error_message,
             output_dir,
         });
     }

@@ -5,7 +5,15 @@ const API = window.location.origin + '/v1';
 let map = null;
 let activeLayer = null;
 let activePortfolioId = null;
+let activePortfolioName = '';
+let activePolygonsCount = 0;
 let pollTimeoutId = null;
+
+let activePolygons = [];
+let editLayer = null;
+let editHandles = [];
+let activeEditAoiId = null;
+let latestFindingsData = null;
 
 // Track review counts locally for calibration feedback loop visualization
 let approvedCount = 0;
@@ -95,6 +103,53 @@ document.addEventListener('DOMContentLoaded', () => {
     registerBackdropDismiss(deleteConfirmDialog);
     registerBackdropDismiss(guideDialog);
 
+    // Workspace Actions header setup
+    const navDrawPolyBtn = document.getElementById('nav-draw-poly-btn');
+    if (navDrawPolyBtn) {
+        navDrawPolyBtn.addEventListener('click', () => {
+            if (activePortfolioId) startDrawing('polygon');
+        });
+    }
+
+    const navDrawBBoxBtn = document.getElementById('nav-draw-bbox-btn');
+    if (navDrawBBoxBtn) {
+        navDrawBBoxBtn.addEventListener('click', () => {
+            if (activePortfolioId) startDrawing('bbox');
+        });
+    }
+
+    const navRunBtn = document.getElementById('nav-run-btn');
+    if (navRunBtn) {
+        navRunBtn.addEventListener('click', () => {
+            if (activePortfolioId) runPortfolioConfirm(activePortfolioId);
+        });
+    }
+
+    const navMoreBtn = document.getElementById('nav-more-btn');
+    const navMoreMenu = document.getElementById('nav-more-menu');
+    if (navMoreBtn && navMoreMenu) {
+        navMoreBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const isHidden = navMoreMenu.classList.toggle('hidden');
+            navMoreBtn.setAttribute('aria-expanded', String(!isHidden));
+        });
+        
+        document.addEventListener('click', () => {
+            navMoreMenu.classList.add('hidden');
+            navMoreBtn.setAttribute('aria-expanded', 'false');
+        });
+    }
+
+    const navDeleteBtn = document.getElementById('nav-delete-btn');
+    if (navDeleteBtn) {
+        navDeleteBtn.addEventListener('click', () => {
+            if (activePortfolioId) {
+                deletePortfolioConfirm(activePortfolioId, activePortfolioName);
+            }
+        });
+    }
+
+
     // Sidebar & Welcome Actions
     document.getElementById('new-portfolio-btn').addEventListener('click', () => {
         document.getElementById('create-portfolio-form').reset();
@@ -134,6 +189,23 @@ document.addEventListener('DOMContentLoaded', () => {
     
     const drawCancelBtn = document.getElementById('drawing-cancel-btn');
     if (drawCancelBtn) drawCancelBtn.addEventListener('click', cancelDrawing);
+
+    // Sidebar drawing buttons setup
+    const sidebarDrawPolyBtn = document.getElementById('sidebar-draw-poly-btn');
+    if (sidebarDrawPolyBtn) sidebarDrawPolyBtn.addEventListener('click', () => startDrawing('polygon'));
+
+    const sidebarDrawBBoxBtn = document.getElementById('sidebar-draw-bbox-btn');
+    if (sidebarDrawBBoxBtn) sidebarDrawBBoxBtn.addEventListener('click', () => startDrawing('bbox'));
+
+    map.on('click', (e) => {
+        if (!isDrawing) {
+            // Click outside handle/path should clear active edit mode
+            if (e.originalEvent && e.originalEvent.target && e.originalEvent.target.id === 'map') {
+                clearEditHandles();
+                document.querySelectorAll('.aoi-list-item').forEach(item => item.classList.remove('active'));
+            }
+        }
+    });
 
     // Form Submissions (WebMCP support)
     document.getElementById('create-portfolio-form').addEventListener('submit', handleCreatePortfolio);
@@ -250,6 +322,7 @@ function renderPortfolioList(portfolios) {
     if (!portfolios.length) {
         el.innerHTML = '<p class="text-muted small-text text-center">No portfolios yet. Create one to start monitoring.</p>';
         document.getElementById('welcome-screen').classList.remove('hidden');
+        document.getElementById('workspace-actions').classList.add('hidden');
         return;
     }
     
@@ -266,20 +339,6 @@ function renderPortfolioList(portfolios) {
                 <div class="name">${escapeHtml(p.name)} ${aiBadge}</div>
                 <div class="meta">${taskLabel} / Cloud max ${Math.round(p.max_cloud_fraction * 100)}%</div>
                 <div class="date-range">${p.before_from} to ${p.after_to}</div>
-            </div>
-            <div class="actions">
-                <button class="btn btn-secondary btn-small" title="View on Map" onclick="event.stopPropagation(); selectPortfolio('${p.id}')">
-                    Map
-                </button>
-                <button class="btn btn-primary btn-small" title="Run Analysis" onclick="event.stopPropagation(); runPortfolioConfirm('${p.id}')">
-                    Run
-                </button>
-                <button class="btn btn-secondary btn-small" title="Draw or paste an AOI" onclick="event.stopPropagation(); addPolygonOpen('${p.id}')">
-                    Add AOI
-                </button>
-                <button class="btn btn-danger btn-small" title="Delete" onclick="event.stopPropagation(); deletePortfolioConfirm('${p.id}', '${escapeHtml(p.name)}')">
-                    Delete
-                </button>
             </div>`;
         
         div.addEventListener('click', () => selectPortfolio(p.id));
@@ -353,9 +412,14 @@ function deletePortfolioConfirm(id, name) {
             
             if (activePortfolioId === id) {
                 activePortfolioId = null;
+                activePortfolioName = '';
+                activePolygonsCount = 0;
+                clearEditHandles();
                 if (activeLayer) map.removeLayer(activeLayer);
                 document.getElementById('active-portfolio-title').textContent = 'No Portfolio Selected';
                 document.getElementById('active-portfolio-meta').classList.add('hidden');
+                document.getElementById('workspace-actions').classList.add('hidden');
+                document.getElementById('aoi-list-container').classList.add('hidden');
                 document.getElementById('welcome-screen').classList.remove('hidden');
                 document.getElementById('run-history-body').innerHTML = `
                     <tr><td colspan="7" class="text-center text-muted">Select a portfolio to view history.</td></tr>
@@ -375,6 +439,7 @@ function addPolygonOpen(portfolioId) {
     document.getElementById('poly-portfolio-id').value = portfolioId;
     document.getElementById('add-polygon-form').reset();
     document.getElementById('poly-validation-error').classList.add('hidden');
+    document.getElementById('poly-label').value = `Plot ${activePolygonsCount + 1}`;
     addPolygonDialog.showModal();
 }
 
@@ -485,10 +550,12 @@ window.selectPortfolio = async function(id) {
         if (!portRes.ok) throw new Error(`Portfolio HTTP ${portRes.status}`);
         const portfolio = await portRes.json();
         
+        activePortfolioName = portfolio.name;
         document.getElementById('active-portfolio-title').textContent = portfolio.name;
         const metaPill = document.getElementById('active-portfolio-meta');
         metaPill.textContent = portfolio.task === 'vegetation_disturbance' ? 'Vegetation loss' : 'Unsupported task';
         metaPill.classList.remove('hidden');
+        document.getElementById('workspace-actions').classList.remove('hidden');
 
         // Parallel fetch of polygons, findings, and reviews
         const [polyRes, findingsRes, reviewsRes] = await Promise.all([
@@ -501,12 +568,32 @@ window.selectPortfolio = async function(id) {
         const findings = await findingsRes.json();
         const reviews = await reviewsRes.json();
         
+        activePolygons = polygons || [];
+        latestFindingsData = findings;
+        activePolygonsCount = activePolygons.length;
+        
+        // Hide/show location instructions dynamically and show list
+        const scopeCount = document.getElementById('aoi-scope-count');
+        const scopeInst = document.getElementById('aoi-scope-instructions');
+        const listContainer = document.getElementById('aoi-list-container');
+        if (listContainer) listContainer.classList.remove('hidden');
+        
+        if (activePolygons.length > 0) {
+            if (scopeCount) scopeCount.textContent = `${activePolygons.length} AOI polygon(s)`;
+            if (scopeInst) scopeInst.classList.add('hidden');
+        } else {
+            if (scopeCount) scopeCount.textContent = 'No AOIs defined';
+            if (scopeInst) scopeInst.classList.remove('hidden');
+        }
+
+        renderAoiList(activePolygons);
+
         // Count approved/rejected states from database to ensure persistence on load
         approvedCount = reviews.filter(r => r.state === 'approved').length;
         rejectedCount = reviews.filter(r => r.state === 'rejected').length;
         updateCalibrationUI();
         
-        displayOnMap(polygons, findings);
+        displayOnMap(activePolygons, findings);
         
         // Start run history polling
         if (pollTimeoutId) clearTimeout(pollTimeoutId);
@@ -531,6 +618,10 @@ function displayOnMap(polygons, findings) {
             style: { color: '#388bfd', weight: 2.5, fillOpacity: 0.05, dashArray: '4, 4' },
         });
         layer.bindPopup(`<strong>AOI: ${escapeHtml(poly.label || 'Unnamed plot')}</strong>`);
+        layer.on('click', (ev) => {
+            L.DomEvent.stopPropagation(ev);
+            startEditingAoi(poly.id, poly.geometry_json);
+        });
         group.addLayer(layer);
         
         if (!firstBounds) {
@@ -998,17 +1089,14 @@ function finishDrawing() {
     }
     
     if (geojson) {
-        document.getElementById('poly-geometry').value = JSON.stringify(geojson, null, 2);
-        showToast("Geometry generated successfully from map.", "success");
+        autoCreateDrawnAoi(geojson);
     }
     
     cleanupDrawing();
-    addPolygonDialog.showModal();
 }
 
 function cancelDrawing() {
     cleanupDrawing();
-    addPolygonDialog.showModal();
 }
 
 function cleanupDrawing() {
@@ -1025,4 +1113,277 @@ function cleanupDrawing() {
     map.doubleClickZoom.enable();
     document.getElementById('drawing-toolbar').classList.add('hidden');
     document.getElementById('map').style.cursor = '';
+}
+
+// AOI rendering list, edit mode, renaming and deletion helper functions
+function renderAoiList(polygons) {
+    const container = document.getElementById('sidebar-aoi-list');
+    if (!container) return;
+    container.innerHTML = '';
+    
+    if (!polygons || polygons.length === 0) {
+        container.innerHTML = '<p class="text-muted small-text text-center" style="margin-top: 10px;">No AOIs yet. Draw one above.</p>';
+        return;
+    }
+    
+    polygons.forEach((poly) => {
+        const div = document.createElement('div');
+        div.className = 'aoi-list-item';
+        div.id = `aoi-item-${poly.id}`;
+        if (poly.id === activeEditAoiId) div.classList.add('active');
+        
+        div.innerHTML = `
+            <div class="aoi-info-row">
+                <input type="text" class="aoi-name-input" value="${escapeHtml(poly.label)}" title="Click to rename" onchange="updateAoiLabel('${poly.id}', this.value)" onclick="event.stopPropagation()">
+                <div class="aoi-item-actions">
+                    <button class="btn-icon btn-small" title="Locate & Edit" onclick="event.stopPropagation(); startEditingAoi('${poly.id}', '${escapeHtml(poly.geometry_json)}')">
+                        👁
+                    </button>
+                    <button class="btn-icon btn-small text-danger" title="Delete AOI" onclick="event.stopPropagation(); deleteAoiDirect('${poly.id}')">
+                        ×
+                    </button>
+                </div>
+            </div>
+        `;
+        
+        div.addEventListener('click', () => {
+            startEditingAoi(poly.id, poly.geometry_json);
+        });
+        
+        container.appendChild(div);
+    });
+}
+
+function startEditingAoi(id, geomJson) {
+    document.querySelectorAll('.aoi-list-item').forEach(item => item.classList.remove('active'));
+    const activeItem = document.getElementById(`aoi-item-${id}`);
+    if (activeItem) activeItem.classList.add('active');
+
+    const geom = JSON.parse(geomJson);
+    const tempLayer = L.geoJSON(geom);
+    map.fitBounds(tempLayer.getBounds(), { padding: [40, 40] });
+    
+    activeEditAoiId = id;
+    
+    if (editLayer) map.removeLayer(editLayer);
+    clearEditHandles();
+    
+    const coords = geom.coordinates;
+    const latlngs = coords[0].map(p => L.latLng(p[1], p[0]));
+    const editLatlngs = latlngs.slice(0, -1);
+    
+    editLayer = L.polygon(latlngs, {
+        color: '#4f8cff',
+        weight: 3,
+        fillOpacity: 0.15,
+        dashArray: '5, 5'
+    }).addTo(map);
+    
+    editLatlngs.forEach((latlng, idx) => {
+        const handle = L.marker(latlng, {
+            draggable: true,
+            icon: createHandleIcon('#4f8cff')
+        }).addTo(map);
+        
+        handle.on('drag', (e) => {
+            const newLatLng = e.target.getLatLng();
+            editLatlngs[idx] = newLatLng;
+            const newCoords = [...editLatlngs, editLatlngs[0]];
+            editLayer.setLatLngs(newCoords);
+            if (centerHandle) centerHandle.setLatLng(editLayer.getBounds().getCenter());
+        });
+        
+        handle.on('dragend', () => {
+            const finalCoords = editLatlngs.map(p => [p.lng, p.lat]);
+            finalCoords.push(finalCoords[0]);
+            const geom = { type: 'Polygon', coordinates: [finalCoords] };
+            saveEditedGeometry(id, geom);
+        });
+        
+        editHandles.push(handle);
+    });
+    
+    const center = editLayer.getBounds().getCenter();
+    let lastCenter = L.latLng(center);
+    
+    const centerHandle = L.marker(center, {
+        draggable: true,
+        icon: createHandleIcon('#2f6fe8', true)
+    }).addTo(map);
+    
+    centerHandle.on('drag', (e) => {
+        const newCenter = e.target.getLatLng();
+        const deltaLat = newCenter.lat - lastCenter.lat;
+        const deltaLng = newCenter.lng - lastCenter.lng;
+        
+        editLatlngs.forEach((p, idx) => {
+            editLatlngs[idx] = L.latLng(p.lat + deltaLat, p.lng + deltaLng);
+        });
+        
+        const newCoords = [...editLatlngs, editLatlngs[0]];
+        editLayer.setLatLngs(newCoords);
+        
+        editHandles.forEach((handle, idx) => {
+            if (handle !== centerHandle) {
+                const pos = editLatlngs[idx];
+                handle.setLatLng(pos);
+            }
+        });
+        
+        lastCenter = newCenter;
+    });
+    
+    centerHandle.on('dragend', () => {
+        const finalCoords = editLatlngs.map(p => [p.lng, p.lat]);
+        finalCoords.push(finalCoords[0]);
+        const geom = { type: 'Polygon', coordinates: [finalCoords] };
+        saveEditedGeometry(id, geom);
+    });
+    
+    editHandles.push(centerHandle);
+}
+
+function clearEditHandles() {
+    editHandles.forEach(h => map.removeLayer(h));
+    editHandles = [];
+    if (editLayer) {
+        map.removeLayer(editLayer);
+        editLayer = null;
+    }
+    activeEditAoiId = null;
+}
+
+function createHandleIcon(color, isCenter = false) {
+    const size = isCenter ? 12 : 8;
+    const style = `
+        width: ${size}px; 
+        height: ${size}px; 
+        background: #fff; 
+        border: 2px solid ${color}; 
+        border-radius: 50%;
+        margin-left: -${size/2}px;
+        margin-top: -${size/2}px;
+        cursor: move;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.3);
+    `;
+    return L.divIcon({
+        className: 'edit-handle-icon',
+        html: `<div style="${style}"></div>`,
+        iconSize: [size, size]
+    });
+}
+
+async function autoCreateDrawnAoi(geometry) {
+    const label = `Plot ${activePolygonsCount + 1}`;
+    const payload = { geometry, label };
+    
+    try {
+        showToast(`Saving new AOI...`, "info");
+        const res = await fetch(`${API}/portfolios/${activePortfolioId}/polygons`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        if (!res.ok) throw new Error(await res.text());
+        showToast(`AOI "${label}" created.`, "success");
+        
+        await selectPortfolio(activePortfolioId);
+        
+        if (activePolygons.length > 0) {
+            const newPoly = activePolygons[activePolygons.length - 1];
+            startEditingAoi(newPoly.id, newPoly.geometry_json);
+        }
+    } catch (e) {
+        showToast(`Failed to create AOI: ${e.message}`, "danger");
+    }
+}
+
+async function saveEditedGeometry(id, geometry) {
+    const poly = activePolygons.find(p => p.id === id);
+    if (!poly) return;
+    
+    const label = poly.label;
+    const payload = { geometry, label };
+    
+    try {
+        const res = await fetch(`${API}/polygons/${id}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        if (!res.ok) throw new Error(await res.text());
+        showToast("AOI bounds auto-saved.", "success");
+        
+        const polyRes = await fetch(`${API}/portfolios/${activePortfolioId}/polygons`);
+        activePolygons = await polyRes.json();
+        
+        refreshDisplayLayers();
+    } catch (e) {
+        showToast(`Auto-save failed: ${e.message}`, "danger");
+    }
+}
+
+async function updateAoiLabel(id, newLabel) {
+    newLabel = newLabel.trim();
+    if (!newLabel) return;
+    
+    const poly = activePolygons.find(p => p.id === id);
+    if (!poly) return;
+    
+    const geometry = JSON.parse(poly.geometry_json);
+    const payload = { geometry, label: newLabel };
+    
+    try {
+        const res = await fetch(`${API}/polygons/${id}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        if (!res.ok) throw new Error(await res.text());
+        showToast(`AOI renamed to "${newLabel}"`, "success");
+        
+        const polyRes = await fetch(`${API}/portfolios/${activePortfolioId}/polygons`);
+        activePolygons = await polyRes.json();
+        
+        renderAoiList(activePolygons);
+        refreshDisplayLayers();
+    } catch (e) {
+        showToast(`Rename failed: ${e.message}`, "danger");
+    }
+}
+
+async function deleteAoiDirect(id) {
+    if (!confirm("Delete this AOI and all its runs/reviews?")) return;
+    
+    try {
+        const res = await fetch(`${API}/polygons/${id}`, { method: 'DELETE' });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        showToast("AOI deleted.", "success");
+        
+        if (activeEditAoiId === id) {
+            clearEditHandles();
+        }
+        
+        const polyRes = await fetch(`${API}/portfolios/${activePortfolioId}/polygons`);
+        activePolygons = await polyRes.json();
+        
+        renderAoiList(activePolygons);
+        refreshDisplayLayers();
+        
+        const scopeCount = document.getElementById('aoi-scope-count');
+        const scopeInst = document.getElementById('aoi-scope-instructions');
+        if (activePolygons.length > 0) {
+            if (scopeCount) scopeCount.textContent = `${activePolygons.length} AOI polygon(s)`;
+            if (scopeInst) scopeInst.classList.add('hidden');
+        } else {
+            if (scopeCount) scopeCount.textContent = 'No AOIs defined';
+            if (scopeInst) scopeInst.classList.remove('hidden');
+        }
+    } catch (e) {
+        showToast(`Delete failed: ${e.message}`, "danger");
+    }
+}
+
+function refreshDisplayLayers() {
+    displayOnMap(activePolygons, latestFindingsData);
 }

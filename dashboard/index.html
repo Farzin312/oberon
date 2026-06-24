@@ -27,10 +27,18 @@
                 <strong>Vegetation disturbance</strong>
                 <small>NDVI loss with supporting spectral evidence</small>
             </div>
-            <div>
+            <div id="aoi-scope-info">
                 <span>Locations</span>
-                <strong>AOI polygons</strong>
-                <small>Draw on the map or paste GeoJSON</small>
+                <strong id="aoi-scope-count">AOI polygons</strong>
+                <small id="aoi-scope-instructions">Draw on the map or paste GeoJSON</small>
+                
+                <div id="aoi-list-container" class="hidden">
+                    <div class="aoi-draw-buttons">
+                        <button type="button" id="sidebar-draw-poly-btn" class="btn btn-secondary btn-small">＋ Polygon</button>
+                        <button type="button" id="sidebar-draw-bbox-btn" class="btn btn-secondary btn-small">＋ Box</button>
+                    </div>
+                    <div id="sidebar-aoi-list" class="sidebar-aoi-list"></div>
+                </div>
             </div>
         </section>
 
@@ -43,8 +51,8 @@
         </section>
 
         <section class="calibration-panel">
-            <h2>Calibration</h2>
-            <p>Saved reviews tune future thresholds after enough labels are collected.</p>
+            <h2>Engine Tuning</h2>
+            <p>Human-in-the-loop: Approve real disturbances and reject false alarms (clouds, snow, seasonal senescence) to calibrate detection thresholds.</p>
             <div class="review-counts">
                 <div>
                     <span id="cal-approved-count" class="count count-good">0</span>
@@ -59,7 +67,7 @@
                 <div id="calibration-progress-bar" class="progress-bar"></div>
             </div>
             <p id="calibration-status-text" class="quiet">0/20 labels collected</p>
-            <button id="calibrate-btn" class="btn btn-secondary" disabled>Calibrate Engine</button>
+            <button id="calibrate-btn" class="btn btn-secondary" disabled>Recalibrate Engine</button>
         </section>
 
         <button id="help-toggle-btn" class="btn btn-ghost">Guide</button>
@@ -67,11 +75,24 @@
 
     <main id="main">
         <header id="top-nav">
-            <div>
-                <p class="eyebrow">Workspace</p>
-                <h2 id="active-portfolio-title">No portfolio selected</h2>
+            <div class="top-nav-title-group">
+                <div>
+                    <p class="eyebrow">Workspace</p>
+                    <h2 id="active-portfolio-title">No portfolio selected</h2>
+                </div>
+                <div id="active-portfolio-meta" class="meta-chip hidden">Pending</div>
             </div>
-            <div id="active-portfolio-meta" class="meta-chip hidden">Pending</div>
+            <div id="workspace-actions" class="hidden">
+                <button id="nav-draw-poly-btn" class="btn btn-secondary btn-small">＋ Polygon</button>
+                <button id="nav-draw-bbox-btn" class="btn btn-secondary btn-small">＋ Box</button>
+                <button id="nav-run-btn" class="btn btn-primary btn-small">▶ Run Analysis</button>
+                <div class="dropdown">
+                    <button id="nav-more-btn" class="btn btn-secondary btn-small" aria-haspopup="listbox" aria-expanded="false">Actions ▾</button>
+                    <div id="nav-more-menu" class="dropdown-menu hidden">
+                        <button id="nav-delete-btn" class="dropdown-item text-danger">Delete Portfolio</button>
+                      </div>
+                </div>
+            </div>
         </header>
 
         <section id="workspace-container">
@@ -151,7 +172,7 @@
                 <label>Analysis type</label>
                 <input type="hidden" id="port-task" name="task" value="vegetation_disturbance" toolparamdescription="Geospatial monitoring analysis task type">
                 <div class="readonly-field">Vegetation disturbance (NDVI loss)</div>
-                <p class="help-text">Only vegetation disturbance is currently implemented. Burn severity and recovery are future task heads.</p>
+                <p class="help-text">Standard NDVI loss tracking. Burn severity is future scope.</p>
             </div>
             <div class="form-group">
                 <label for="port-cloud">Max cloud cover (%)</label>
@@ -184,7 +205,10 @@
                 </div>
             </fieldset>
             <label class="toggle-row">
-                <span>Enable Clay v1.5 model</span>
+                <div class="toggle-label-group">
+                    <span class="toggle-title">Enable Clay v1.5 model (AI)</span>
+                    <span class="toggle-desc">Use experimental 10-band foundation model embeddings for change detection instead of standard NDVI.</span>
+                </div>
                 <input type="checkbox" id="port-use-ai" name="use_ai" value="true" toolparamdescription="True to enable Clay v1.5 Foundation Model embeddings extraction alongside baselines">
             </label>
             <div class="next-step-note">
@@ -288,6 +312,13 @@
             </ol>
             <h4>Why the reviews matter</h4>
             <p>Approved and rejected findings become the local feedback set used to tune thresholds for future runs.</p>
+            <h4>Why Oberon over Copernicus?</h4>
+            <ul>
+                <li><strong>Automated Change Detection:</strong> No manual band math needed. Oberon compares before/after temporal composites automatically.</li>
+                <li><strong>Local AOI Cloud Filtering:</strong> Filters cloud coverage locally within your AOI, not the entire Sentinel scene.</li>
+                <li><strong>AI Foundation Models:</strong> Optionally use Clay v1.5 multi-spectral embeddings for ML-based disturbance detection.</li>
+                <li><strong>Morphological Calibration:</strong> Noise reduction filter calibrated continuously through human feedback.</li>
+            </ul>
         </div>
         <footer class="modal-footer">
             <button type="button" class="btn btn-primary" onclick="document.getElementById('guide-dialog').close()">Done</button>

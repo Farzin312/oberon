@@ -36,3 +36,6 @@ htmlcov/
 # Environment
 .env
 target/
+
+# Impeccable skills
+.github/skills/

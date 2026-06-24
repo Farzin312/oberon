@@ -61,6 +61,10 @@ pub fn build_app(
             "/v1/portfolios/{id}/polygons",
             post(portfolio::add_polygon).get(portfolio::list_polygons),
         )
+        .route(
+            "/v1/polygons/{id}",
+            axum::routing::patch(portfolio::update_polygon).delete(portfolio::delete_polygon),
+        )
         .route("/v1/portfolios/{id}/run", post(portfolio::run_portfolio))
         .route("/v1/portfolios/{id}/runs", get(portfolio::list_runs))
         .route("/v1/portfolios/{id}/findings", get(portfolio::get_findings))
