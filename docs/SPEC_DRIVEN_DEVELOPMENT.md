@@ -11,7 +11,7 @@ SDD is required for broad redesigns, net-new subsystems, or any change with sign
 | Change size | Net-new subsystems, broad redesigns | Bounded fixes, polish, wiring |
 | Ambiguity level | Significant — needs a Clarify phase | Low — decisions known upfront |
 | Artifact count | 7 artifacts (spec → clarify → plan → contracts → risks → tasks → analyze → verify) | 3 files (README + plan + tasks) |
-| Gate enforcement | `scripts/sdd-validate.sh` | Manual per-phase gates |
+| Gate enforcement | Manual per-phase gates | Manual per-phase gates |
 
 ## Full SDD flow
 

@@ -20,6 +20,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - SDK example (`examples/sdk_demo.py`)
 - CI workflow (`.github/workflows/ci.yml`) - ruff + mypy + pytest on push/PR
 - CHANGELOG.md, CITATION.cff, CODE_OF_CONDUCT.md
+- Web Dashboard (vanilla JS + Leaflet): full-viewport map console, AOI drawing (polygon/bbox), before/after/overlay comparative imagery review, human-in-the-loop validation queue (Approve/Reject/Uncertain), and model calibration loop
+- Dashboard surface docs (`dashboard/PRODUCT.md`, `dashboard/DESIGN.md`)
 
 ### Changed
 - README rewritten for public OSS release (product statement, quick start, Docker, CLI examples)

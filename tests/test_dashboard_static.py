@@ -10,8 +10,9 @@ def test_dashboard_uses_local_operational_shell() -> None:
 
     assert "fonts.googleapis.com" not in html
     assert "style=" not in html
+    assert "style=" not in js
     assert "Welcome to Oberon" not in html
-    assert "Select or create a portfolio" in html
+    assert "Select an existing portfolio or create a new one" in html
     assert 'value="vegetation_disturbance"' in html
     assert 'id="port-task"' in html
     assert '<select id="port-task"' not in html
@@ -21,6 +22,13 @@ def test_dashboard_uses_local_operational_shell() -> None:
     assert 'id="map-search-input"' in html
     assert 'id="search-results-dropdown"' in html
     assert 'id="portfolio-dropdown"' in html
+    assert 'class="modern-dialog portfolio-dialog"' in html
+    assert 'class="portfolio-steps"' in html
+    assert 'data-step="1"' in html
+    assert 'data-step="2"' in html
+    assert 'data-step="3"' in html
+    assert "Signal plan" in html
+    assert "Analysis signals" not in html
 
 
 def test_dashboard_css_avoids_decorative_ai_tropes() -> None:

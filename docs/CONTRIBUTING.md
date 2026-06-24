@@ -21,7 +21,7 @@ Oberon uses Spec-Driven Development (SDD) for complex features and mini-SDDs for
 uv sync
 
 # Optional: enable AI inference
-uv sync --group ai
+uv sync --extra ai
 
 # Run the CLI
 python -m oberon.cli analyze \

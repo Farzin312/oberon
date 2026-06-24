@@ -65,6 +65,7 @@ docs/mini-sdd/
 | `014-spatial-variance-seasonal-detection` | **DONE** — 287 unit tests | Spatial-variance seasonal detection: CV of NDVI loss distinguishes uniform seasonal senescence from patchy real disturbance. Abstains only when uniform AND broad. Annotates seasonal_risk in provenance otherwise. |
 | `015-dashboard-ui-polish` | **DONE** | Static dashboard revamp: neutral operational dark mode, map-first workflow, no imported font/decorative shell, cleaner portfolio/run/review UX. |
 | `016-dashboard-complete-revamp` | **DONE** | Complete visual and layout redesign of WebGIS console: full-screen map overlay, floating glassmorphic panels, chronological run timeline, modalless direct drawing. |
+| `017-dashboard-ui-hardening` | **DONE** | Fix dashboard revamp regressions: step-based portfolio creation, no horizontal modal overflow, clearer signal controls, visible logo, and bounded sidebar panels. |
 
 ### Recommended build sequence
 

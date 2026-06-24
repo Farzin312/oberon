@@ -88,19 +88,21 @@ subprocess, and serve the serialized ChangeResponse via HTTP.
 **Fix post-pilot**: gaps 3, 7 — these require a trained task head and calibrated
 confidence scores, which are explicitly deferred.
 
-## --json CLI flag (006 Phase 4)
+## --json CLI flag (008 Phase 1, done)
 
-The `--json` flag on `oberon analyze` produces a JSON summary on stdout:
+The `--json` flag on `oberon analyze` emits the full Product Brief §5
+`ChangeResponse` shape on stdout (status, findings, artifacts), built by the
+serialization layer (`src/oberon/api/serialization.py`):
 
 ```json
 {
-  "status": "complete",
-  "finding_count": 3,
-  "model_versions": ["deterministic-v1"],
-  "artifacts": {...},
-  "output_dir": "path/"
+  "status": "review_recommended",
+  "findings": [
+    { "change_score": 0.42, "changed_area_m2": 31250, "evidence": { "ndvi_delta": -0.18, "nbr_delta": -0.31 } }
+  ],
+  "artifacts": { "before": "...", "after": "...", "overlay": "..." }
 }
 ```
 
-This is NOT the final API response shape — it is a CLI convenience output. The full
-API response shape will be implemented in 008.
+`status` is one of `review_recommended`, `abstained`, `failed` (see `ResponseStatus`
+in `contracts.py`). When the analysis abstains, `artifacts` is `null`.

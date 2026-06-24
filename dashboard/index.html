@@ -3,15 +3,8 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Oberon Monitor | Impeccable UI</title>
+    <title>Oberon Monitor</title>
     <link rel="icon" type="image/svg+xml" href="logo.svg" />
-    <!-- Modern Web Fonts -->
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap"
-      rel="stylesheet"
-    />
     <!-- Leaflet CSS -->
     <link
       rel="stylesheet"
@@ -27,8 +20,10 @@
       <!-- Top Global Navigation & Search -->
       <header id="top-nav" class="glass-panel top-nav">
         <div class="brand-section">
-        <img src="logo.svg" class="brand-logo" alt="Oberon">
-        <div class="brand-text">
+          <span class="brand-mark" aria-hidden="true">
+            <img src="logo.svg" class="brand-logo" alt="" />
+          </span>
+          <div class="brand-text">
             <h1>Oberon</h1>
             <span class="badge hidden" id="active-portfolio-meta">Pending</span>
           </div>
@@ -466,47 +461,65 @@
     </div>
 
     <!-- Modal Dialogs -->
-    <dialog id="new-portfolio-dialog" class="modern-dialog" closedby="any">
+    <dialog
+      id="new-portfolio-dialog"
+      class="modern-dialog portfolio-dialog"
+      closedby="any"
+    >
       <div class="dialog-content">
         <header class="dialog-header">
-          <h3>New Portfolio</h3>
+          <div>
+            <h3>New Portfolio</h3>
+            <p id="portfolio-step-label" class="dialog-kicker">Step 1 of 3</p>
+          </div>
           <button
             class="modal-close-btn"
             onclick="document.getElementById('new-portfolio-dialog').close()"
+            aria-label="Close"
           >
             &times;
           </button>
         </header>
+        <ol class="portfolio-steps" aria-label="Portfolio setup progress">
+          <li class="active" data-step-marker="1">Portfolio</li>
+          <li data-step-marker="2">Analysis</li>
+          <li data-step-marker="3">Review</li>
+        </ol>
         <form id="create-portfolio-form" method="dialog">
-          <div class="form-group">
-            <label for="port-name">Portfolio name</label>
-            <input
-              type="text"
-              id="port-name"
-              name="name"
-              class="input-modern"
-              placeholder="e.g. Amazon Deforestation Arc"
-              required
-            />
-          </div>
-          <div class="form-group">
-            <label>Analysis signals</label>
+          <section class="portfolio-step active" data-step="1">
             <input
               type="hidden"
               id="port-task"
               name="task"
               value="vegetation_disturbance"
             />
+            <div class="form-group">
+              <label for="port-name">Portfolio name</label>
+              <input
+                type="text"
+                id="port-name"
+                name="name"
+                class="input-modern"
+                placeholder="e.g. Amazon deforestation arc"
+                required
+              />
+            </div>
+            <div class="form-group">
+              <label>Signal plan</label>
+              <p class="helper-text">
+                NDVI is the ranking signal. NBR is included in every result for
+                burn evidence. NDMI is not exposed in the API yet.
+              </p>
             <div class="signal-legend">
-              <div class="signal-chip is-active" style="--sig: var(--sig-ndvi)">
+              <div class="signal-chip signal-ndvi is-active">
                 <span class="signal-dot"></span>
                 <span class="signal-text">
                   <span class="signal-name">NDVI</span>
                   <span class="signal-desc">Vegetation</span>
                 </span>
-                <span class="signal-status">Ranking</span>
+                <span class="signal-status">Locked</span>
               </div>
-              <div class="signal-chip" style="--sig: var(--sig-nbr)">
+              <div class="signal-chip signal-nbr">
                 <span class="signal-dot"></span>
                 <span class="signal-text">
                   <span class="signal-name">NBR</span>
@@ -514,7 +527,7 @@
                 </span>
                 <span class="signal-status">In results</span>
               </div>
-              <div class="signal-chip is-pending" style="--sig: var(--sig-ndmi)">
+              <div class="signal-chip signal-ndmi is-pending">
                 <span class="signal-dot"></span>
                 <span class="signal-text">
                   <span class="signal-name">NDMI</span>
@@ -522,106 +535,106 @@
                 </span>
                 <span class="signal-status">Pipeline-ready</span>
               </div>
-              <div class="signal-chip" style="--sig: var(--sig-clay)">
-                <span class="signal-dot"></span>
-                <span class="signal-text">
-                  <span class="signal-name">Clay v1.5</span>
-                  <span class="signal-desc">AI embeddings</span>
-                </span>
-                <span class="signal-status">Toggle below</span>
-              </div>
             </div>
-            <p class="helper-text">
-              NDVI ranks findings; NBR burn-severity evidence is computed for
-              every result. NDMI is pipeline-ready, awaiting API exposure. Enable
-              Clay below to add AI features.
-            </p>
-          </div>
-          <div class="form-group">
-            <label for="port-cloud">Max cloud cover (%)</label>
-            <input
-              type="number"
-              id="port-cloud"
-              name="max_cloud_fraction"
-              class="input-modern"
-              min="1"
-              max="100"
-              value="15"
-            />
-          </div>
-          <div class="date-windows-grid">
-            <fieldset class="form-fieldset">
-              <legend>Before window</legend>
-              <div class="grid-2">
-                <div>
-                  <label for="port-before-from">From</label>
-                  <input
-                    type="date"
-                    id="port-before-from"
-                    name="before_from"
-                    class="input-modern"
-                    value="2026-01-01"
-                    required
-                  />
-                </div>
-                <div>
-                  <label for="port-before-to">To</label>
-                  <input
-                    type="date"
-                    id="port-before-to"
-                    name="before_to"
-                    class="input-modern"
-                    value="2026-01-31"
-                    required
-                  />
-                </div>
-              </div>
-            </fieldset>
-            <fieldset class="form-fieldset">
-              <legend>After window</legend>
-              <div class="grid-2">
-                <div>
-                  <label for="port-after-from">From</label>
-                  <input
-                    type="date"
-                    id="port-after-from"
-                    name="after_from"
-                    class="input-modern"
-                    value="2026-06-01"
-                    required
-                  />
-                </div>
-                <div>
-                  <label for="port-after-to">To</label>
-                  <input
-                    type="date"
-                    id="port-after-to"
-                    name="after_to"
-                    class="input-modern"
-                    value="2026-06-30"
-                    required
-                  />
-                </div>
-              </div>
-            </fieldset>
-          </div>
-          <div class="form-group mt-4">
-            <label class="toggle-switch">
+            </div>
+          </section>
+          <section class="portfolio-step" data-step="2">
+            <div class="form-group">
+              <label for="port-cloud">Max cloud cover (%)</label>
               <input
-                type="checkbox"
-                id="port-use-ai"
-                name="use_ai"
-                value="true"
+                type="number"
+                id="port-cloud"
+                name="max_cloud_fraction"
+                class="input-modern"
+                min="1"
+                max="100"
+                value="15"
               />
-              <span class="toggle-slider"></span>
-              <div class="toggle-label flex-column">
-                <strong>Enable Clay v1.5 model (AI)</strong>
-                <span class="text-small text-muted"
-                  >Use foundation model embeddings for change detection</span
-                >
-              </div>
-            </label>
-          </div>
+              <p class="helper-text">
+                Filtering is computed over the AOI window, not the whole scene.
+              </p>
+            </div>
+            <div class="date-windows-grid">
+              <fieldset class="form-fieldset">
+                <legend>Before window</legend>
+                <div class="grid-2">
+                  <div>
+                    <label for="port-before-from">From</label>
+                    <input
+                      type="date"
+                      id="port-before-from"
+                      name="before_from"
+                      class="input-modern"
+                      value="2026-01-01"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label for="port-before-to">To</label>
+                    <input
+                      type="date"
+                      id="port-before-to"
+                      name="before_to"
+                      class="input-modern"
+                      value="2026-01-31"
+                      required
+                    />
+                  </div>
+                </div>
+              </fieldset>
+              <fieldset class="form-fieldset">
+                <legend>After window</legend>
+                <div class="grid-2">
+                  <div>
+                    <label for="port-after-from">From</label>
+                    <input
+                      type="date"
+                      id="port-after-from"
+                      name="after_from"
+                      class="input-modern"
+                      value="2026-06-01"
+                      required
+                    />
+                  </div>
+                  <div>
+                    <label for="port-after-to">To</label>
+                    <input
+                      type="date"
+                      id="port-after-to"
+                      name="after_to"
+                      class="input-modern"
+                      value="2026-06-30"
+                      required
+                    />
+                  </div>
+                </div>
+              </fieldset>
+            </div>
+          </section>
+          <section class="portfolio-step" data-step="3">
+            <div class="form-group">
+              <label class="toggle-switch">
+                <input
+                  type="checkbox"
+                  id="port-use-ai"
+                  name="use_ai"
+                  value="true"
+                />
+                <span class="toggle-slider"></span>
+                <div class="toggle-label flex-column">
+                  <strong>Enable Clay v1.5 model (AI)</strong>
+                  <span class="text-small text-muted">
+                    Experimental embeddings. Deterministic NDVI/NBR remains the
+                    default production path.
+                  </span>
+                </div>
+              </label>
+            </div>
+            <div class="dialog-note">
+              After creation, add an AOI by drawing on the map or selecting a
+              searched location. The run button stays locked until an AOI exists.
+            </div>
+          </section>
           <footer class="dialog-footer">
             <button
               type="button"
@@ -630,7 +643,21 @@
             >
               Cancel
             </button>
-            <button type="submit" class="btn btn-primary">
+            <button
+              type="button"
+              id="portfolio-step-back"
+              class="btn btn-secondary hidden"
+            >
+              Back
+            </button>
+            <button type="button" id="portfolio-step-next" class="btn btn-primary">
+              Next
+            </button>
+            <button
+              type="submit"
+              id="portfolio-submit"
+              class="btn btn-primary hidden"
+            >
               Create Portfolio
             </button>
           </footer>
@@ -902,7 +929,6 @@
     </div>
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <!-- Assuming app.js will be kept as is, but UI will look amazing -->
     <script src="app.js"></script>
   </body>
 </html>

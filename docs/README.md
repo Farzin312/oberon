@@ -2,7 +2,7 @@
 
 **Parent**: [README.md](../README.md)
 
-**Children**: [ARCHITECTURE](ARCHITECTURE.md) · [ROADMAP](ROADMAP.md) · [GETTING_STARTED](GETTING_STARTED.md) · [DEVELOPMENT_SCOPE](DEVELOPMENT_SCOPE.md) · [CONTRIBUTING](CONTRIBUTING.md) · [TESTING_GUIDE](TESTING_GUIDE.md) · [LOGGING_STANDARD](LOGGING_STANDARD.md) · [GLOSSARY](GLOSSARY.md) · [mini-sdd/](mini-sdd/README.md) · [architecture/](architecture/README.md) · [sdd/](sdd/README.md) · [api/](api/cli.md)
+**Children**: [ARCHITECTURE](ARCHITECTURE.md) · [ROADMAP](ROADMAP.md) · [GETTING_STARTED](GETTING_STARTED.md) · [DEVELOPMENT_SCOPE](DEVELOPMENT_SCOPE.md) · [CONTRIBUTING](CONTRIBUTING.md) · [TESTING_GUIDE](TESTING_GUIDE.md) · [LOGGING_STANDARD](LOGGING_STANDARD.md) · [GLOSSARY](GLOSSARY.md) · [CHANGELOG](CHANGELOG.md) · [EVALUATION_REPORT](EVALUATION_REPORT.md) · [CLAY_EXPERIMENT_REPORT](CLAY_EXPERIMENT_REPORT.md) · [mini-sdd/](mini-sdd/README.md) · [architecture/](architecture/README.md) · [sdd/](sdd/ai-instructions.md) · [api/](api/cli.md)
 
 Documentation index for the Oberon project. Every doc declares its **Parent** — the index above it. Only index/catalog pages list **Children**.
 
@@ -17,7 +17,10 @@ Documentation index for the Oberon project. Every doc declares its **Parent** �
 | [LOGGING_STANDARD.md](LOGGING_STANDARD.md) | Unified logging spec for Python + Rust |
 | [SPEC_DRIVEN_DEVELOPMENT.md](SPEC_DRIVEN_DEVELOPMENT.md) | SDD approach for complex features |
 | [GLOSSARY.md](GLOSSARY.md) | EO and geospatial terms |
+| [CHANGELOG.md](CHANGELOG.md) | Notable changes by version |
+| [EVALUATION_REPORT.md](EVALUATION_REPORT.md) | Pre/post-calibration accuracy metrics |
+| [CLAY_EXPERIMENT_REPORT.md](CLAY_EXPERIMENT_REPORT.md) | Clay v1.5 AI experiment results |
 | [mini-sdd/](mini-sdd/README.md) | Bounded-change documentation sets |
 | [architecture/](architecture/README.md) | System design and subsystem docs |
-| [sdd/](sdd/README.md) | Spec-Driven Development artifacts |
+| [sdd/](sdd/ai-instructions.md) | Spec-Driven Development artifacts |
 | [api/](api/cli.md) | CLI reference and usage examples |

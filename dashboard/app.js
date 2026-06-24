@@ -41,6 +41,7 @@ let addPolygonDialog = null;
 let runConfirmDialog = null;
 let deleteConfirmDialog = null;
 let guideDialog = null;
+let portfolioStep = 1;
 
 // ---- Initialization ----
 document.addEventListener('DOMContentLoaded', () => {
@@ -164,13 +165,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Sidebar & Welcome Actions
     document.getElementById('new-portfolio-btn').addEventListener('click', () => {
-        document.getElementById('create-portfolio-form').reset();
-        newPortfolioDialog.showModal();
+        openPortfolioDialog();
     });
     
     document.getElementById('welcome-create-btn').addEventListener('click', () => {
-        document.getElementById('create-portfolio-form').reset();
-        newPortfolioDialog.showModal();
+        openPortfolioDialog();
     });
 
     document.getElementById('help-toggle-btn').addEventListener('click', () => {
@@ -226,6 +225,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Form Submissions (WebMCP support)
     document.getElementById('create-portfolio-form').addEventListener('submit', handleCreatePortfolio);
+    initPortfolioWizard();
     document.getElementById('add-polygon-form').addEventListener('submit', handleAddPolygon);
     document.getElementById('calibrate-btn').addEventListener('click', handleCalibrate);
 
@@ -261,6 +261,42 @@ function registerBackdropDismiss(dialog) {
             if (!isInside) dialog.close();
         });
     }
+}
+
+function openPortfolioDialog() {
+    document.getElementById('create-portfolio-form').reset();
+    showPortfolioStep(1);
+    newPortfolioDialog.showModal();
+    setTimeout(() => document.getElementById('port-name')?.focus(), 0);
+}
+
+function initPortfolioWizard() {
+    const next = document.getElementById('portfolio-step-next');
+    const back = document.getElementById('portfolio-step-back');
+    if (next) {
+        next.addEventListener('click', () => {
+            if (portfolioStep === 1 && !document.getElementById('port-name').reportValidity()) return;
+            showPortfolioStep(portfolioStep + 1);
+        });
+    }
+    if (back) {
+        back.addEventListener('click', () => showPortfolioStep(portfolioStep - 1));
+    }
+}
+
+function showPortfolioStep(step) {
+    portfolioStep = Math.max(1, Math.min(3, step));
+    document.querySelectorAll('.portfolio-step').forEach(el => {
+        el.classList.toggle('active', el.dataset.step === String(portfolioStep));
+    });
+    document.querySelectorAll('[data-step-marker]').forEach(el => {
+        el.classList.toggle('active', Number(el.dataset.stepMarker) === portfolioStep);
+    });
+    const label = document.getElementById('portfolio-step-label');
+    if (label) label.textContent = `Step ${portfolioStep} of 3`;
+    document.getElementById('portfolio-step-back')?.classList.toggle('hidden', portfolioStep === 1);
+    document.getElementById('portfolio-step-next')?.classList.toggle('hidden', portfolioStep === 3);
+    document.getElementById('portfolio-submit')?.classList.toggle('hidden', portfolioStep !== 3);
 }
 
 // ---- Toast Notifications ----
@@ -350,7 +386,7 @@ function renderPortfolioList(portfolios) {
     if (el) {
         el.innerHTML = '';
         if (!portfolios.length) {
-            el.innerHTML = '<p class="text-muted small-text text-center">No portfolios yet. Create one to start monitoring.</p>';
+            el.innerHTML = '<p class="text-muted text-small text-center">No portfolios yet. Create one to start monitoring.</p>';
             document.getElementById('welcome-screen').classList.remove('hidden');
             document.getElementById('workspace-actions').classList.add('hidden');
         } else {
@@ -464,7 +500,7 @@ function deletePortfolioConfirm(id, name) {
                 document.getElementById('aoi-list-container').classList.add('hidden');
                 document.getElementById('welcome-screen').classList.remove('hidden');
                 document.getElementById('run-history-body').innerHTML = `
-                    <div class="text-center text-muted" style="width: 100%; padding: 32px 0;">Select a portfolio to view history.</div>
+                    <div class="empty-inline text-center text-muted">Select a portfolio to view history.</div>
                 `;
             }
             loadPortfolios();
@@ -730,7 +766,7 @@ function renderRunHistory(runs) {
     
     if (!runs || runs.length === 0) {
         container.innerHTML = `
-            <div class="text-center text-muted" style="width: 100%; padding: 32px 0;">
+            <div class="empty-inline text-center text-muted">
                 No runs triggered yet. Click "Run Analysis" in the top bar to begin.
             </div>
         `;
@@ -839,11 +875,11 @@ function showFindingDetail(feature) {
             <!-- Spectral evidence — NDVI ranks findings, NBR is burn severity.
                  Direction (loss/gain) reads from the sign, never red/green. -->
             <div class="finding-metrics">
-                <div class="metric-pill" style="--sig: var(--sig-ndvi)">
+                <div class="metric-pill signal-ndvi">
                     <span class="lbl">NDVI</span>
                     <span class="val">Δ ${ndvi.toFixed(3)}</span>
                 </div>
-                <div class="metric-pill" style="--sig: var(--sig-nbr)">
+                <div class="metric-pill signal-nbr">
                     <span class="lbl">NBR</span>
                     <span class="val">Δ ${nbr.toFixed(3)}</span>
                 </div>
@@ -1184,7 +1220,7 @@ function renderAoiList(polygons) {
     container.innerHTML = '';
     
     if (!polygons || polygons.length === 0) {
-        container.innerHTML = '<p class="text-muted small-text text-center" style="margin-top: 10px;">No AOIs yet. Draw one above.</p>';
+        container.innerHTML = '<p class="empty-aoi text-muted text-small text-center">No AOIs yet. Draw one above.</p>';
         return;
     }
     
@@ -1196,7 +1232,7 @@ function renderAoiList(polygons) {
         
         div.innerHTML = `
             <div class="row justify-between w-full">
-                <input type="text" class="input-modern" style="flex: 1; min-width: 0; margin-right: 8px;" value="${escapeHtml(poly.label)}" 
+                <input type="text" class="input-modern aoi-name-input" value="${escapeHtml(poly.label)}" 
                        onchange="updateAoiLabel('${poly.id}', this.value)" 
                        onclick="event.stopPropagation();" />
                 <div class="row gap-2">
@@ -1246,7 +1282,7 @@ function startEditingAoi(id, geomJson) {
     editLatlngs.forEach((latlng, idx) => {
         const handle = L.marker(latlng, {
             draggable: true,
-            icon: createHandleIcon('#4f8cff')
+            icon: createHandleIcon()
         }).addTo(map);
         
         handle.on('drag', (e) => {
@@ -1321,22 +1357,11 @@ function clearEditHandles() {
     activeEditAoiId = null;
 }
 
-function createHandleIcon(color, isCenter = false) {
+function createHandleIcon(isCenter = false) {
     const size = isCenter ? 12 : 8;
-    const style = `
-        width: ${size}px; 
-        height: ${size}px; 
-        background: #fff; 
-        border: 2px solid ${color}; 
-        border-radius: 50%;
-        margin-left: -${size/2}px;
-        margin-top: -${size/2}px;
-        cursor: move;
-        box-shadow: 0 2px 6px rgba(0,0,0,0.3);
-    `;
     return L.divIcon({
-        className: 'edit-handle-icon',
-        html: `<div style="${style}"></div>`,
+        className: `edit-handle-icon${isCenter ? ' center' : ''}`,
+        html: '<div class="edit-handle-dot"></div>',
         iconSize: [size, size]
     });
 }
@@ -1496,7 +1521,9 @@ function updateAoiStatusIndicators() {
             aoiAlert.classList.remove('hidden');
         }
         if (scopeCount) {
-            scopeCount.innerHTML = 'Locations <span class="status-pill failed" style="margin-left: 8px;">Missing AOI</span>';
+            scopeCount.textContent = 'Missing AOI';
+            scopeCount.classList.add('failed');
+            scopeCount.classList.remove('completed');
         }
         if (scopeInst) {
             scopeInst.textContent = "Draw an AOI or search places to begin";
@@ -1511,7 +1538,9 @@ function updateAoiStatusIndicators() {
             aoiAlert.classList.add('hidden');
         }
         if (scopeCount) {
-            scopeCount.innerHTML = `Locations <span class="status-pill completed" style="margin-left: 8px;">${activePolygons.length} AOI(s)</span>`;
+            scopeCount.textContent = `${activePolygons.length} AOI${activePolygons.length === 1 ? '' : 's'}`;
+            scopeCount.classList.add('completed');
+            scopeCount.classList.remove('failed');
         }
         if (scopeInst) {
             scopeInst.textContent = "Click an AOI to inspect or edit bounds";
@@ -1625,4 +1654,3 @@ function renderSearchResults(results) {
     });
     resultsContainer.classList.remove('hidden');
 }
-

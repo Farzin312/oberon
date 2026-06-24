@@ -10,9 +10,9 @@ An open, self-hostable Earth observation monitoring engine that turns public sat
 
 "Show me where this land portfolio materially changed between two periods, rank the findings, explain the evidence, and let my team verify or dismiss each result."
 
-### First product: Oberon Vegetation Disturbance Monitor
+### First wired task: Vegetation Disturbance (NDVI loss)
 
-Monitor material vegetation loss across defined polygons. Detect likely disturbance, rank the most important regions, and provide before/after imagery, spectral evidence, change geometry, quality flags, and model provenance.
+Oberon's engine is a general land-change detector; it ships with **vegetation disturbance (NDVI loss)** as its first wired task. It detects likely change across defined polygons, ranks the most important regions, and provides before/after imagery, spectral evidence (NDVI/NBR/NDMI), change geometry, quality flags, and model provenance. NBR, NDMI, and pixel deltas are computed as supporting evidence on every finding; burn- and moisture-specific tasks are future expansions of the same pipeline.
 
 ## What Oberon is NOT
 
@@ -53,7 +53,7 @@ Monitor material vegetation loss across defined polygons. Detect likely disturba
 
 | Gate | Criteria |
 |------|----------|
-| Technical benchmark | Walking slice produces one reviewable vegetation-change result from one real polygon |
+| Technical benchmark | Walking slice produces one reviewable land-change result from one real polygon |
 | External reproducibility | Someone who is not the author can run the workflow and understand the result |
 | Baseline vs AI | Deterministic baseline exists; AI compared and justified or removed |
 | Pilot readiness | CLI + Docker + evidence bundles work on a customer portfolio |
