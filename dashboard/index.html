@@ -10,78 +10,140 @@
 </head>
 <body>
 <div id="app">
-    <aside id="sidebar" aria-label="Portfolio controls">
-        <header class="brand">
-            <img src="logo.jpg" alt="" class="brand-mark">
-            <div>
-                <h1>Oberon</h1>
-                <p>Land monitoring console</p>
-            </div>
-        </header>
+    <!-- Base Map Container -->
+    <div id="map"></div>
+    
+    <!-- Map HUD Overlays -->
+    <div id="map-coords-badge" class="map-coords-badge">Lat: 0.00000, Lon: 0.00000</div>
+    <button id="map-attribution-toggle" class="map-attribution-toggle" title="Map attribution" aria-expanded="false" aria-controls="map-attribution-panel">!</button>
+    <div id="map-attribution-panel" class="map-attribution-panel hidden">
+        Leaflet | Tiles (c) Esri, OpenStreetMap, CARTO, and source contributors.
+    </div>
 
-        <button id="new-portfolio-btn" class="btn btn-primary">Create Portfolio</button>
+    <!-- Active warning banner when portfolio has no AOIs -->
+    <div id="aoi-missing-alert" class="aoi-warning-banner hidden">
+        <span>⚠️ No AOIs defined. Use the drawing controls or place search to add a target monitoring region.</span>
+    </div>
 
-        <section class="scope-panel">
-            <div>
-                <span>Analysis</span>
-                <strong>Vegetation disturbance</strong>
-                <small>NDVI loss with supporting spectral evidence</small>
-            </div>
-            <div id="aoi-scope-info">
-                <span>Locations</span>
-                <strong id="aoi-scope-count">AOI polygons</strong>
-                <small id="aoi-scope-instructions">Draw on the map or paste GeoJSON</small>
-                
-                <div id="aoi-list-container" class="hidden">
-                    <div class="aoi-draw-buttons">
-                        <button type="button" id="sidebar-draw-poly-btn" class="btn btn-secondary btn-small">＋ Polygon</button>
-                        <button type="button" id="sidebar-draw-bbox-btn" class="btn btn-secondary btn-small">＋ Box</button>
+    <!-- Floating Toggle Button for collapsed Left Sidebar -->
+    <button id="sidebar-toggle-btn" class="btn-floating-toggle hidden" title="Show Sidebar">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+    </button>
+
+    <!-- Empty State welcome overlay -->
+    <div id="welcome-screen" class="empty-state">
+        <div class="empty-state-panel">
+            <p class="eyebrow">Start here</p>
+            <h2>Select or create a portfolio</h2>
+            <p>Define date windows, add an AOI by drawing on the map or pasting GeoJSON, then run analysis.</p>
+            <button id="welcome-create-btn" class="btn btn-primary">Create Portfolio</button>
+        </div>
+    </div>
+
+    <!-- Floating HUD Panels -->
+    <div class="hud-overlay-container">
+        <!-- Floating Left Sidebar -->
+        <aside id="sidebar" class="floating-panel" aria-label="Portfolio controls">
+            <header class="brand">
+                <svg class="brand-logo-svg" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="4" fill="rgba(14, 165, 233, 0.2)"></circle>
+                    <ellipse cx="12" cy="12" rx="10" ry="3" transform="rotate(-30 12 12)"></ellipse>
+                    <ellipse cx="12" cy="12" rx="10" ry="3" transform="rotate(30 12 12)"></ellipse>
+                </svg>
+                <div>
+                    <h1>Oberon</h1>
+                    <p>Land monitoring console</p>
+                </div>
+                <button id="sidebar-close-btn" class="btn-close-panel" title="Hide Sidebar">✕</button>
+            </header>
+
+            <button id="new-portfolio-btn" class="btn btn-primary">Create Portfolio</button>
+
+            <!-- Compact Active Portfolio Settings Section -->
+            <section class="sidebar-section active-settings-panel">
+                <h3>Tuning & Params</h3>
+                <div class="settings-grid">
+                    <div>
+                        <span class="label">Date Range Before</span>
+                        <strong id="sidebar-before-range">—</strong>
                     </div>
-                    <div id="sidebar-aoi-list" class="sidebar-aoi-list"></div>
+                    <div>
+                        <span class="label">Date Range After</span>
+                        <strong id="sidebar-after-range">—</strong>
+                    </div>
+                    <div>
+                        <span class="label">Cloud Cover (Max)</span>
+                        <strong id="sidebar-cloud-max">—</strong>
+                    </div>
+                    <div>
+                        <span class="label">AI Model (Clay v1.5)</span>
+                        <strong id="sidebar-ai-status">—</strong>
+                    </div>
                 </div>
-            </div>
-        </section>
+            </section>
 
-        <section class="sidebar-section">
-            <div class="section-heading">
-                <h2>Portfolios</h2>
-                <span id="api-status-badge" class="status-dot status-healthy">API connected</span>
-            </div>
-            <div id="portfolio-list" class="portfolio-list"></div>
-        </section>
-
-        <section class="calibration-panel">
-            <h2>Engine Tuning</h2>
-            <p>Human-in-the-loop: Approve real disturbances and reject false alarms (clouds, snow, seasonal senescence) to calibrate detection thresholds.</p>
-            <div class="review-counts">
+            <section class="scope-panel">
                 <div>
-                    <span id="cal-approved-count" class="count count-good">0</span>
-                    <span>Approved</span>
+                    <span>Analysis</span>
+                    <strong>Vegetation disturbance</strong>
+                    <small>NDVI loss with supporting spectral evidence</small>
                 </div>
-                <div>
-                    <span id="cal-rejected-count" class="count count-bad">0</span>
-                    <span>Rejected</span>
+                <div id="aoi-scope-info">
+                    <span id="aoi-scope-count">Locations</span>
+                    <small id="aoi-scope-instructions">Draw on the map or paste GeoJSON</small>
+                    
+                    <div id="aoi-list-container" class="hidden">
+                        <div class="aoi-draw-buttons">
+                            <button type="button" id="sidebar-draw-poly-btn" class="btn btn-secondary btn-small">＋ Polygon</button>
+                            <button type="button" id="sidebar-draw-bbox-btn" class="btn btn-secondary btn-small">＋ Box</button>
+                        </div>
+                        <div id="sidebar-aoi-list" class="sidebar-aoi-list"></div>
+                    </div>
                 </div>
-            </div>
-            <div class="progress-track" aria-hidden="true">
-                <div id="calibration-progress-bar" class="progress-bar"></div>
-            </div>
-            <p id="calibration-status-text" class="quiet">0/20 labels collected</p>
-            <button id="calibrate-btn" class="btn btn-secondary" disabled>Recalibrate Engine</button>
-        </section>
+            </section>
 
-        <button id="help-toggle-btn" class="btn btn-ghost">Guide</button>
-    </aside>
+            <!-- Sleek Morphological Calibration panel -->
+            <section class="calibration-panel">
+                <h3>Calibration Gate</h3>
+                <p class="quiet">Calibrate morphological filters to prevent cloud/senescence false positives.</p>
+                <div class="review-counts">
+                    <div class="count-item good">
+                        <span id="cal-approved-count" class="count">0</span>
+                        <span class="label">Approved</span>
+                    </div>
+                    <div class="count-item bad">
+                        <span id="cal-rejected-count" class="count">0</span>
+                        <span class="label">Rejected</span>
+                    </div>
+                </div>
+                <div class="progress-track" aria-hidden="true">
+                    <div id="calibration-progress-bar" class="progress-bar"></div>
+                </div>
+                <p id="calibration-status-text" class="quiet">0/20 labels collected</p>
+                <button id="calibrate-btn" class="btn btn-secondary btn-small" disabled>Recalibrate Engine</button>
+            </section>
 
-    <main id="main">
-        <header id="top-nav">
+            <button id="help-toggle-btn" class="btn btn-ghost">Guide</button>
+        </aside>
+
+        <!-- Floating Top Header Bar -->
+        <header id="top-nav" class="floating-panel">
             <div class="top-nav-title-group">
-                <div>
-                    <p class="eyebrow">Workspace</p>
-                    <h2 id="active-portfolio-title">No portfolio selected</h2>
+                <div class="portfolio-selector-container">
+                    <select id="portfolio-dropdown" class="select-dropdown" aria-label="Switch portfolio">
+                        <option value="">Select portfolio...</option>
+                    </select>
                 </div>
+                <h2 id="active-portfolio-title" class="hidden">No portfolio selected</h2>
                 <div id="active-portfolio-meta" class="meta-chip hidden">Pending</div>
             </div>
+
+            <!-- Sleek geocoder place search -->
+            <div class="search-box">
+                <input type="text" id="map-search-input" placeholder="Search coordinates or places..." autocomplete="off">
+                <div id="search-results-dropdown" class="search-results hidden"></div>
+            </div>
+
             <div id="workspace-actions" class="hidden">
                 <button id="nav-draw-poly-btn" class="btn btn-secondary btn-small">＋ Polygon</button>
                 <button id="nav-draw-bbox-btn" class="btn btn-secondary btn-small">＋ Box</button>
@@ -90,30 +152,13 @@
                     <button id="nav-more-btn" class="btn btn-secondary btn-small" aria-haspopup="listbox" aria-expanded="false">Actions ▾</button>
                     <div id="nav-more-menu" class="dropdown-menu hidden">
                         <button id="nav-delete-btn" class="dropdown-item text-danger">Delete Portfolio</button>
-                      </div>
+                    </div>
                 </div>
             </div>
         </header>
 
-        <section id="workspace-container">
-            <div id="map"></div>
-            <div id="map-coords-badge" class="map-coords-badge">Lat: 0.00000, Lon: 0.00000</div>
-            <button id="map-attribution-toggle" class="map-attribution-toggle" title="Map attribution" aria-expanded="false" aria-controls="map-attribution-panel">!</button>
-            <div id="map-attribution-panel" class="map-attribution-panel hidden">
-                Leaflet | Tiles (c) Esri, OpenStreetMap, CARTO, and source contributors.
-            </div>
-
-            <div id="welcome-screen" class="empty-state">
-                <div class="empty-state-panel">
-                    <p class="eyebrow">Start here</p>
-                    <h2>Select or create a portfolio</h2>
-                    <p>Define date windows, add an AOI by drawing on the map or pasting GeoJSON, then run analysis.</p>
-                    <button id="welcome-create-btn" class="btn btn-primary">Create Portfolio</button>
-                </div>
-            </div>
-        </section>
-
-        <section id="run-history-panel">
+        <!-- Floating Bottom Horizontal Chronological Timeline Bar -->
+        <section id="run-timeline-panel" class="floating-panel" aria-label="Run History">
             <header class="panel-header">
                 <h3>Run History</h3>
                 <div class="panel-actions">
@@ -123,40 +168,25 @@
                     </button>
                 </div>
             </header>
-            <div class="table-scroll">
-                <table id="run-history-table" class="data-table">
-                    <thead>
-                        <tr>
-                            <th>Job ID</th>
-                            <th>AOI</th>
-                            <th>Status</th>
-                            <th>Findings</th>
-                            <th>Created</th>
-                            <th>Completed</th>
-                            <th>Details</th>
-                        </tr>
-                    </thead>
-                    <tbody id="run-history-body">
-                        <tr>
-                            <td colspan="7" class="text-center text-muted">No runs triggered yet. Click Run in the sidebar to analyze.</td>
-                        </tr>
-                    </tbody>
-                </table>
+            <div id="run-history-body" class="timeline-scroller">
+                <!-- Javascript will render timeline items directly here as cards -->
             </div>
         </section>
-    </main>
 
-    <aside id="detail-panel" class="hidden" aria-label="Finding details">
-        <button id="close-detail" class="btn-close" aria-label="Close panel">&times;</button>
-        <header class="detail-header">
-            <p class="eyebrow">Review finding</p>
-            <h2>Change Finding</h2>
-            <p id="finding-coordinate-label">Coordinates</p>
-        </header>
-        <div id="detail-content"></div>
-    </aside>
+        <!-- Floating Right Detail Drawer -->
+        <aside id="detail-panel" class="floating-panel hidden" aria-label="Finding details">
+            <button id="close-detail" class="btn-close" aria-label="Close panel">&times;</button>
+            <header class="detail-header">
+                <p class="eyebrow">Review finding</p>
+                <h2>Change Finding</h2>
+                <p id="finding-coordinate-label">Coordinates</p>
+            </header>
+            <div id="detail-content"></div>
+        </aside>
+    </div>
 </div>
 
+<!-- Modal Dialogs -->
 <dialog id="new-portfolio-dialog" closedby="any" aria-labelledby="modal-port-title">
     <div class="modal-card">
         <header class="modal-header">

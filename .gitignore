@@ -39,3 +39,6 @@ target/
 
 # Impeccable skills
 .github/skills/
+
+# Impeccable critique snapshots
+.impeccable/

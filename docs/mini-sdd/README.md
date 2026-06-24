@@ -64,7 +64,7 @@ docs/mini-sdd/
 | `013-baseline-calibration` | **DONE** — 12/12 golden, 277 unit tests | Signed threshold (veg_disturbance = NDVI loss only), morphological closing (25x25), cross-season annotation. Golden tests 1/12 -> 12/12. Known limitations: seasonal-vs-fire overlap (needs spatial variance), cloud-edge artifacts. |
 | `014-spatial-variance-seasonal-detection` | **DONE** — 287 unit tests | Spatial-variance seasonal detection: CV of NDVI loss distinguishes uniform seasonal senescence from patchy real disturbance. Abstains only when uniform AND broad. Annotates seasonal_risk in provenance otherwise. |
 | `015-dashboard-ui-polish` | **DONE** | Static dashboard revamp: neutral operational dark mode, map-first workflow, no imported font/decorative shell, cleaner portfolio/run/review UX. |
-| `016-dashboard-complete-revamp` | **IN PROGRESS** | Complete visual and layout redesign of WebGIS console: full-screen map overlay, floating glassmorphic panels, chronological run timeline, modalless direct drawing. |
+| `016-dashboard-complete-revamp` | **DONE** | Complete visual and layout redesign of WebGIS console: full-screen map overlay, floating glassmorphic panels, chronological run timeline, modalless direct drawing. |
 
 ### Recommended build sequence
 

@@ -72,6 +72,10 @@ document.addEventListener('DOMContentLoaded', () => {
     setupAttributionToggle();
     setupDraggableWelcomeCard();
 
+    // Disable click/double click event propagation on all overlay HUD panels
+    const panels = document.querySelectorAll('.floating-panel, .empty-state-panel, .toast-container, .floating-toolbar');
+    panels.forEach(p => L.DomEvent.disableClickPropagation(p));
+
     // Initialize drawing layer group
     drawLayerGroup = L.layerGroup().addTo(map);
 
@@ -212,6 +216,19 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('add-polygon-form').addEventListener('submit', handleAddPolygon);
     document.getElementById('calibrate-btn').addEventListener('click', handleCalibrate);
 
+    // Initializations
+    initMapSearch();
+    initPanelCollapses();
+    
+    // Switcher Dropdown listener
+    const portfolioDropdown = document.getElementById('portfolio-dropdown');
+    if (portfolioDropdown) {
+        portfolioDropdown.addEventListener('change', (e) => {
+            const val = e.target.value;
+            if (val) selectPortfolio(val);
+        });
+    }
+
     loadPortfolios();
 });
 
@@ -317,33 +334,45 @@ async function loadPortfolios() {
 
 function renderPortfolioList(portfolios) {
     const el = document.getElementById('portfolio-list');
-    el.innerHTML = '';
-    
-    if (!portfolios.length) {
-        el.innerHTML = '<p class="text-muted small-text text-center">No portfolios yet. Create one to start monitoring.</p>';
-        document.getElementById('welcome-screen').classList.remove('hidden');
-        document.getElementById('workspace-actions').classList.add('hidden');
-        return;
+    if (el) {
+        el.innerHTML = '';
+        if (!portfolios.length) {
+            el.innerHTML = '<p class="text-muted small-text text-center">No portfolios yet. Create one to start monitoring.</p>';
+            document.getElementById('welcome-screen').classList.remove('hidden');
+            document.getElementById('workspace-actions').classList.add('hidden');
+        } else {
+            portfolios.forEach(p => {
+                const div = document.createElement('div');
+                div.className = 'portfolio-item';
+                if (p.id === activePortfolioId) div.classList.add('active');
+                
+                const taskLabel = p.task === 'vegetation_disturbance' ? 'Vegetation loss' : p.task;
+                const aiBadge = p.use_ai ? '<span class="ai-chip">AI</span>' : '';
+                
+                div.innerHTML = `
+                    <div>
+                        <div class="name">${escapeHtml(p.name)} ${aiBadge}</div>
+                        <div class="meta">${taskLabel} / Cloud max ${Math.round(p.max_cloud_fraction * 100)}%</div>
+                    </div>`;
+                
+                div.addEventListener('click', () => selectPortfolio(p.id));
+                el.appendChild(div);
+            });
+        }
     }
-    
-    portfolios.forEach(p => {
-        const div = document.createElement('div');
-        div.className = 'portfolio-item';
-        if (p.id === activePortfolioId) div.classList.add('active');
-        
-        const taskLabel = p.task === 'vegetation_disturbance' ? 'Vegetation loss' : p.task;
-        const aiBadge = p.use_ai ? '<span class="ai-chip">AI</span>' : '';
-        
-        div.innerHTML = `
-            <div>
-                <div class="name">${escapeHtml(p.name)} ${aiBadge}</div>
-                <div class="meta">${taskLabel} / Cloud max ${Math.round(p.max_cloud_fraction * 100)}%</div>
-                <div class="date-range">${p.before_from} to ${p.after_to}</div>
-            </div>`;
-        
-        div.addEventListener('click', () => selectPortfolio(p.id));
-        el.appendChild(div);
-    });
+
+    // Populate top dropdown
+    const dropdown = document.getElementById('portfolio-dropdown');
+    if (dropdown) {
+        dropdown.innerHTML = '<option value="">Select portfolio...</option>';
+        portfolios.forEach(p => {
+            const opt = document.createElement('option');
+            opt.value = p.id;
+            opt.textContent = p.name;
+            if (p.id === activePortfolioId) opt.selected = true;
+            dropdown.appendChild(opt);
+        });
+    }
 }
 
 async function handleCreatePortfolio(event) {
@@ -422,7 +451,7 @@ function deletePortfolioConfirm(id, name) {
                 document.getElementById('aoi-list-container').classList.add('hidden');
                 document.getElementById('welcome-screen').classList.remove('hidden');
                 document.getElementById('run-history-body').innerHTML = `
-                    <tr><td colspan="7" class="text-center text-muted">Select a portfolio to view history.</td></tr>
+                    <div class="text-center text-muted" style="width: 100%; padding: 32px 0;">Select a portfolio to view history.</div>
                 `;
             }
             loadPortfolios();
@@ -542,8 +571,10 @@ window.selectPortfolio = async function(id) {
     activePortfolioId = id;
     document.getElementById('welcome-screen').classList.add('hidden');
     
-    // Highlight active sidebar item
+    // Highlight active sidebar item / sync dropdown
     loadPortfolios();
+    const dropdown = document.getElementById('portfolio-dropdown');
+    if (dropdown) dropdown.value = id;
     
     try {
         const portRes = await fetch(`${API}/portfolios/${id}`);
@@ -556,6 +587,12 @@ window.selectPortfolio = async function(id) {
         metaPill.textContent = portfolio.task === 'vegetation_disturbance' ? 'Vegetation loss' : 'Unsupported task';
         metaPill.classList.remove('hidden');
         document.getElementById('workspace-actions').classList.remove('hidden');
+
+        // Update sidebar settings parameters grid
+        document.getElementById('sidebar-before-range').textContent = `${portfolio.before_from} to ${portfolio.before_to}`;
+        document.getElementById('sidebar-after-range').textContent = `${portfolio.after_from} to ${portfolio.after_to}`;
+        document.getElementById('sidebar-cloud-max').textContent = `${Math.round(portfolio.max_cloud_fraction * 100)}%`;
+        document.getElementById('sidebar-ai-status').textContent = portfolio.use_ai ? 'Enabled' : 'Disabled';
 
         // Parallel fetch of polygons, findings, and reviews
         const [polyRes, findingsRes, reviewsRes] = await Promise.all([
@@ -573,19 +610,10 @@ window.selectPortfolio = async function(id) {
         activePolygonsCount = activePolygons.length;
         
         // Hide/show location instructions dynamically and show list
-        const scopeCount = document.getElementById('aoi-scope-count');
-        const scopeInst = document.getElementById('aoi-scope-instructions');
         const listContainer = document.getElementById('aoi-list-container');
         if (listContainer) listContainer.classList.remove('hidden');
         
-        if (activePolygons.length > 0) {
-            if (scopeCount) scopeCount.textContent = `${activePolygons.length} AOI polygon(s)`;
-            if (scopeInst) scopeInst.classList.add('hidden');
-        } else {
-            if (scopeCount) scopeCount.textContent = 'No AOIs defined';
-            if (scopeInst) scopeInst.classList.remove('hidden');
-        }
-
+        updateAoiStatusIndicators();
         renderAoiList(activePolygons);
 
         // Count approved/rejected states from database to ensure persistence on load
@@ -684,14 +712,14 @@ async function pollRunHistory(portfolioId) {
 }
 
 function renderRunHistory(runs) {
-    const tbody = document.getElementById('run-history-body');
-    tbody.innerHTML = '';
+    const container = document.getElementById('run-history-body');
+    container.innerHTML = '';
     
     if (!runs || runs.length === 0) {
-        tbody.innerHTML = `
-            <tr>
-                <td colspan="7" class="text-center text-muted">No runs triggered yet. Click "Run" in the sidebar to analyze.</td>
-            </tr>
+        container.innerHTML = `
+            <div class="text-center text-muted" style="width: 100%; padding: 32px 0;">
+                No runs triggered yet. Click "Run Analysis" in the top bar to begin.
+            </div>
         `;
         return;
     }
@@ -704,29 +732,49 @@ function renderRunHistory(runs) {
         if (r.status === 'failed') statusClass = 'failed';
         if (r.status === 'abstained') statusClass = 'abstained';
 
-        const created = new Date(r.created_at).toLocaleString();
-        const completed = r.completed_at ? new Date(r.completed_at).toLocaleString() : '—';
+        const created = new Date(r.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
         
-        let details = r.error_message || '—';
+        let details = r.error_message || 'No errors';
         if (r.status === 'abstained') {
-            details = `<span class="text-warning">Abstained: ${escapeHtml(details)}</span>`;
+            details = `Abstained: ${r.error_message || 'Insufficient pixels'}`;
         } else if (r.status === 'failed') {
-            details = `<span class="text-danger">Failed: ${escapeHtml(details)}</span>`;
+            details = `Failed: ${r.error_message || 'Execution error'}`;
         } else if (r.status === 'completed') {
-            details = '<span class="text-success">Analysis succeeded</span>';
+            details = 'Analysis succeeded';
         }
 
-        const tr = document.createElement('tr');
-        tr.innerHTML = `
-            <td class="mono-cell">${r.id.substring(0,8)}...</td>
-            <td>Plot AOI</td>
-            <td><span class="status-pill ${statusClass}">${statusLabel}</span></td>
-            <td><strong>${r.findings_count}</strong></td>
-            <td>${created}</td>
-            <td>${completed}</td>
-            <td class="details-cell" title="${escapeHtml(r.error_message || '')}">${details}</td>
+        const card = document.createElement('div');
+        card.className = `timeline-card ${statusClass}`;
+        card.innerHTML = `
+            <div class="timeline-card-header">
+                <span class="timeline-card-id">Job: ${r.id.substring(0,8)}</span>
+                <span class="status-pill ${statusClass}">${statusLabel}</span>
+            </div>
+            <div class="timeline-card-findings">
+                Findings: <strong>${r.findings_count}</strong>
+            </div>
+            <div class="timeline-card-details" title="${escapeHtml(details)}">
+                ${escapeHtml(details)}
+            </div>
+            <div class="timeline-card-time">
+                Triggered at ${created}
+            </div>
         `;
-        tbody.appendChild(tr);
+
+        card.addEventListener('click', () => {
+            document.querySelectorAll('.timeline-card').forEach(c => c.classList.remove('active'));
+            card.classList.add('active');
+            
+            const poly = activePolygons.find(p => p.id === r.polygon_id);
+            if (poly) {
+                const geom = JSON.parse(poly.geometry_json);
+                const tempLayer = L.geoJSON(geom);
+                map.fitBounds(tempLayer.getBounds(), { padding: [40, 40] });
+                showToast(`Focused on AOI: ${poly.label}`, "info");
+            }
+        });
+
+        container.appendChild(card);
     });
 }
 
@@ -1369,16 +1417,7 @@ async function deleteAoiDirect(id) {
         
         renderAoiList(activePolygons);
         refreshDisplayLayers();
-        
-        const scopeCount = document.getElementById('aoi-scope-count');
-        const scopeInst = document.getElementById('aoi-scope-instructions');
-        if (activePolygons.length > 0) {
-            if (scopeCount) scopeCount.textContent = `${activePolygons.length} AOI polygon(s)`;
-            if (scopeInst) scopeInst.classList.add('hidden');
-        } else {
-            if (scopeCount) scopeCount.textContent = 'No AOIs defined';
-            if (scopeInst) scopeInst.classList.remove('hidden');
-        }
+        updateAoiStatusIndicators();
     } catch (e) {
         showToast(`Delete failed: ${e.message}`, "danger");
     }
@@ -1387,3 +1426,183 @@ async function deleteAoiDirect(id) {
 function refreshDisplayLayers() {
     displayOnMap(activePolygons, latestFindingsData);
 }
+
+// --- COLLAPSIBLE HUD PANELS ---
+function initPanelCollapses() {
+    const sidebar = document.getElementById('sidebar');
+    const sidebarToggle = document.getElementById('sidebar-toggle-btn');
+    const sidebarClose = document.getElementById('sidebar-close-btn');
+
+    if (sidebarToggle && sidebar && sidebarClose) {
+        sidebarClose.addEventListener('click', () => {
+            sidebar.classList.add('collapsed');
+            sidebarToggle.classList.remove('hidden');
+        });
+        sidebarToggle.addEventListener('click', () => {
+            sidebar.classList.remove('collapsed');
+            sidebarToggle.classList.add('hidden');
+        });
+    }
+
+    // Connect detail panel close trigger
+    const detailPanel = document.getElementById('detail-panel');
+    const closeDetail = document.getElementById('close-detail');
+    if (closeDetail && detailPanel) {
+        closeDetail.addEventListener('click', () => {
+            detailPanel.classList.add('hidden');
+        });
+    }
+}
+
+// --- INDICATE IMPROPER/MISSING POLYGON ON PORTFOLIOS ---
+function updateAoiStatusIndicators() {
+    const runBtn = document.getElementById('nav-run-btn');
+    const aoiAlert = document.getElementById('aoi-missing-alert');
+    const scopeCount = document.getElementById('aoi-scope-count');
+    const scopeInst = document.getElementById('aoi-scope-instructions');
+    const welcomeScreen = document.getElementById('welcome-screen');
+
+    if (activePortfolioId) {
+        welcomeScreen.classList.add('hidden');
+    }
+
+    if (!activePolygons || activePolygons.length === 0) {
+        if (runBtn) {
+            runBtn.disabled = true;
+            runBtn.title = "Please add at least one AOI to run analysis";
+            runBtn.classList.add('btn-disabled');
+        }
+        if (aoiAlert) {
+            aoiAlert.classList.remove('hidden');
+        }
+        if (scopeCount) {
+            scopeCount.innerHTML = 'Locations <span class="status-pill failed" style="margin-left: 8px;">Missing AOI</span>';
+        }
+        if (scopeInst) {
+            scopeInst.textContent = "Draw an AOI or search places to begin";
+        }
+    } else {
+        if (runBtn) {
+            runBtn.disabled = false;
+            runBtn.title = "Run analysis on defined AOIs";
+            runBtn.classList.remove('btn-disabled');
+        }
+        if (aoiAlert) {
+            aoiAlert.classList.add('hidden');
+        }
+        if (scopeCount) {
+            scopeCount.innerHTML = `Locations <span class="status-pill completed" style="margin-left: 8px;">${activePolygons.length} AOI(s)</span>`;
+        }
+        if (scopeInst) {
+            scopeInst.textContent = "Click an AOI to inspect or edit bounds";
+        }
+    }
+}
+
+// --- RATE-LIMITED PLACE SEARCH WITH LOCAL STORAGE CACHING ---
+let searchCache = {};
+try {
+    const cached = localStorage.getItem('oberon_search_cache');
+    if (cached) searchCache = JSON.parse(cached);
+} catch (e) {
+    console.warn('Failed to load search cache:', e);
+}
+
+let searchDebounceTimeout = null;
+
+function initMapSearch() {
+    const input = document.getElementById('map-search-input');
+    const resultsContainer = document.getElementById('search-results-dropdown');
+    if (!input || !resultsContainer) return;
+
+    input.addEventListener('input', (e) => {
+        const query = e.target.value.trim();
+        if (searchDebounceTimeout) clearTimeout(searchDebounceTimeout);
+
+        if (query.length < 3) {
+            resultsContainer.innerHTML = '';
+            resultsContainer.classList.add('hidden');
+            return;
+        }
+
+        // Return from cache if we have queries already geocoded
+        if (searchCache[query]) {
+            renderSearchResults(searchCache[query]);
+            return;
+        }
+
+        // Capped rate-limiting: 500ms debounce
+        searchDebounceTimeout = setTimeout(() => {
+            fetchGeocoding(query);
+        }, 500);
+    });
+
+    document.addEventListener('click', (e) => {
+        if (!e.target.closest('.search-box')) {
+            resultsContainer.classList.add('hidden');
+        }
+    });
+}
+
+async function fetchGeocoding(query) {
+    const resultsContainer = document.getElementById('search-results-dropdown');
+    try {
+        const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=5`;
+        const res = await fetch(url, {
+            headers: { 'User-Agent': 'Oberon-WebGIS-Console' }
+        });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        
+        // Cache mapping in localStorage
+        searchCache[query] = data;
+        try {
+            localStorage.setItem('oberon_search_cache', JSON.stringify(searchCache));
+        } catch(e) {}
+        
+        renderSearchResults(data);
+    } catch (e) {
+        console.error('Geocoding search failed:', e);
+    }
+}
+
+function renderSearchResults(results) {
+    const resultsContainer = document.getElementById('search-results-dropdown');
+    resultsContainer.innerHTML = '';
+    
+    if (!results || results.length === 0) {
+        resultsContainer.innerHTML = '<div class="search-result-item text-muted">No places found</div>';
+        resultsContainer.classList.remove('hidden');
+        return;
+    }
+    
+    results.forEach(item => {
+        const div = document.createElement('div');
+        div.className = 'search-result-item';
+        div.textContent = item.display_name;
+        div.addEventListener('click', () => {
+            const lat = parseFloat(item.lat);
+            const lon = parseFloat(item.lon);
+            map.setView([lat, lon], 12);
+            
+            // Add visual helper highlight circle
+            const circle = L.circle([lat, lon], {
+                color: 'var(--primary)',
+                fillColor: 'var(--primary)',
+                fillOpacity: 0.15,
+                radius: 1200
+            }).addTo(map);
+            
+            setTimeout(() => {
+                map.removeLayer(circle);
+            }, 4000);
+            
+            resultsContainer.classList.add('hidden');
+            document.getElementById('map-search-input').value = item.display_name;
+            showToast(`Centered map on: ${item.display_name}`, 'info');
+        });
+        resultsContainer.appendChild(div);
+    });
+    resultsContainer.classList.remove('hidden');
+}
+

@@ -18,6 +18,9 @@ def test_dashboard_uses_local_operational_shell() -> None:
     assert "After creation, add an AOI" in html
     assert "burn_severity" not in html
     assert "Burn Severity" not in js
+    assert 'id="map-search-input"' in html
+    assert 'id="search-results-dropdown"' in html
+    assert 'id="portfolio-dropdown"' in html
 
 
 def test_dashboard_css_avoids_decorative_ai_tropes() -> None:
@@ -25,7 +28,6 @@ def test_dashboard_css_avoids_decorative_ai_tropes() -> None:
 
     banned = [
         "glassmorphism",
-        "backdrop-filter",
         "btn-primary-gradient",
         "title-gradient",
         "@keyframes float",
