@@ -8,10 +8,14 @@ let activePortfolioId = null;
 let activePortfolioName = '';
 let activePolygonsCount = 0;
 let pollTimeoutId = null;
+let runsWereActive = false; // true while a poll cycle has in-flight jobs
 
 let activePolygons = [];
-let editLayer = null;
-let editHandles = [];
+// AOI editing is delegated to Leaflet-Geoman (draw / drag / resize / vertex edit).
+// aoiLayersById maps an AOI id to its editable Leaflet layer so list + map clicks
+// can focus and edit the same shape.
+let aoiLayersById = {};
+let activeEditLayer = null;
 let activeEditAoiId = null;
 let latestFindingsData = null;
 
@@ -27,21 +31,12 @@ function signalLabel(task) {
 let approvedCount = 0;
 let rejectedCount = 0;
 
-// Interactive Drawing States
-let isDrawing = false;
-let drawMode = null; // 'polygon' or 'bbox'
-let drawPoints = [];
-let drawLayerGroup = null;
-let drawPreviewLine = null;
-let drawMarkers = [];
-
 // ---- Native Dialog References ----
 let newPortfolioDialog = null;
 let addPolygonDialog = null;
 let runConfirmDialog = null;
 let deleteConfirmDialog = null;
 let guideDialog = null;
-let portfolioStep = 1;
 
 // ---- Initialization ----
 document.addEventListener('DOMContentLoaded', () => {
@@ -69,6 +64,8 @@ document.addEventListener('DOMContentLoaded', () => {
     
     satelliteMap.addTo(map);
 
+    // Both controls stack at top-left; CSS shifts that corner clear of the
+    // top-nav and the sidebar (see .leaflet-top.leaflet-left in style.css).
     L.control.zoom({ position: 'topleft' }).addTo(map);
 
     // Layer control to switch views
@@ -77,16 +74,15 @@ document.addEventListener('DOMContentLoaded', () => {
         "Dark map": darkMap,
         "Standard Street Map": streetMap
     };
-    L.control.layers(baseMaps, null, { position: 'topright' }).addTo(map);
+    L.control.layers(baseMaps, null, { position: 'topleft' }).addTo(map);
     setupAttributionToggle();
-    setupDraggableWelcomeCard();
 
     // Disable click/double click event propagation on all overlay HUD panels
     const panels = document.querySelectorAll('.floating-panel, .empty-state-panel, .toast-container, .floating-toolbar');
     panels.forEach(p => L.DomEvent.disableClickPropagation(p));
 
-    // Initialize drawing layer group
-    drawLayerGroup = L.layerGroup().addTo(map);
+    // Wire up Leaflet-Geoman for drawing, dragging, resizing and vertex editing.
+    initGeoman();
 
     // Coordinate display tracking mouse and touch/click movements
     const updateCoords = (e) => {
@@ -97,10 +93,6 @@ document.addEventListener('DOMContentLoaded', () => {
     };
     map.on('mousemove', updateCoords);
     map.on('click', updateCoords);
-
-    // Handle clicks/double clicks for drawing
-    map.on('click', handleMapClick);
-    map.on('dblclick', handleMapDblClick);
 
     // Initialize Dialogs
     newPortfolioDialog = document.getElementById('new-portfolio-dialog');
@@ -119,16 +111,12 @@ document.addEventListener('DOMContentLoaded', () => {
     // Workspace Actions header setup
     const navDrawPolyBtn = document.getElementById('nav-draw-poly-btn');
     if (navDrawPolyBtn) {
-        navDrawPolyBtn.addEventListener('click', () => {
-            if (activePortfolioId) startDrawing('polygon');
-        });
+        navDrawPolyBtn.addEventListener('click', () => enableDraw('polygon'));
     }
 
     const navDrawBBoxBtn = document.getElementById('nav-draw-bbox-btn');
     if (navDrawBBoxBtn) {
-        navDrawBBoxBtn.addEventListener('click', () => {
-            if (activePortfolioId) startDrawing('bbox');
-        });
+        navDrawBBoxBtn.addEventListener('click', () => enableDraw('bbox'));
     }
 
     const navRunBtn = document.getElementById('nav-run-btn');
@@ -193,45 +181,46 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
-    // Drawing Trigger Actions
+    // Drawing triggers — manual GeoJSON dialog buttons (power-user / agent path)
     const drawPolyBtn = document.getElementById('draw-poly-btn');
-    if (drawPolyBtn) drawPolyBtn.addEventListener('click', () => startDrawing('polygon'));
-    
-    const drawBBoxBtn = document.getElementById('draw-bbox-btn');
-    if (drawBBoxBtn) drawBBoxBtn.addEventListener('click', () => startDrawing('bbox'));
-    
-    const drawFinishBtn = document.getElementById('drawing-finish-btn');
-    if (drawFinishBtn) drawFinishBtn.addEventListener('click', finishDrawing);
-    
-    const drawCancelBtn = document.getElementById('drawing-cancel-btn');
-    if (drawCancelBtn) drawCancelBtn.addEventListener('click', cancelDrawing);
+    if (drawPolyBtn) drawPolyBtn.addEventListener('click', () => { addPolygonDialog.close(); enableDraw('polygon'); });
 
-    // Sidebar drawing buttons setup
+    const drawBBoxBtn = document.getElementById('draw-bbox-btn');
+    if (drawBBoxBtn) drawBBoxBtn.addEventListener('click', () => { addPolygonDialog.close(); enableDraw('bbox'); });
+
+    const drawCancelBtn = document.getElementById('drawing-cancel-btn');
+    if (drawCancelBtn) drawCancelBtn.addEventListener('click', () => map.pm.disableDraw());
+
+    // Sidebar drawing buttons — the primary way to add an AOI
     const sidebarDrawPolyBtn = document.getElementById('sidebar-draw-poly-btn');
-    if (sidebarDrawPolyBtn) sidebarDrawPolyBtn.addEventListener('click', () => startDrawing('polygon'));
+    if (sidebarDrawPolyBtn) sidebarDrawPolyBtn.addEventListener('click', () => enableDraw('polygon'));
 
     const sidebarDrawBBoxBtn = document.getElementById('sidebar-draw-bbox-btn');
-    if (sidebarDrawBBoxBtn) sidebarDrawBBoxBtn.addEventListener('click', () => startDrawing('bbox'));
+    if (sidebarDrawBBoxBtn) sidebarDrawBBoxBtn.addEventListener('click', () => enableDraw('bbox'));
 
+    const sidebarPasteBtn = document.getElementById('sidebar-paste-geojson-btn');
+    if (sidebarPasteBtn) sidebarPasteBtn.addEventListener('click', () => {
+        if (activePortfolioId) addPolygonOpen(activePortfolioId);
+    });
+
+    // Clicking empty map deselects / ends the current edit session
     map.on('click', (e) => {
-        if (!isDrawing) {
-            // Click outside handle/path should clear active edit mode
-            if (e.originalEvent && e.originalEvent.target && e.originalEvent.target.id === 'map') {
-                clearEditHandles();
-                document.querySelectorAll('.aoi-list-item').forEach(item => item.classList.remove('active'));
-            }
+        if (map.pm.globalDrawModeEnabled()) return;
+        if (e.originalEvent && e.originalEvent.target && e.originalEvent.target.id === 'map') {
+            disableActiveEditing();
+            document.querySelectorAll('.aoi-list-item').forEach(item => item.classList.remove('active'));
         }
     });
 
     // Form Submissions (WebMCP support)
     document.getElementById('create-portfolio-form').addEventListener('submit', handleCreatePortfolio);
-    initPortfolioWizard();
     document.getElementById('add-polygon-form').addEventListener('submit', handleAddPolygon);
     document.getElementById('calibrate-btn').addEventListener('click', handleCalibrate);
 
     // Initializations
     initMapSearch();
     initPanelCollapses();
+    initSidebarTabs();
     
     // Switcher Dropdown listener
     const portfolioDropdown = document.getElementById('portfolio-dropdown');
@@ -265,38 +254,8 @@ function registerBackdropDismiss(dialog) {
 
 function openPortfolioDialog() {
     document.getElementById('create-portfolio-form').reset();
-    showPortfolioStep(1);
     newPortfolioDialog.showModal();
     setTimeout(() => document.getElementById('port-name')?.focus(), 0);
-}
-
-function initPortfolioWizard() {
-    const next = document.getElementById('portfolio-step-next');
-    const back = document.getElementById('portfolio-step-back');
-    if (next) {
-        next.addEventListener('click', () => {
-            if (portfolioStep === 1 && !document.getElementById('port-name').reportValidity()) return;
-            showPortfolioStep(portfolioStep + 1);
-        });
-    }
-    if (back) {
-        back.addEventListener('click', () => showPortfolioStep(portfolioStep - 1));
-    }
-}
-
-function showPortfolioStep(step) {
-    portfolioStep = Math.max(1, Math.min(3, step));
-    document.querySelectorAll('.portfolio-step').forEach(el => {
-        el.classList.toggle('active', el.dataset.step === String(portfolioStep));
-    });
-    document.querySelectorAll('[data-step-marker]').forEach(el => {
-        el.classList.toggle('active', Number(el.dataset.stepMarker) === portfolioStep);
-    });
-    const label = document.getElementById('portfolio-step-label');
-    if (label) label.textContent = `Step ${portfolioStep} of 3`;
-    document.getElementById('portfolio-step-back')?.classList.toggle('hidden', portfolioStep === 1);
-    document.getElementById('portfolio-step-next')?.classList.toggle('hidden', portfolioStep === 3);
-    document.getElementById('portfolio-submit')?.classList.toggle('hidden', portfolioStep !== 3);
 }
 
 // ---- Toast Notifications ----
@@ -332,38 +291,6 @@ function setupAttributionToggle() {
     button.addEventListener('click', () => {
         const isHidden = panel.classList.toggle('hidden');
         button.setAttribute('aria-expanded', String(!isHidden));
-    });
-}
-
-function setupDraggableWelcomeCard() {
-    const card = document.querySelector('.empty-state-panel');
-    const workspace = document.getElementById('workspace-container');
-    if (!card || !workspace) return;
-
-    let drag = null;
-    card.addEventListener('pointerdown', (event) => {
-        if (event.target.closest('button')) return;
-        card.setPointerCapture(event.pointerId);
-        const cardRect = card.getBoundingClientRect();
-        drag = {
-            offsetX: event.clientX - cardRect.left,
-            offsetY: event.clientY - cardRect.top,
-        };
-    });
-
-    card.addEventListener('pointermove', (event) => {
-        if (!drag) return;
-        const workspaceRect = workspace.getBoundingClientRect();
-        const maxLeft = workspaceRect.width - card.offsetWidth - 12;
-        const maxTop = workspaceRect.height - card.offsetHeight - 12;
-        const left = Math.max(12, Math.min(maxLeft, event.clientX - workspaceRect.left - drag.offsetX));
-        const top = Math.max(12, Math.min(maxTop, event.clientY - workspaceRect.top - drag.offsetY));
-        card.style.left = `${left}px`;
-        card.style.top = `${top}px`;
-    });
-
-    card.addEventListener('pointerup', () => {
-        drag = null;
     });
 }
 
@@ -456,10 +383,11 @@ async function handleCreatePortfolio(event) {
         if (!res.ok) throw new Error(await res.text());
         const data = await res.json();
         
-        showToast(`Portfolio "${name}" created. Add an AOI to define the location.`, 'success');
+        showToast(`Portfolio "${name}" created. Draw the first AOI on the map.`, 'success');
         loadPortfolios();
         await selectPortfolio(data.id);
-        setTimeout(() => addPolygonOpen(data.id), 150);
+        // Drop straight into drawing — no redundant GeoJSON-paste step.
+        setTimeout(() => enableDraw('polygon'), 200);
         return `Portfolio ${name} created with ID ${data.id}`;
     }).catch(e => {
         showToast(`Create failed: ${e.message}`, 'danger');
@@ -492,7 +420,7 @@ function deletePortfolioConfirm(id, name) {
                 activePortfolioId = null;
                 activePortfolioName = '';
                 activePolygonsCount = 0;
-                clearEditHandles();
+                disableActiveEditing();
                 if (activeLayer) map.removeLayer(activeLayer);
                 document.getElementById('active-portfolio-title').textContent = 'No Portfolio Selected';
                 document.getElementById('active-portfolio-meta').classList.add('hidden');
@@ -641,7 +569,9 @@ window.selectPortfolio = async function(id) {
         document.getElementById('sidebar-before-range').textContent = `${portfolio.before_from} to ${portfolio.before_to}`;
         document.getElementById('sidebar-after-range').textContent = `${portfolio.after_from} to ${portfolio.after_to}`;
         document.getElementById('sidebar-cloud-max').textContent = `${Math.round(portfolio.max_cloud_fraction * 100)}%`;
-        document.getElementById('sidebar-ai-status').textContent = portfolio.use_ai ? 'Enabled' : 'Disabled';
+        const aiStatusEl = document.getElementById('sidebar-ai-status');
+        aiStatusEl.textContent = portfolio.use_ai ? 'Enabled' : 'Disabled';
+        aiStatusEl.classList.toggle('status-active', portfolio.use_ai); // green only when on
 
         // Parallel fetch of polygons, findings, and reviews
         const [polyRes, findingsRes, reviewsRes] = await Promise.all([
@@ -672,8 +602,10 @@ window.selectPortfolio = async function(id) {
         
         displayOnMap(activePolygons, findings);
         
-        // Start run history polling
+        // Start run history polling (findings already drawn above, so don't
+        // let the first poll trigger a redundant reload).
         if (pollTimeoutId) clearTimeout(pollTimeoutId);
+        runsWereActive = false;
         pollRunHistory(id);
 
     } catch (e) {
@@ -684,43 +616,61 @@ window.selectPortfolio = async function(id) {
 // ---- Map rendering ----
 function displayOnMap(polygons, findings) {
     if (activeLayer) map.removeLayer(activeLayer);
+    disableActiveEditing();
+    aoiLayersById = {};
     const group = L.layerGroup();
-    
+
     let firstBounds = null;
 
-    // Draw AOI boundaries in blue
+    // Draw AOI boundaries. Each AOI is a Geoman-editable polygon: click to focus,
+    // then drag the body to move or drag a vertex to reshape.
     (polygons || []).forEach(poly => {
         const geom = JSON.parse(poly.geometry_json);
-        const layer = L.geoJSON(geom, {
-            style: { color: '#388bfd', weight: 2.5, fillOpacity: 0.05, dashArray: '4, 4' },
+        const gj = L.geoJSON(geom, {
+            style: { color: '#22d3ee', weight: 2.5, fillOpacity: 0.06, dashArray: '4, 4' },
+            pmIgnore: false,
         });
-        layer.bindPopup(`<strong>AOI: ${escapeHtml(poly.label || 'Unnamed plot')}</strong>`);
-        layer.on('click', (ev) => {
+
+        // Each AOI is a single Polygon; grab its concrete vector layer to edit.
+        let editable = null;
+        gj.eachLayer(child => { if (!editable) editable = child; });
+
+        gj.bindPopup(`<strong>AOI: ${escapeHtml(poly.label || 'Unnamed plot')}</strong>`);
+        gj.on('click', (ev) => {
             L.DomEvent.stopPropagation(ev);
-            startEditingAoi(poly.id, poly.geometry_json);
+            focusAndEditAoi(poly.id);
         });
-        group.addLayer(layer);
-        
-        if (!firstBounds) {
-            firstBounds = L.geoJSON(geom).getBounds();
+
+        if (editable) {
+            aoiLayersById[poly.id] = editable;
+            // Persist after a vertex edit or a whole-shape drag. Geoman has already
+            // mutated the layer in place, so we save without re-rendering (which
+            // would tear down the active edit handles mid-session).
+            editable.on('pm:edit pm:dragend', () => {
+                saveEditedGeometry(poly.id, editable.toGeoJSON().geometry);
+            });
         }
+
+        group.addLayer(gj);
+        if (!firstBounds) firstBounds = gj.getBounds();
     });
 
-    // Draw change findings in bright orange/yellow
+    // Draw change findings in amber. Findings are read-only — Geoman skips them.
     if (findings && findings.features) {
         L.geoJSON(findings, {
-            style: { color: '#f0883e', weight: 2, fillOpacity: 0.35 },
+            pmIgnore: true,
+            style: { color: '#f59e0b', weight: 2, fillOpacity: 0.35 },
             onEachFeature: (feature, layer) => {
                 const props = feature.properties || {};
                 const score = props.change_score || props.score || 0;
                 const area = props.changed_area_m2 || Math.round((props.area_ha || 0) * 10000);
-                
+
                 layer.bindPopup(
                     `<strong>Change finding</strong><br>` +
                     `Score: <b>${score.toFixed(3)}</b><br>` +
                     `Area: <b>${area.toLocaleString()} m2</b>`
                 );
-                
+
                 layer.on('click', () => showFindingDetail(feature));
             },
         }).addTo(group);
@@ -730,8 +680,8 @@ function displayOnMap(polygons, findings) {
     activeLayer = group;
 
     // Fit map view to bounds
-    if (firstBounds) {
-        map.fitBounds(firstBounds, { padding: [50, 50] });
+    if (firstBounds && firstBounds.isValid()) {
+        map.fitBounds(firstBounds, { padding: [60, 60], maxZoom: 16 });
     }
 }
 
@@ -749,14 +699,43 @@ async function pollRunHistory(portfolioId) {
         // Check if any jobs are still running or pending
         const isRunning = runs.some(r => r.status === 'pending' || r.status === 'running');
         if (isRunning) {
+            runsWereActive = true;
             // Poll again in 5s
             pollTimeoutId = setTimeout(() => pollRunHistory(portfolioId), 5000);
             document.getElementById('run-status-indicator').innerHTML = '<span class="text-running">Running: Analysis running in background... auto-refreshing.</span>';
         } else {
             document.getElementById('run-status-indicator').textContent = 'Finalized';
+            // Jobs just finished this cycle — pull the fresh findings onto the map.
+            // Without this, the run cards flip to "completed" but the map stays
+            // empty until the user manually reselects the portfolio.
+            if (runsWereActive) {
+                runsWereActive = false;
+                reloadFindings(portfolioId);
+            }
         }
     } catch (e) {
         console.error('Failed to load run history:', e);
+    }
+}
+
+// Re-fetch polygons + findings and repaint the map (used after a run completes).
+async function reloadFindings(portfolioId) {
+    if (activePortfolioId !== portfolioId) return;
+    try {
+        const [polyRes, findingsRes] = await Promise.all([
+            fetch(`${API}/portfolios/${portfolioId}/polygons`),
+            fetch(`${API}/portfolios/${portfolioId}/findings`),
+        ]);
+        activePolygons = await polyRes.json();
+        latestFindingsData = await findingsRes.json();
+        activePolygonsCount = activePolygons.length;
+        renderAoiList(activePolygons);
+        updateAoiStatusIndicators();
+        displayOnMap(activePolygons, latestFindingsData);
+        const n = (latestFindingsData.features || []).length;
+        if (n > 0) showToast(`${n} change finding${n === 1 ? '' : 's'} on the map — click one to view evidence.`, 'success');
+    } catch (e) {
+        console.error('Failed to reload findings:', e);
     }
 }
 
@@ -1044,173 +1023,92 @@ function escapeHtml(s) {
     return d.innerHTML;
 }
 
-// ---- Interactive Map Drawing Functions ----
-function startDrawing(mode) {
-    addPolygonDialog.close();
-    isDrawing = true;
-    drawMode = mode;
-    drawPoints = [];
-    drawMarkers.forEach(m => map.removeLayer(m));
-    drawMarkers = [];
-    if (drawPreviewLine) {
-        map.removeLayer(drawPreviewLine);
-        drawPreviewLine = null;
-    }
-    drawLayerGroup.clearLayers();
+// ---- Geoman: draw / drag / resize / vertex-edit ----
+// Geoman is the battle-tested Leaflet editing toolkit; it replaces the previous
+// hand-rolled vertex math (which leaked map listeners and threw on every drag).
+function initGeoman() {
+    map.pm.setGlobalOptions({
+        snappable: true,
+        snapDistance: 16,
+        allowSelfIntersection: false,
+        continueDrawing: false, // one shape per draw, then hand off to edit
+        templineStyle: { color: '#22d3ee' },
+        hintlineStyle: { color: '#22d3ee', dashArray: '5, 5' },
+        pathOptions: { color: '#22d3ee', weight: 2.5, fillOpacity: 0.12 },
+    });
 
-    // Disable double click zoom while drawing
-    map.doubleClickZoom.disable();
+    // Show the cancel toolbar only while a draw is in progress.
+    map.on('pm:drawstart', () => {
+        document.getElementById('drawing-toolbar').classList.remove('hidden');
+        document.getElementById('map').style.cursor = 'crosshair';
+    });
+    map.on('pm:drawend', () => {
+        document.getElementById('drawing-toolbar').classList.add('hidden');
+        document.getElementById('map').style.cursor = '';
+    });
 
-    // Show toolbar
-    const toolbar = document.getElementById('drawing-toolbar');
-    toolbar.classList.remove('hidden');
-    
-    const instructions = document.getElementById('drawing-instructions');
-    if (mode === 'polygon') {
-        instructions.textContent = "Click map to add vertices. Double-click or click first point to close polygon.";
-    } else {
-        instructions.textContent = "Click map for Point 1 (corner), then opposite corner for Point 2.";
-    }
-
-    document.getElementById('map').style.cursor = 'crosshair';
-}
-
-function handleMapClick(e) {
-    if (!isDrawing) return;
-    
-    const latlng = e.latlng;
-    
-    if (drawMode === 'polygon') {
-        drawPoints.push(latlng);
-        
-        // Circle vertex marker
-        const marker = L.circleMarker(latlng, {
-            radius: 5,
-            fillColor: '#58a6ff',
-            color: '#fff',
-            weight: 1.5,
-            fillOpacity: 1
-        }).addTo(map);
-        drawMarkers.push(marker);
-
-        // Click first point to finish
-        if (drawPoints.length > 2) {
-            marker.on('click', (ev) => {
-                L.DomEvent.stopPropagation(ev);
-                finishDrawing();
-            });
-        }
-        
-        if (drawPreviewLine) map.removeLayer(drawPreviewLine);
-        
-        if (drawPoints.length > 1) {
-            drawPreviewLine = L.polygon(drawPoints, {
-                color: '#58a6ff',
-                weight: 2,
-                fillOpacity: 0.1,
-                dashArray: '3, 5'
-            }).addTo(map);
-        }
-    } else if (drawMode === 'bbox') {
-        drawPoints.push(latlng);
-        
-        const marker = L.circleMarker(latlng, {
-            radius: 5,
-            fillColor: '#3fbc55',
-            color: '#fff',
-            weight: 1.5,
-            fillOpacity: 1
-        }).addTo(map);
-        drawMarkers.push(marker);
-        
-        if (drawPoints.length === 1) {
-            document.getElementById('drawing-instructions').textContent = "Corner 1 saved. Click opposite corner to complete bounding box.";
-        } else if (drawPoints.length === 2) {
-            if (drawPreviewLine) map.removeLayer(drawPreviewLine);
-            
-            const bounds = L.latLngBounds(drawPoints[0], drawPoints[1]);
-            drawPreviewLine = L.rectangle(bounds, {
-                color: '#3fbc55',
-                weight: 2,
-                fillOpacity: 0.1
-            }).addTo(map);
-            
-            finishDrawing();
-        }
-    }
-}
-
-function handleMapDblClick(e) {
-    if (isDrawing && drawMode === 'polygon') {
-        finishDrawing();
-    }
-}
-
-function finishDrawing() {
-    if (!isDrawing) return;
-    
-    let geojson = null;
-    
-    if (drawMode === 'polygon') {
-        if (drawPoints.length < 3) {
-            showToast("Polygon requires at least 3 vertices.", "warning");
+    // A finished draw becomes a new AOI. Drop Geoman's temp layer — displayOnMap
+    // re-renders the AOI from the API as an editable layer.
+    map.on('pm:create', (e) => {
+        const geometry = e.layer.toGeoJSON().geometry;
+        map.removeLayer(e.layer);
+        if (!activePortfolioId) {
+            showToast('Select or create a portfolio before drawing an AOI.', 'warning');
             return;
         }
-        const coords = drawPoints.map(p => [p.lng, p.lat]);
-        coords.push(coords[0]); // close loop
-        geojson = {
-            type: "Polygon",
-            coordinates: [coords]
-        };
-    } else if (drawMode === 'bbox') {
-        if (drawPoints.length < 2) {
-            showToast("Bounding box requires 2 corners.", "warning");
-            return;
+        autoCreateDrawnAoi(geometry);
+    });
+}
+
+function enableDraw(mode) {
+    if (!activePortfolioId) {
+        showToast('Select or create a portfolio first.', 'warning');
+        return;
+    }
+    disableActiveEditing();
+    const instr = document.getElementById('drawing-instructions');
+    if (instr) {
+        instr.textContent = mode === 'bbox'
+            ? 'Click one corner, then drag to the opposite corner.'
+            : 'Click to add vertices; double-click or click the first point to finish.';
+    }
+    map.pm.enableDraw(mode === 'bbox' ? 'Rectangle' : 'Polygon');
+}
+
+// Focus an AOI (from the map or the sidebar list) and turn on edit + drag for it.
+function focusAndEditAoi(id) {
+    const layer = aoiLayersById[id];
+    if (!layer) return;
+
+    document.querySelectorAll('.aoi-list-item').forEach(i => i.classList.remove('active'));
+    const item = document.getElementById(`aoi-item-${id}`);
+    if (item) item.classList.add('active');
+
+    if (layer.getBounds) {
+        map.fitBounds(layer.getBounds(), { padding: [60, 60], maxZoom: 16 });
+    }
+
+    if (activeEditAoiId === id) return; // already editing this shape
+    disableActiveEditing();
+    activeEditLayer = layer;
+    activeEditAoiId = id;
+    layer.pm.enable({ allowSelfIntersection: false });
+    if (typeof layer.pm.enableLayerDrag === 'function') layer.pm.enableLayerDrag();
+}
+
+function disableActiveEditing() {
+    if (activeEditLayer && activeEditLayer.pm) {
+        try {
+            if (typeof activeEditLayer.pm.disableLayerDrag === 'function') {
+                activeEditLayer.pm.disableLayerDrag();
+            }
+            activeEditLayer.pm.disable();
+        } catch (err) {
+            console.warn('Failed to disable AOI editing:', err);
         }
-        const p1 = drawPoints[0];
-        const p2 = drawPoints[1];
-        const minLng = Math.min(p1.lng, p2.lng);
-        const maxLng = Math.max(p1.lng, p2.lng);
-        const minLat = Math.min(p1.lat, p2.lat);
-        const maxLat = Math.max(p1.lat, p2.lat);
-        
-        geojson = {
-            type: "Polygon",
-            coordinates: [[
-                [minLng, minLat],
-                [maxLng, minLat],
-                [maxLng, maxLat],
-                [minLng, maxLat],
-                [minLng, minLat]
-            ]]
-        };
     }
-    
-    if (geojson) {
-        autoCreateDrawnAoi(geojson);
-    }
-    
-    cleanupDrawing();
-}
-
-function cancelDrawing() {
-    cleanupDrawing();
-}
-
-function cleanupDrawing() {
-    isDrawing = false;
-    drawMode = null;
-    drawPoints = [];
-    drawMarkers.forEach(m => map.removeLayer(m));
-    drawMarkers = [];
-    if (drawPreviewLine) {
-        map.removeLayer(drawPreviewLine);
-        drawPreviewLine = null;
-    }
-    
-    map.doubleClickZoom.enable();
-    document.getElementById('drawing-toolbar').classList.add('hidden');
-    document.getElementById('map').style.cursor = '';
+    activeEditLayer = null;
+    activeEditAoiId = null;
 }
 
 // AOI rendering list, edit mode, renaming and deletion helper functions
@@ -1236,7 +1134,7 @@ function renderAoiList(polygons) {
                        onchange="updateAoiLabel('${poly.id}', this.value)" 
                        onclick="event.stopPropagation();" />
                 <div class="row gap-2">
-                    <button class="btn-icon btn-small" title="Locate & Edit" onclick="event.stopPropagation(); startEditingAoi('${poly.id}', '${escapeHtml(poly.geometry_json)}')">
+                    <button class="btn-icon btn-small" title="Locate &amp; edit" onclick="event.stopPropagation(); focusAndEditAoi('${poly.id}')">
                         👁
                     </button>
                     <button class="btn-icon btn-small text-danger" title="Delete AOI" onclick="event.stopPropagation(); deleteAoiDirect('${poly.id}')">
@@ -1245,129 +1143,23 @@ function renderAoiList(polygons) {
                 </div>
             </div>
         `;
-        
+
         div.addEventListener('click', () => {
-            startEditingAoi(poly.id, poly.geometry_json);
+            focusAndEditAoi(poly.id);
         });
         
         container.appendChild(div);
     });
 }
 
-function startEditingAoi(id, geomJson) {
-    document.querySelectorAll('.aoi-list-item').forEach(item => item.classList.remove('active'));
-    const activeItem = document.getElementById(`aoi-item-${id}`);
-    if (activeItem) activeItem.classList.add('active');
-
-    const geom = JSON.parse(geomJson);
-    const tempLayer = L.geoJSON(geom);
-    map.fitBounds(tempLayer.getBounds(), { padding: [40, 40] });
-    
-    activeEditAoiId = id;
-    
-    if (editLayer) map.removeLayer(editLayer);
-    clearEditHandles();
-    
-    const coords = geom.coordinates;
-    const latlngs = coords[0].map(p => L.latLng(p[1], p[0]));
-    const editLatlngs = latlngs.slice(0, -1);
-    
-    editLayer = L.polygon(latlngs, {
-        color: '#4f8cff',
-        weight: 3,
-        fillOpacity: 0.15,
-        dashArray: '5, 5'
-    }).addTo(map);
-    
-    editLatlngs.forEach((latlng, idx) => {
-        const handle = L.marker(latlng, {
-            draggable: true,
-            icon: createHandleIcon()
-        }).addTo(map);
-        
-        handle.on('drag', (e) => {
-            const newLatLng = e.target.getLatLng();
-            editLatlngs[idx] = newLatLng;
-            const newCoords = [...editLatlngs, editLatlngs[0]];
-            editLayer.setLatLngs(newCoords);
-            if (centerHandle) centerHandle.setLatLng(editLayer.getBounds().getCenter());
-        });
-        
-        handle.on('dragend', () => {
-            const finalCoords = editLatlngs.map(p => [p.lng, p.lat]);
-            finalCoords.push(finalCoords[0]);
-            const geom = { type: 'Polygon', coordinates: [finalCoords] };
-            saveEditedGeometry(id, geom);
-        });
-        
-        editHandles.push(handle);
-    });
-    
-    // Native polygon dragging
-    let draggingPolygon = false;
-    let dragStartPoint = null;
-
-    editLayer.on('mousedown', (e) => {
-        L.DomEvent.stopPropagation(e.originalEvent);
-        draggingPolygon = true;
-        dragStartPoint = e.latlng;
-        map.dragging.disable();
-    });
-
-    map.on('mousemove', (e) => {
-        if (!draggingPolygon) return;
-        
-        const deltaLat = e.latlng.lat - dragStartPoint.lat;
-        const deltaLng = e.latlng.lng - dragStartPoint.lng;
-        
-        editLatlngs.forEach((p, idx) => {
-            editLatlngs[idx] = L.latLng(p.lat + deltaLat, p.lng + deltaLng);
-        });
-        
-        const newCoords = [...editLatlngs, editLatlngs[0]];
-        editLayer.setLatLngs(newCoords);
-        
-        editHandles.forEach((handle, idx) => {
-            handle.setLatLng(editLatlngs[idx]);
-        });
-        
-        dragStartPoint = e.latlng;
-    });
-
-    map.on('mouseup', () => {
-        if (draggingPolygon) {
-            draggingPolygon = false;
-            map.dragging.enable();
-            
-            const finalCoords = editLatlngs.map(p => [p.lng, p.lat]);
-            finalCoords.push(finalCoords[0]);
-            const geom = { type: 'Polygon', coordinates: [finalCoords] };
-            saveEditedGeometry(id, geom);
-        }
-    });
-}
-
-function clearEditHandles() {
-    editHandles.forEach(h => map.removeLayer(h));
-    editHandles = [];
-    if (editLayer) {
-        map.removeLayer(editLayer);
-        editLayer = null;
-    }
-    activeEditAoiId = null;
-}
-
-function createHandleIcon(isCenter = false) {
-    const size = isCenter ? 12 : 8;
-    return L.divIcon({
-        className: `edit-handle-icon${isCenter ? ' center' : ''}`,
-        html: '<div class="edit-handle-dot"></div>',
-        iconSize: [size, size]
-    });
-}
-
 async function autoCreateDrawnAoi(geometry) {
-    const label = `Plot ${activePolygonsCount + 1}`;
+    // Derive the next number from existing labels so two quick draws don't both
+    // land on "Plot 2" when the cached count is momentarily stale.
+    const maxNum = (activePolygons || []).reduce((max, p) => {
+        const m = /(\d+)\s*$/.exec(p.label || '');
+        return m ? Math.max(max, Number(m[1])) : max;
+    }, 0);
+    const label = `Plot ${maxNum + 1}`;
     const payload = { geometry, label };
     
     try {
@@ -1381,10 +1173,10 @@ async function autoCreateDrawnAoi(geometry) {
         showToast(`AOI "${label}" created.`, "success");
         
         await selectPortfolio(activePortfolioId);
-        
+
         if (activePolygons.length > 0) {
-            const newPoly = activePolygons[activePolygons.length - 1];
-            startEditingAoi(newPoly.id, newPoly.geometry_json);
+            const newPoly = activePolygons.at(-1);
+            focusAndEditAoi(newPoly.id);
         }
     } catch (e) {
         showToast(`Failed to create AOI: ${e.message}`, "danger");
@@ -1394,23 +1186,18 @@ async function autoCreateDrawnAoi(geometry) {
 async function saveEditedGeometry(id, geometry) {
     const poly = activePolygons.find(p => p.id === id);
     if (!poly) return;
-    
-    const label = poly.label;
-    const payload = { geometry, label };
-    
+
     try {
         const res = await fetch(`${API}/polygons/${id}`, {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
+            body: JSON.stringify({ geometry, label: poly.label })
         });
         if (!res.ok) throw new Error(await res.text());
-        showToast("AOI bounds auto-saved.", "success");
-        
-        const polyRes = await fetch(`${API}/portfolios/${activePortfolioId}/polygons`);
-        activePolygons = await polyRes.json();
-        
-        refreshDisplayLayers();
+        // Geoman already updated the layer in place; just keep memory in sync.
+        // Re-rendering here would destroy the live edit handles mid-session.
+        poly.geometry_json = JSON.stringify(geometry);
+        showToast("AOI bounds saved.", "success");
     } catch (e) {
         showToast(`Auto-save failed: ${e.message}`, "danger");
     }
@@ -1454,12 +1241,12 @@ async function deleteAoiDirect(id) {
         showToast("AOI deleted.", "success");
         
         if (activeEditAoiId === id) {
-            clearEditHandles();
+            disableActiveEditing();
         }
-        
+
         const polyRes = await fetch(`${API}/portfolios/${activePortfolioId}/polygons`);
         activePolygons = await polyRes.json();
-        
+
         renderAoiList(activePolygons);
         refreshDisplayLayers();
         updateAoiStatusIndicators();
@@ -1478,14 +1265,17 @@ function initPanelCollapses() {
     const sidebarToggle = document.getElementById('sidebar-toggle-btn');
     const sidebarClose = document.getElementById('sidebar-close-btn');
 
+    const appEl = document.getElementById('app');
     if (sidebarToggle && sidebar && sidebarClose) {
         sidebarClose.addEventListener('click', () => {
             sidebar.classList.add('collapsed');
             sidebarToggle.classList.remove('hidden');
+            appEl.classList.add('sidebar-collapsed'); // slides map controls to the edge
         });
         sidebarToggle.addEventListener('click', () => {
             sidebar.classList.remove('collapsed');
             sidebarToggle.classList.add('hidden');
+            appEl.classList.remove('sidebar-collapsed');
         });
     }
 
@@ -1497,6 +1287,35 @@ function initPanelCollapses() {
             detailPanel.classList.add('hidden');
         });
     }
+}
+
+// Sidebar shows one panel at a time (Areas / Setup / Review) instead of three
+// stacked accordions — keeps content from clipping and removes per-section
+// minimize controls. The whole sidebar still collapses as one unit.
+function initSidebarTabs() {
+    const tabs = document.querySelectorAll('.sidebar-tab');
+    const panels = document.querySelectorAll('.tab-panel');
+    if (!tabs.length) return;
+
+    tabs.forEach(tab => {
+        tab.addEventListener('click', () => {
+            const target = tab.dataset.tab;
+            tabs.forEach(t => {
+                const on = t === tab;
+                t.classList.toggle('active', on);
+                t.setAttribute('aria-selected', String(on));
+            });
+            panels.forEach(p => {
+                p.classList.toggle('active', p.dataset.panel === target);
+            });
+        });
+    });
+}
+
+// Programmatically reveal a sidebar panel (e.g. jump to "Areas" after drawing).
+function showSidebarTab(name) {
+    const tab = document.querySelector(`.sidebar-tab[data-tab="${name}"]`);
+    if (tab) tab.click();
 }
 
 // --- INDICATE IMPROPER/MISSING POLYGON ON PORTFOLIOS ---
@@ -1521,7 +1340,7 @@ function updateAoiStatusIndicators() {
             aoiAlert.classList.remove('hidden');
         }
         if (scopeCount) {
-            scopeCount.textContent = 'Missing AOI';
+            scopeCount.textContent = '0';
             scopeCount.classList.add('failed');
             scopeCount.classList.remove('completed');
         }
@@ -1538,7 +1357,7 @@ function updateAoiStatusIndicators() {
             aoiAlert.classList.add('hidden');
         }
         if (scopeCount) {
-            scopeCount.textContent = `${activePolygons.length} AOI${activePolygons.length === 1 ? '' : 's'}`;
+            scopeCount.textContent = String(activePolygons.length);
             scopeCount.classList.add('completed');
             scopeCount.classList.remove('failed');
         }

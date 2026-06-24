@@ -1,6 +1,9 @@
 :root {
   --bg-dark: #070a13;
-  --surface-glass: rgba(18, 25, 38, 0.7);
+  /* Panels read as a solid instrument over satellite imagery — the glass blur
+     stays, but opacity is high enough that data never washes out (PRODUCT.md:
+     no decorative glass that buries data). */
+  --surface-glass: rgba(13, 19, 30, 0.88);
   --surface-solid: #121926;
   --surface-hover: rgba(255, 255, 255, 0.05);
   --surface-border: rgba(255, 255, 255, 0.1);
@@ -161,6 +164,76 @@ body {
   font-family: var(--font-family) !important;
 }
 
+/* Keep the zoom + layer controls in the clear map zone — below the top-nav and
+   to the right of the sidebar, so the floating chrome never covers them. */
+.leaflet-top.leaflet-left {
+  top: 116px;
+  left: 400px;
+  transition:
+    left 0.4s cubic-bezier(0.16, 1, 0.3, 1),
+    top 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Sidebar hidden → controls move to the edge AND drop below the floating
+   expand (>) toggle so the two never overlap. */
+#app.sidebar-collapsed .leaflet-top.leaflet-left {
+  left: 20px;
+  top: 164px;
+}
+
+.leaflet-control-zoom,
+.leaflet-control-layers {
+  border: 1px solid var(--surface-border) !important;
+  border-radius: var(--radius-sm) !important;
+  box-shadow: var(--shadow-soft) !important;
+  overflow: hidden;
+}
+
+.leaflet-control-zoom a,
+.leaflet-bar a {
+  background: var(--surface-glass);
+  backdrop-filter: blur(var(--blur-strength));
+  -webkit-backdrop-filter: blur(var(--blur-strength));
+  color: var(--text);
+  border-bottom: 1px solid var(--surface-border);
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+/* Crisp, on-brand hover (the default light-gray hover clashed with the dark UI). */
+.leaflet-control-zoom a:hover,
+.leaflet-bar a:hover {
+  background: rgba(14, 165, 233, 0.22);
+  color: #fff;
+}
+
+.leaflet-bar a:active {
+  background: var(--primary);
+}
+
+/* At min/max zoom Leaflet disables a button — keep it on-theme, not white. */
+.leaflet-bar a.leaflet-disabled {
+  background: var(--surface-glass);
+  color: var(--text-subtle);
+  opacity: 0.45;
+  cursor: default;
+}
+
+.leaflet-control-layers-toggle {
+  background-color: var(--surface-glass);
+  backdrop-filter: blur(var(--blur-strength));
+  -webkit-backdrop-filter: blur(var(--blur-strength));
+}
+
+.leaflet-control-layers-expanded {
+  background: var(--surface-glass) !important;
+  backdrop-filter: blur(var(--blur-strength));
+  -webkit-backdrop-filter: blur(var(--blur-strength));
+  color: var(--text);
+  border: 1px solid var(--surface-border) !important;
+  border-radius: var(--radius-sm) !important;
+  padding: 10px 12px !important;
+}
+
 /* Glass Panels */
 .glass-panel {
   background: var(--surface-glass);
@@ -199,16 +272,16 @@ body {
   display: grid;
   place-items: center;
   border-radius: 12px;
-  background: rgba(3, 7, 18, 0.46);
-  border: 1px solid rgba(148, 163, 184, 0.2);
+  /* White plate so the teal/green mark actually reads on the dark console. */
+  background: #ffffff;
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
 }
 
 .brand-logo {
-  width: 32px;
-  height: 32px;
-  color: var(--primary);
+  width: 30px;
+  height: 30px;
   object-fit: contain;
-  filter: drop-shadow(0 0 8px rgba(14, 165, 233, 0.45));
 }
 
 .brand-text h1 {
@@ -536,13 +609,89 @@ body {
   max-width: 26ch;
 }
 
+/* Segmented control — one workspace panel at a time (Areas / Setup / Review).
+   Track + raised active segment, matching the finding-detail image tabs. */
+.sidebar-tabs {
+  display: flex;
+  gap: 4px;
+  margin: 14px 18px 2px;
+  padding: 4px;
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid var(--surface-border);
+  border-radius: var(--radius-md);
+}
+
+.sidebar-tab {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 8px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  color: var(--text-muted);
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: var(--transition);
+}
+
+.sidebar-tab:hover {
+  color: var(--text);
+}
+
+.sidebar-tab.active {
+  color: var(--text);
+  background: var(--surface-solid);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.45);
+}
+
+.sidebar-tab .count-badge {
+  background: rgba(255, 255, 255, 0.08);
+  padding: 1px 6px;
+}
+
+.sidebar-tab.active .count-badge.failed {
+  background: var(--danger-bg);
+  color: var(--danger);
+}
+
+.sidebar-tab.active .count-badge.completed {
+  background: var(--success-bg);
+  color: var(--success);
+}
+
+.tab-panel {
+  display: none;
+}
+
+.tab-panel.active {
+  display: block;
+  animation: tabFade 0.2s ease;
+}
+
+@keyframes tabFade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tab-panel.active {
+    animation: none;
+  }
+}
+
 .sidebar-content {
   flex: 1;
   overflow-y: auto;
   padding: 14px 18px;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
   min-height: 0;
 }
 
@@ -564,51 +713,6 @@ body {
 .sidebar-content::-webkit-scrollbar-thumb:hover,
 .search-results::-webkit-scrollbar-thumb:hover {
   background: rgba(255, 255, 255, 0.2);
-}
-
-.config-section {
-  background: rgba(0, 0, 0, 0.2);
-  border-radius: var(--radius-md);
-  border: 1px solid var(--surface-border);
-  overflow: hidden;
-}
-
-.section-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 11px 14px;
-  cursor: pointer;
-  user-select: none;
-  background: rgba(255, 255, 255, 0.02);
-}
-
-.section-header h3 {
-  font-size: 12px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  color: var(--text-muted);
-}
-
-.collapse-toggle svg {
-  width: 16px;
-  height: 16px;
-  color: var(--text-subtle);
-  transition: transform 0.3s ease;
-}
-
-.collapsible.collapsed .collapse-toggle svg {
-  transform: rotate(180deg);
-}
-
-.collapsible.collapsed .section-body {
-  display: none;
-}
-
-.section-body {
-  padding: 14px;
-  border-top: 1px solid var(--surface-border);
 }
 
 .grid-params {
@@ -640,12 +744,6 @@ body {
 }
 
 /* AOI List */
-.title-with-badge {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
 .count-badge {
   background: var(--surface-hover);
   padding: 2px 8px;
@@ -669,6 +767,34 @@ body {
   font-size: 12px;
   color: var(--text-muted);
   margin-bottom: 12px;
+}
+
+.hint-text {
+  font-size: 12px;
+  color: var(--text-subtle);
+  margin-top: 10px;
+  line-height: 1.5;
+}
+
+.btn-link {
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--primary-hover);
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.btn-link:hover {
+  color: var(--text);
+}
+
+.action-buttons {
+  display: flex;
+  gap: 8px;
 }
 
 .action-buttons button {
@@ -817,18 +943,27 @@ body {
   margin-right: 8px;
 }
 
-/* Run Timeline Sheet (Bottom) */
+/* Run Timeline Sheet (Bottom).
+   Sidebar occupies 20px..380px (left:20 + 360 wide), so the sheet starts at
+   400px to leave a clean 20px gutter — no collision with the sidebar. */
 .bottom-sheet {
   position: absolute;
   bottom: 20px;
-  left: 360px;
+  left: 400px;
   right: 20px;
   border-radius: var(--radius-lg);
   z-index: 800;
   pointer-events: auto;
-  transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+  transition:
+    transform 0.4s cubic-bezier(0.16, 1, 0.3, 1),
+    left 0.4s cubic-bezier(0.16, 1, 0.3, 1);
   display: flex;
   flex-direction: column;
+}
+
+/* When the sidebar is hidden, the sheet reclaims the full width. */
+#sidebar.collapsed ~ .bottom-sheet {
+  left: 20px;
 }
 
 .bottom-sheet.collapsed {
@@ -843,18 +978,6 @@ body {
    chevron off-panel when the long "Running…" indicator is shown. */
 .chevron-icon svg {
   transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-}
-
-.sheet-actions {
-  min-width: 0;
-}
-
-.status-indicator {
-  min-width: 0;
-  max-width: 46ch;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -885,11 +1008,19 @@ body {
   display: flex;
   align-items: center;
   gap: 16px;
+  min-width: 0;
 }
 
+/* Status text truncates instead of shoving the chevron off-panel when the long
+   "Running…" indicator is shown. */
 .status-indicator {
   font-size: 13px;
   color: var(--text-muted);
+  min-width: 0;
+  max-width: 46ch;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .status-indicator.running {
@@ -967,6 +1098,7 @@ body {
   color: var(--text);
   display: -webkit-box;
   -webkit-line-clamp: 2;
+  line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
@@ -1259,41 +1391,6 @@ body {
   width: min(720px, calc(100dvw - 32px));
 }
 
-.portfolio-steps {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 8px;
-  list-style: none;
-  padding: 16px 24px;
-  border-bottom: 1px solid var(--surface-border);
-}
-
-.portfolio-steps li {
-  min-width: 0;
-  padding: 9px 10px;
-  border-radius: var(--radius-sm);
-  background: rgba(255, 255, 255, 0.03);
-  color: var(--text-muted);
-  font-size: 12px;
-  font-weight: 600;
-  text-align: center;
-}
-
-.portfolio-steps li.active {
-  color: var(--text);
-  background: rgba(14, 165, 233, 0.14);
-  border: 1px solid rgba(14, 165, 233, 0.35);
-}
-
-.portfolio-step {
-  display: none;
-  min-height: 330px;
-}
-
-.portfolio-step.active {
-  display: block;
-}
-
 .dialog-note {
   margin: 20px 24px 0;
   padding: 14px 16px;
@@ -1524,8 +1621,10 @@ input:checked + .toggle-slider::before {
 .alert-banner {
   position: absolute;
   top: 96px;
-  left: 50%;
-  transform: translateX(-50%);
+  right: 20px;
+  left: auto;
+  transform: none;
+  max-width: min(520px, calc(100vw - 40px));
   z-index: 800;
   background: var(--warning);
   color: #fff;
@@ -1698,28 +1797,23 @@ input:checked + .toggle-slider::before {
   color: var(--text);
 }
 
-.edit-handle-icon {
-  background: transparent;
-  border: none;
-}
-
-.edit-handle-dot {
-  width: 8px;
-  height: 8px;
-  background: var(--text);
-  border: 2px solid #4f8cff;
-  border-radius: 50%;
-  margin-left: -4px;
-  margin-top: -4px;
+/* Leaflet-Geoman drag/resize/vertex markers, themed to the Oberon accent.
+   .marker-icon = polygon vertices (drag to reshape); .marker-icon-middle =
+   midpoint handles (drag to add a vertex). */
+.leaflet-pm-draggable {
   cursor: move;
-  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
 }
 
-.edit-handle-icon.center .edit-handle-dot {
-  width: 12px;
-  height: 12px;
-  margin-left: -6px;
-  margin-top: -6px;
+.marker-icon,
+.marker-icon-middle {
+  background: #ffffff;
+  border: 2px solid var(--primary-hover);
+  border-radius: 50%;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.45);
+}
+
+.marker-icon-middle {
+  opacity: 0.6;
 }
 
 /* Before / after / overlay comparative imagery */
@@ -1891,7 +1985,8 @@ input:checked + .toggle-slider::before {
   margin-left: 12px;
 }
 
-/* Animations */
+/* Animations — pulse is reserved for the live "Running…" status indicator,
+   a genuine state signal (not decoration). */
 @keyframes pulse {
   0% {
     box-shadow: 0 0 0 0 var(--primary-glow);
@@ -1902,10 +1997,6 @@ input:checked + .toggle-slider::before {
   100% {
     box-shadow: 0 0 0 0 rgba(14, 165, 233, 0);
   }
-}
-
-.animate-pulse {
-  animation: pulse 2s infinite;
 }
 
 /* Drawing Toolbar */
@@ -1922,13 +2013,17 @@ input:checked + .toggle-slider::before {
   box-shadow: var(--shadow-strong);
 }
 
-.floating-center-bottom {
+/* Drawing hint sits in the upper-center — prominent and eyes-up, but clear of
+   the map area being drawn on (dead-center would block the vertices). */
+.floating-center-top {
   position: absolute;
-  bottom: 40px;
+  top: 120px;
   left: 50%;
   transform: translateX(-50%);
   z-index: 1000;
   pointer-events: auto;
+  max-width: calc(100vw - 40px);
+  text-align: center;
 }
 
 /* Responsive */
@@ -1993,22 +2088,11 @@ input:checked + .toggle-slider::before {
   .dialog-content {
     max-height: calc(100dvh - 16px);
   }
-  .portfolio-steps {
-    padding: 12px 16px;
-    gap: 6px;
-  }
-  .portfolio-steps li {
-    padding: 8px 6px;
-    font-size: 11px;
-  }
   .signal-legend,
   .date-windows-grid {
     grid-template-columns: 1fr;
   }
   .grid-2 {
     grid-template-columns: 1fr;
-  }
-  .portfolio-step {
-    min-height: 0;
   }
 }

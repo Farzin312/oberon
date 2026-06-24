@@ -1,13 +1,20 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none" role="img" aria-label="Oberon">
+  <defs>
+    <linearGradient id="oberon-mark" x1="6" y1="10" x2="58" y2="56" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#22d3ee"/>
+      <stop offset="0.55" stop-color="#06b6d4"/>
+      <stop offset="1" stop-color="#10b981"/>
+    </linearGradient>
+  </defs>
   <!-- Monitoring orbit -->
   <ellipse cx="32" cy="33" rx="27" ry="10.5" transform="rotate(-28 32 33)"
-          stroke="currentColor" stroke-width="2.5" opacity="0.5"/>
+          stroke="url(#oberon-mark)" stroke-width="2.5" opacity="0.55"/>
   <!-- Observed area / lens -->
-  <circle cx="32" cy="34" r="15" stroke="currentColor" stroke-width="3"/>
+  <circle cx="32" cy="34" r="15" stroke="url(#oberon-mark)" stroke-width="3"/>
   <!-- Precision reticle -->
-  <circle cx="32" cy="34" r="4" stroke="currentColor" stroke-width="2.5"/>
+  <circle cx="32" cy="34" r="4" stroke="url(#oberon-mark)" stroke-width="2.5"/>
   <path d="M32 13v5M32 49v5M13 34h5M47 34h5"
-        stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/>
+        stroke="url(#oberon-mark)" stroke-width="2.5" stroke-linecap="round"/>
   <!-- Observation node (satellite) — focal point via fill -->
-  <circle cx="55.5" cy="20" r="3.6" fill="currentColor"/>
+  <circle cx="55.5" cy="20" r="3.6" fill="#10b981"/>
 </svg>

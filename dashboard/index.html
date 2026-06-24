@@ -5,10 +5,21 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Oberon Monitor</title>
     <link rel="icon" type="image/svg+xml" href="logo.svg" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
     <!-- Leaflet CSS -->
     <link
       rel="stylesheet"
       href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    />
+    <!-- Leaflet-Geoman: draw / drag / resize / vertex-edit for AOIs -->
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/@geoman-io/leaflet-geoman-free@2/dist/leaflet-geoman.css"
     />
     <link rel="stylesheet" href="style.css" />
   </head>
@@ -102,26 +113,96 @@
           </button>
         </div>
 
+        <!-- One panel visible at a time — no stacked accordions to clip or
+             individually minimize. The whole sidebar collapses as one unit. -->
+        <div class="sidebar-tabs" role="tablist" aria-label="Workspace panels">
+          <button
+            type="button"
+            class="sidebar-tab active"
+            data-tab="areas"
+            role="tab"
+            aria-selected="true"
+          >
+            Areas
+            <span id="aoi-scope-count" class="count-badge">0</span>
+          </button>
+          <button
+            type="button"
+            class="sidebar-tab"
+            data-tab="setup"
+            role="tab"
+            aria-selected="false"
+          >
+            Setup
+          </button>
+          <button
+            type="button"
+            class="sidebar-tab"
+            data-tab="review"
+            role="tab"
+            aria-selected="false"
+          >
+            Review
+          </button>
+        </div>
+
         <div class="sidebar-content">
-          <!-- Parameters Section -->
-          <section class="config-section collapsible">
-            <header
-              class="section-header"
-              onclick="this.parentElement.classList.toggle('collapsed')"
-            >
-              <h3>Analysis Parameters</h3>
-              <button class="collapse-toggle">
-                <svg
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2"
+          <!-- AREAS (primary) — draw and edit monitored regions -->
+          <section class="tab-panel active" data-panel="areas" role="tabpanel">
+            <p id="aoi-scope-instructions" class="helper-text">
+              Add regions to monitor by drawing on the map.
+            </p>
+
+            <div id="aoi-list-container" class="hidden">
+              <div class="action-buttons row">
+                <button
+                  type="button"
+                  id="sidebar-draw-poly-btn"
+                  class="btn btn-secondary"
                 >
-                  <path d="M18 15l-6-6-6 6" />
-                </svg>
-              </button>
-            </header>
-            <div class="section-body grid-params">
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                  >
+                    <path d="M12 2L2 22h20L12 2z" />
+                  </svg>
+                  Polygon
+                </button>
+                <button
+                  type="button"
+                  id="sidebar-draw-bbox-btn"
+                  class="btn btn-secondary"
+                >
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                  >
+                    <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                  </svg>
+                  Box
+                </button>
+              </div>
+              <p class="hint-text">
+                Tip: click an AOI to move it, drag a vertex to reshape.
+                <button
+                  type="button"
+                  id="sidebar-paste-geojson-btn"
+                  class="btn-link"
+                >
+                  Paste GeoJSON
+                </button>
+              </p>
+              <div id="sidebar-aoi-list" class="aoi-scroll-list"></div>
+            </div>
+          </section>
+
+          <!-- SETUP — analysis parameters for this portfolio -->
+          <section class="tab-panel" data-panel="setup" role="tabpanel">
+            <div class="grid-params">
               <div class="param-item">
                 <span class="label">Before Window</span>
                 <strong id="sidebar-before-range">—</strong>
@@ -141,103 +222,36 @@
             </div>
           </section>
 
-          <!-- Locations Section -->
-          <section class="config-section active">
-            <header class="section-header">
-              <div class="title-with-badge">
-                <h3>Locations</h3>
-                <span id="aoi-scope-count" class="count-badge">0</span>
+          <!-- REVIEW — human-in-the-loop calibration gate -->
+          <section class="tab-panel" data-panel="review" role="tabpanel">
+            <div class="stats-grid">
+              <div class="stat-card approved">
+                <span id="cal-approved-count" class="value">0</span>
+                <span class="label">Approved</span>
               </div>
-            </header>
-            <div class="section-body">
-              <p id="aoi-scope-instructions" class="helper-text">
-                Add regions to monitor by drawing on the map.
-              </p>
-
-              <div id="aoi-list-container" class="hidden">
-                <div class="action-buttons row">
-                  <button
-                    type="button"
-                    id="sidebar-draw-poly-btn"
-                    class="btn btn-secondary"
-                  >
-                    <svg
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      stroke-width="2"
-                    >
-                      <path d="M12 2L2 22h20L12 2z" />
-                    </svg>
-                    Polygon
-                  </button>
-                  <button
-                    type="button"
-                    id="sidebar-draw-bbox-btn"
-                    class="btn btn-secondary"
-                  >
-                    <svg
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      stroke-width="2"
-                    >
-                      <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
-                    </svg>
-                    Box
-                  </button>
-                </div>
-                <div id="sidebar-aoi-list" class="aoi-scroll-list"></div>
+              <div class="stat-card rejected">
+                <span id="cal-rejected-count" class="value">0</span>
+                <span class="label">Rejected</span>
               </div>
             </div>
-          </section>
-
-          <!-- Calibration Section -->
-          <section class="config-section">
-            <header class="section-header">
-              <h3>Calibration Gate</h3>
-              <span
-                class="info-icon"
-                title="Calibrate filters to prevent false positives"
+            <div class="progress-container">
+              <div id="calibration-progress-bar" class="progress-fill"></div>
+            </div>
+            <div class="flex-between mt-2 align-center">
+              <span id="calibration-status-text" class="text-small text-muted"
+                >0/20 labels collected</span
               >
-                <svg
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  stroke-width="2"
-                >
-                  <circle cx="12" cy="12" r="10" />
-                  <path d="M12 16v-4m0-4h.01" />
-                </svg>
-              </span>
-            </header>
-            <div class="section-body">
-              <div class="stats-grid">
-                <div class="stat-card approved">
-                  <span id="cal-approved-count" class="value">0</span>
-                  <span class="label">Approved</span>
-                </div>
-                <div class="stat-card rejected">
-                  <span id="cal-rejected-count" class="value">0</span>
-                  <span class="label">Rejected</span>
-                </div>
-              </div>
-              <div class="progress-container">
-                <div id="calibration-progress-bar" class="progress-fill"></div>
-              </div>
-              <div class="flex-between mt-2 align-center">
-                <span id="calibration-status-text" class="text-small text-muted"
-                  >0/20 labels collected</span
-                >
-                <button
-                  id="calibrate-btn"
-                  class="btn btn-secondary btn-small"
-                  disabled
-                >
-                  Recalibrate
-                </button>
-              </div>
+              <button
+                id="calibrate-btn"
+                class="btn btn-secondary btn-small"
+                disabled
+              >
+                Recalibrate
+              </button>
             </div>
+            <p class="hint-text">
+              Approve or reject findings on the map to calibrate thresholds.
+            </p>
           </section>
         </div>
 
@@ -248,7 +262,7 @@
           >
             <button
               id="nav-run-btn"
-              class="btn btn-primary full-width animate-pulse"
+              class="btn btn-primary full-width"
             >
               <svg
                 viewBox="0 0 24 24"
@@ -470,7 +484,9 @@
         <header class="dialog-header">
           <div>
             <h3>New Portfolio</h3>
-            <p id="portfolio-step-label" class="dialog-kicker">Step 1 of 3</p>
+            <p class="dialog-kicker">
+              Define the area's analysis window — draw the map region next.
+            </p>
           </div>
           <button
             class="modal-close-btn"
@@ -480,161 +496,118 @@
             &times;
           </button>
         </header>
-        <ol class="portfolio-steps" aria-label="Portfolio setup progress">
-          <li class="active" data-step-marker="1">Portfolio</li>
-          <li data-step-marker="2">Analysis</li>
-          <li data-step-marker="3">Review</li>
-        </ol>
         <form id="create-portfolio-form" method="dialog">
-          <section class="portfolio-step active" data-step="1">
+          <input
+            type="hidden"
+            id="port-task"
+            name="task"
+            value="vegetation_disturbance"
+          />
+          <div class="form-group">
+            <label for="port-name">Portfolio name</label>
             <input
-              type="hidden"
-              id="port-task"
-              name="task"
-              value="vegetation_disturbance"
+              type="text"
+              id="port-name"
+              name="name"
+              class="input-modern"
+              placeholder="e.g. Amazon deforestation arc"
+              required
             />
-            <div class="form-group">
-              <label for="port-name">Portfolio name</label>
+          </div>
+
+          <div class="date-windows-grid">
+            <fieldset class="form-fieldset">
+              <legend>Before window</legend>
+              <div class="grid-2">
+                <div>
+                  <label for="port-before-from">From</label>
+                  <input
+                    type="date"
+                    id="port-before-from"
+                    name="before_from"
+                    class="input-modern"
+                    value="2026-01-01"
+                    required
+                  />
+                </div>
+                <div>
+                  <label for="port-before-to">To</label>
+                  <input
+                    type="date"
+                    id="port-before-to"
+                    name="before_to"
+                    class="input-modern"
+                    value="2026-01-31"
+                    required
+                  />
+                </div>
+              </div>
+            </fieldset>
+            <fieldset class="form-fieldset">
+              <legend>After window</legend>
+              <div class="grid-2">
+                <div>
+                  <label for="port-after-from">From</label>
+                  <input
+                    type="date"
+                    id="port-after-from"
+                    name="after_from"
+                    class="input-modern"
+                    value="2026-06-01"
+                    required
+                  />
+                </div>
+                <div>
+                  <label for="port-after-to">To</label>
+                  <input
+                    type="date"
+                    id="port-after-to"
+                    name="after_to"
+                    class="input-modern"
+                    value="2026-06-30"
+                    required
+                  />
+                </div>
+              </div>
+            </fieldset>
+          </div>
+
+          <div class="form-group">
+            <label for="port-cloud">Max cloud cover (%)</label>
+            <input
+              type="number"
+              id="port-cloud"
+              name="max_cloud_fraction"
+              class="input-modern"
+              min="1"
+              max="100"
+              value="15"
+            />
+            <p class="helper-text">
+              Computed over the AOI window, not the whole scene. NDVI ranks
+              findings; NBR burn evidence ships in every result.
+            </p>
+          </div>
+
+          <div class="form-group">
+            <label class="toggle-switch">
               <input
-                type="text"
-                id="port-name"
-                name="name"
-                class="input-modern"
-                placeholder="e.g. Amazon deforestation arc"
-                required
+                type="checkbox"
+                id="port-use-ai"
+                name="use_ai"
+                value="true"
               />
-            </div>
-            <div class="form-group">
-              <label>Signal plan</label>
-              <p class="helper-text">
-                NDVI is the ranking signal. NBR is included in every result for
-                burn evidence. NDMI is not exposed in the API yet.
-              </p>
-            <div class="signal-legend">
-              <div class="signal-chip signal-ndvi is-active">
-                <span class="signal-dot"></span>
-                <span class="signal-text">
-                  <span class="signal-name">NDVI</span>
-                  <span class="signal-desc">Vegetation</span>
+              <span class="toggle-slider"></span>
+              <div class="toggle-label flex-column">
+                <strong>Enable Clay v1.5 model (AI)</strong>
+                <span class="text-small text-muted">
+                  Experimental embeddings. Deterministic NDVI/NBR stays the
+                  default production path.
                 </span>
-                <span class="signal-status">Locked</span>
               </div>
-              <div class="signal-chip signal-nbr">
-                <span class="signal-dot"></span>
-                <span class="signal-text">
-                  <span class="signal-name">NBR</span>
-                  <span class="signal-desc">Burn severity</span>
-                </span>
-                <span class="signal-status">In results</span>
-              </div>
-              <div class="signal-chip signal-ndmi is-pending">
-                <span class="signal-dot"></span>
-                <span class="signal-text">
-                  <span class="signal-name">NDMI</span>
-                  <span class="signal-desc">Moisture</span>
-                </span>
-                <span class="signal-status">Pipeline-ready</span>
-              </div>
-            </div>
-            </div>
-          </section>
-          <section class="portfolio-step" data-step="2">
-            <div class="form-group">
-              <label for="port-cloud">Max cloud cover (%)</label>
-              <input
-                type="number"
-                id="port-cloud"
-                name="max_cloud_fraction"
-                class="input-modern"
-                min="1"
-                max="100"
-                value="15"
-              />
-              <p class="helper-text">
-                Filtering is computed over the AOI window, not the whole scene.
-              </p>
-            </div>
-            <div class="date-windows-grid">
-              <fieldset class="form-fieldset">
-                <legend>Before window</legend>
-                <div class="grid-2">
-                  <div>
-                    <label for="port-before-from">From</label>
-                    <input
-                      type="date"
-                      id="port-before-from"
-                      name="before_from"
-                      class="input-modern"
-                      value="2026-01-01"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <label for="port-before-to">To</label>
-                    <input
-                      type="date"
-                      id="port-before-to"
-                      name="before_to"
-                      class="input-modern"
-                      value="2026-01-31"
-                      required
-                    />
-                  </div>
-                </div>
-              </fieldset>
-              <fieldset class="form-fieldset">
-                <legend>After window</legend>
-                <div class="grid-2">
-                  <div>
-                    <label for="port-after-from">From</label>
-                    <input
-                      type="date"
-                      id="port-after-from"
-                      name="after_from"
-                      class="input-modern"
-                      value="2026-06-01"
-                      required
-                    />
-                  </div>
-                  <div>
-                    <label for="port-after-to">To</label>
-                    <input
-                      type="date"
-                      id="port-after-to"
-                      name="after_to"
-                      class="input-modern"
-                      value="2026-06-30"
-                      required
-                    />
-                  </div>
-                </div>
-              </fieldset>
-            </div>
-          </section>
-          <section class="portfolio-step" data-step="3">
-            <div class="form-group">
-              <label class="toggle-switch">
-                <input
-                  type="checkbox"
-                  id="port-use-ai"
-                  name="use_ai"
-                  value="true"
-                />
-                <span class="toggle-slider"></span>
-                <div class="toggle-label flex-column">
-                  <strong>Enable Clay v1.5 model (AI)</strong>
-                  <span class="text-small text-muted">
-                    Experimental embeddings. Deterministic NDVI/NBR remains the
-                    default production path.
-                  </span>
-                </div>
-              </label>
-            </div>
-            <div class="dialog-note">
-              After creation, add an AOI by drawing on the map or selecting a
-              searched location. The run button stays locked until an AOI exists.
-            </div>
-          </section>
+            </label>
+          </div>
+
           <footer class="dialog-footer">
             <button
               type="button"
@@ -643,22 +616,8 @@
             >
               Cancel
             </button>
-            <button
-              type="button"
-              id="portfolio-step-back"
-              class="btn btn-secondary hidden"
-            >
-              Back
-            </button>
-            <button type="button" id="portfolio-step-next" class="btn btn-primary">
-              Next
-            </button>
-            <button
-              type="submit"
-              id="portfolio-submit"
-              class="btn btn-primary hidden"
-            >
-              Create Portfolio
+            <button type="submit" id="portfolio-submit" class="btn btn-primary">
+              Create &amp; draw area
             </button>
           </footer>
         </form>
@@ -913,22 +872,20 @@
 
     <div
       id="drawing-toolbar"
-      class="hidden glass-toolbar floating-center-bottom"
+      class="hidden glass-toolbar floating-center-top"
     >
       <span id="drawing-instructions" class="font-bold"
-        >Click on map to place vertices</span
+        >Click the map to place vertices</span
       >
       <div class="row gap-2">
         <button id="drawing-cancel-btn" class="btn btn-secondary btn-small">
           Cancel
         </button>
-        <button id="drawing-finish-btn" class="btn btn-primary btn-small">
-          Finish Drawing
-        </button>
       </div>
     </div>
 
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/@geoman-io/leaflet-geoman-free@2/dist/leaflet-geoman.min.js"></script>
     <script src="app.js"></script>
   </body>
 </html>
