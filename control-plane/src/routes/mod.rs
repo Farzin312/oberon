@@ -7,16 +7,25 @@ pub mod review;
 
 use axum::{
     Router,
-    middleware::from_fn_with_state,
+    extract::{DefaultBodyLimit, Request},
+    http::{HeaderName, HeaderValue, Method, header},
+    middleware::{Next, from_fn, from_fn_with_state},
+    response::Response,
     routing::{get, post},
 };
 use std::path::PathBuf;
+use std::sync::Arc;
+use tokio::sync::Semaphore;
 use tower_http::compression::CompressionLayer;
 use tower_http::cors::CorsLayer;
 
 use crate::middleware::audit::audit_middleware;
 use crate::middleware::auth;
+use crate::middleware::ratelimit::{self, RateLimiter};
 use oberon_control_plane::db::Db;
+
+/// Largest request body accepted (geometry payloads are the biggest legit case).
+const MAX_BODY_BYTES: usize = 4 * 1024 * 1024;
 
 #[derive(Clone)]
 pub struct AppState {
@@ -26,6 +35,9 @@ pub struct AppState {
     pub dashboard_dir: PathBuf,
     pub output_dir: PathBuf,
     pub job_metrics: oberon_control_plane::telemetry::JobMetrics,
+    /// Caps concurrent analysis subprocesses; excess runs queue on a permit.
+    pub run_semaphore: Arc<Semaphore>,
+    pub rate_limiter: RateLimiter,
 }
 
 pub fn build_app(
@@ -34,6 +46,8 @@ pub fn build_app(
     python_path: String,
     dashboard_dir: PathBuf,
     output_dir: PathBuf,
+    max_concurrent_runs: usize,
+    cors_allow_origin: Option<String>,
 ) -> Router {
     let state = AppState {
         db: db.clone(),
@@ -42,6 +56,8 @@ pub fn build_app(
         dashboard_dir,
         output_dir,
         job_metrics: oberon_control_plane::telemetry::JobMetrics::default(),
+        run_semaphore: Arc::new(Semaphore::new(max_concurrent_runs.max(1))),
+        rate_limiter: RateLimiter::default(),
     };
 
     // Routes that require auth.
@@ -55,7 +71,9 @@ pub fn build_app(
         )
         .route(
             "/v1/portfolios/{id}",
-            get(portfolio::get_portfolio).delete(portfolio::delete_portfolio),
+            get(portfolio::get_portfolio)
+                .patch(portfolio::update_portfolio)
+                .delete(portfolio::delete_portfolio),
         )
         .route(
             "/v1/portfolios/{id}/polygons",
@@ -84,12 +102,41 @@ pub fn build_app(
         .route("/", get(dashboard::serve_index))
         .route("/{file}", get(dashboard::serve_static));
 
+    // Restrictive CORS: only the methods/headers we use, and cross-origin only
+    // for an explicitly configured origin. Same-origin dashboard is unaffected.
+    let mut cors = CorsLayer::new()
+        .allow_methods([
+            Method::GET,
+            Method::POST,
+            Method::PATCH,
+            Method::DELETE,
+            Method::OPTIONS,
+        ])
+        .allow_headers([header::CONTENT_TYPE, HeaderName::from_static("x-api-key")]);
+    if let Some(origin) = cors_allow_origin.as_deref().and_then(|o| o.parse::<HeaderValue>().ok()) {
+        cors = cors.allow_origin(origin);
+    }
+
     Router::new()
         .merge(protected)
         .merge(public)
         .merge(dashboard)
         .layer(from_fn_with_state(state.clone(), audit_middleware))
-        .layer(CorsLayer::permissive())
+        .layer(from_fn(security_headers))
+        .layer(DefaultBodyLimit::max(MAX_BODY_BYTES))
+        // Rate limit is outermost so abusive clients are rejected before any work.
+        .layer(from_fn_with_state(state.clone(), ratelimit::rate_limit))
+        .layer(cors)
         .layer(CompressionLayer::new())
         .with_state(state)
+}
+
+/// Baseline security response headers applied to every response.
+async fn security_headers(req: Request, next: Next) -> Response {
+    let mut res = next.run(req).await;
+    let h = res.headers_mut();
+    h.insert("x-content-type-options", HeaderValue::from_static("nosniff"));
+    h.insert("x-frame-options", HeaderValue::from_static("DENY"));
+    h.insert("referrer-policy", HeaderValue::from_static("no-referrer"));
+    res
 }

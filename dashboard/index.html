@@ -220,6 +220,23 @@
                 <strong id="sidebar-ai-status" class="status-active">—</strong>
               </div>
             </div>
+            <button
+              type="button"
+              id="edit-portfolio-btn"
+              class="btn btn-secondary full-width mt-3"
+            >
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                class="mr-1"
+              >
+                <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" />
+                <path d="M18.5 2.5a2.12 2.12 0 013 3L12 15l-4 1 1-4 9.5-9.5z" />
+              </svg>
+              Edit setup
+            </button>
           </section>
 
           <!-- REVIEW — human-in-the-loop calibration gate -->
@@ -333,6 +350,22 @@
                 <path d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3M12 17h.01" />
               </svg>
               Guide & Help
+            </button>
+            <button
+              id="api-key-btn"
+              class="btn-text text-muted hover-white"
+              title="Set the API key used for requests"
+            >
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                class="mr-1"
+              >
+                <path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 11-7.778 7.778 5.5 5.5 0 017.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4" />
+              </svg>
+              API key
             </button>
           </div>
         </div>
@@ -863,6 +896,54 @@
             onclick="document.getElementById('guide-dialog').close()"
           >
             Got it
+          </button>
+        </footer>
+      </div>
+    </dialog>
+
+    <dialog id="api-key-dialog" class="modern-dialog" closedby="any">
+      <div class="dialog-content">
+        <header class="dialog-header">
+          <div>
+            <h3>API key</h3>
+            <p class="dialog-kicker">
+              Required only when the server runs with auth enabled.
+            </p>
+          </div>
+          <button
+            class="modal-close-btn"
+            onclick="document.getElementById('api-key-dialog').close()"
+            aria-label="Close"
+          >
+            &times;
+          </button>
+        </header>
+        <div class="form-group">
+          <label for="api-key-input">Key</label>
+          <input
+            type="password"
+            id="api-key-input"
+            class="input-modern"
+            placeholder="oberon_…"
+            autocomplete="off"
+            spellcheck="false"
+          />
+          <p class="helper-text">
+            Generate one with <code>oberon auth create-key --user you</code>. It
+            is stored only in this browser and sent as <code>X-API-Key</code> to
+            this server.
+          </p>
+        </div>
+        <footer class="dialog-footer">
+          <button
+            type="button"
+            class="btn btn-secondary"
+            onclick="document.getElementById('api-key-dialog').close()"
+          >
+            Cancel
+          </button>
+          <button type="button" id="api-key-save-btn" class="btn btn-primary">
+            Save key
           </button>
         </footer>
       </div>

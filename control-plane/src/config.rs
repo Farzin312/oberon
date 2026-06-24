@@ -9,6 +9,12 @@ pub struct Config {
     pub auth_disabled: bool,
     pub dashboard_dir: PathBuf,
     pub output_dir: PathBuf,
+    /// Max analysis subprocesses allowed to run at once; excess jobs queue.
+    pub max_concurrent_runs: usize,
+    /// Cross-origin origin to allow (e.g. https://app.example.com). When unset,
+    /// cross-origin browser calls are refused; the same-origin dashboard is
+    /// unaffected (CORS does not apply to same-origin requests).
+    pub cors_allow_origin: Option<String>,
 }
 
 impl Default for Config {
@@ -37,6 +43,14 @@ impl Default for Config {
             auth_disabled: env::var("OBERON_AUTH_DISABLED").as_deref() == Ok("1"),
             dashboard_dir,
             output_dir,
+            max_concurrent_runs: env::var("OBERON_MAX_CONCURRENT_RUNS")
+                .ok()
+                .and_then(|v| v.parse::<usize>().ok())
+                .filter(|n| *n >= 1)
+                .unwrap_or(2),
+            cors_allow_origin: env::var("OBERON_CORS_ALLOW_ORIGIN")
+                .ok()
+                .filter(|s| !s.is_empty()),
         }
     }
 }

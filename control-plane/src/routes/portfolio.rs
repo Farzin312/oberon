@@ -10,6 +10,7 @@ use oberon_control_plane::db;
 use oberon_control_plane::models::{
     AddPolygonRequest, CreatePortfolioRequest, Polygon, Portfolio, Run, is_supported_task,
 };
+use oberon_control_plane::validation;
 
 pub async fn create_portfolio(
     State(state): State<AppState>,
@@ -24,6 +25,14 @@ pub async fn create_portfolio(
             ),
         ));
     }
+    validation::validate_portfolio_config(
+        &req.before_from,
+        &req.before_to,
+        &req.after_from,
+        &req.after_to,
+        req.max_cloud_fraction,
+    )
+    .map_err(|e| (StatusCode::BAD_REQUEST, e))?;
 
     let id = Uuid::new_v4().to_string();
     let now = Utc::now().to_rfc3339();
@@ -43,6 +52,52 @@ pub async fn create_portfolio(
     db::create_portfolio(&state.db, &p)
         .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
     Ok((StatusCode::CREATED, Json(json!(p))))
+}
+
+pub async fn update_portfolio(
+    State(state): State<AppState>,
+    Path(id): Path<String>,
+    Json(req): Json<CreatePortfolioRequest>,
+) -> Result<impl IntoResponse, (StatusCode, String)> {
+    if !is_supported_task(&req.task) {
+        return Err((
+            StatusCode::BAD_REQUEST,
+            format!(
+                "Unsupported task '{}'. Supported tasks: vegetation_disturbance",
+                req.task
+            ),
+        ));
+    }
+    validation::validate_portfolio_config(
+        &req.before_from,
+        &req.before_to,
+        &req.after_from,
+        &req.after_to,
+        req.max_cloud_fraction,
+    )
+    .map_err(|e| (StatusCode::BAD_REQUEST, e))?;
+
+    // Preserve id + created_at; everything else is a full replace.
+    let existing = db::get_portfolio(&state.db, &id)
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?
+        .ok_or((StatusCode::NOT_FOUND, format!("Portfolio {id} not found")))?;
+
+    let updated = Portfolio {
+        id: existing.id,
+        name: req.name,
+        task: req.task,
+        max_cloud_fraction: req.max_cloud_fraction,
+        before_from: req.before_from,
+        before_to: req.before_to,
+        after_from: req.after_from,
+        after_to: req.after_to,
+        use_ai: req.use_ai,
+        alert_webhook_url: req.alert_webhook_url,
+        created_at: existing.created_at,
+    };
+    db::update_portfolio(&state.db, &id, &updated)
+        .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+    Ok((StatusCode::OK, Json(json!(updated))))
 }
 
 pub async fn list_portfolios(
@@ -83,6 +138,7 @@ pub async fn add_polygon(
     Path(id): Path<String>,
     Json(req): Json<AddPolygonRequest>,
 ) -> Result<impl IntoResponse, (StatusCode, String)> {
+    validation::validate_geometry(&req.geometry).map_err(|e| (StatusCode::BAD_REQUEST, e))?;
     let poly_id = Uuid::new_v4().to_string();
     let now = Utc::now().to_rfc3339();
     let poly = Polygon {
@@ -151,6 +207,7 @@ pub async fn run_portfolio(
         let db_clone = state.db.clone();
         let python_path = state.python_path.clone();
         let output_dir = state.output_dir.clone();
+        let sem = state.run_semaphore.clone();
         let jid = job_id.clone();
         let geometry: serde_json::Value = serde_json::from_str(&poly.geometry_json)
             .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
@@ -172,6 +229,11 @@ pub async fn run_portfolio(
         };
 
         tokio::spawn(async move {
+            // Wait for a run permit; excess jobs stay "pending" until one frees.
+            let _permit = match sem.acquire_owned().await {
+                Ok(p) => p,
+                Err(_) => return,
+            };
             let _ = db::update_run_status(&db_clone, &jid, "running", 0, None, None);
             match oberon_control_plane::pipeline::run_pipeline(
                 &python_path,
@@ -287,6 +349,7 @@ pub async fn update_polygon(
     Path(id): Path<String>,
     Json(req): Json<UpdatePolygonRequest>,
 ) -> Result<impl IntoResponse, (StatusCode, String)> {
+    validation::validate_geometry(&req.geometry).map_err(|e| (StatusCode::BAD_REQUEST, e))?;
     let geom_str = serde_json::to_string(&req.geometry)
         .map_err(|e| (StatusCode::BAD_REQUEST, e.to_string()))?;
     db::update_polygon(&state.db, &id, &geom_str, &req.label)

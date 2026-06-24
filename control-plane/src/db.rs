@@ -122,6 +122,17 @@ pub fn create_portfolio(db: &Db, p: &Portfolio) -> Result<()> {
     Ok(())
 }
 
+/// Update an existing portfolio's editable config (everything except id and
+/// created_at). Returns false if no row matched the id.
+pub fn update_portfolio(db: &Db, id: &str, p: &Portfolio) -> Result<bool> {
+    let conn = db.lock().map_err(|e| anyhow!("db lock: {e}"))?;
+    let n = conn.execute(
+        "UPDATE portfolios SET name = ?1, task = ?2, max_cloud_fraction = ?3, before_from = ?4, before_to = ?5, after_from = ?6, after_to = ?7, use_ai = ?8, alert_webhook_url = ?9 WHERE id = ?10",
+        rusqlite::params![p.name, p.task, p.max_cloud_fraction, p.before_from, p.before_to, p.after_from, p.after_to, p.use_ai as i32, p.alert_webhook_url, id],
+    )?;
+    Ok(n > 0)
+}
+
 pub fn get_portfolio(db: &Db, id: &str) -> Result<Option<Portfolio>> {
     let conn = db.lock().map_err(|e| anyhow!("db lock: {e}"))?;
     let mut stmt = conn.prepare(
@@ -324,6 +335,18 @@ pub fn update_run_status(
         rusqlite::params![status, findings_count, error_message, completed_at, id],
     )?;
     Ok(())
+}
+
+/// Mark any `pending`/`running` runs as failed. Job execution lives in
+/// in-memory tokio tasks, so a process restart orphans those rows — they would
+/// otherwise display "running" forever. Call once on startup. Returns the count.
+pub fn reconcile_stale_runs(db: &Db, now: &str) -> Result<usize> {
+    let conn = db.lock().map_err(|e| anyhow!("db lock: {e}"))?;
+    let n = conn.execute(
+        "UPDATE runs SET status = 'failed', error_message = 'Interrupted by server restart', completed_at = ?1 WHERE status IN ('pending', 'running')",
+        rusqlite::params![now],
+    )?;
+    Ok(n)
 }
 
 pub fn list_runs(db: &Db, portfolio_id: &str) -> Result<Vec<Run>> {

@@ -43,8 +43,14 @@ pub async fn post_change(
     let jid = job_id.clone();
     let metrics = state.job_metrics.clone();
     let output_dir = state.output_dir.clone();
+    let sem = state.run_semaphore.clone();
 
     tokio::spawn(async move {
+        // Wait for a run permit; bounds concurrent analysis subprocesses.
+        let _permit = match sem.acquire_owned().await {
+            Ok(p) => p,
+            Err(_) => return,
+        };
         let _guard = metrics.start();
         let timer = Timer::start();
 

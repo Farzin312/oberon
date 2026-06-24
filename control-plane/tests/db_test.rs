@@ -72,6 +72,46 @@ fn test_list_portfolios() {
 }
 
 #[test]
+fn test_update_portfolio() {
+    let db = tmp_db();
+    let p = Portfolio {
+        id: "to-edit".into(),
+        name: "Original".into(),
+        task: "vegetation_disturbance".into(),
+        max_cloud_fraction: 0.15,
+        before_from: "2026-01-01".into(),
+        before_to: "2026-01-31".into(),
+        after_from: "2026-06-01".into(),
+        after_to: "2026-06-30".into(),
+        use_ai: false,
+        alert_webhook_url: None,
+        created_at: "2026-06-22T00:00:00Z".into(),
+    };
+    db::create_portfolio(&db, &p).unwrap();
+
+    let edited = Portfolio {
+        name: "Renamed".into(),
+        max_cloud_fraction: 0.40,
+        after_to: "2026-07-15".into(),
+        use_ai: true,
+        ..p.clone()
+    };
+    assert!(db::update_portfolio(&db, "to-edit", &edited).unwrap());
+
+    let got = db::get_portfolio(&db, "to-edit").unwrap().unwrap();
+    assert_eq!(got.name, "Renamed");
+    assert_eq!(got.max_cloud_fraction, 0.40);
+    assert_eq!(got.after_to, "2026-07-15");
+    assert!(got.use_ai);
+    // id + created_at preserved
+    assert_eq!(got.id, "to-edit");
+    assert_eq!(got.created_at, "2026-06-22T00:00:00Z");
+
+    // Updating a missing id returns false.
+    assert!(!db::update_portfolio(&db, "nope", &edited).unwrap());
+}
+
+#[test]
 fn test_delete_portfolio() {
     let db = tmp_db();
     let p = Portfolio {
@@ -181,6 +221,48 @@ fn test_create_and_get_run() {
     let got = db::get_run(&db, "run-1").unwrap().unwrap();
     assert_eq!(got.status, "completed");
     assert_eq!(got.findings_count, 3);
+}
+
+#[test]
+fn test_reconcile_stale_runs() {
+    let db = tmp_db();
+    let p = Portfolio {
+        id: "pf-stale".into(),
+        name: "PF".into(),
+        task: "vegetation_disturbance".into(),
+        max_cloud_fraction: 0.15,
+        before_from: "2026-01-01".into(),
+        before_to: "2026-01-31".into(),
+        after_from: "2026-06-01".into(),
+        after_to: "2026-06-30".into(),
+        use_ai: false,
+        alert_webhook_url: None,
+        created_at: "2026-06-22T00:00:00Z".into(),
+    };
+    db::create_portfolio(&db, &p).unwrap();
+
+    let mk = |id: &str, status: &str| Run {
+        id: id.into(),
+        portfolio_id: Some("pf-stale".into()),
+        polygon_id: None,
+        status: status.into(),
+        output_dir: None,
+        findings_count: 0,
+        error_message: None,
+        created_at: "2026-06-22T00:00:00Z".into(),
+        completed_at: None,
+    };
+    db::create_run(&db, &mk("r-running", "running")).unwrap();
+    db::create_run(&db, &mk("r-pending", "pending")).unwrap();
+    db::create_run(&db, &mk("r-done", "completed")).unwrap();
+
+    let n = db::reconcile_stale_runs(&db, "2026-06-24T00:00:00Z").unwrap();
+    assert_eq!(n, 2); // only running + pending flipped
+
+    assert_eq!(db::get_run(&db, "r-running").unwrap().unwrap().status, "failed");
+    assert_eq!(db::get_run(&db, "r-pending").unwrap().unwrap().status, "failed");
+    // a finished run is untouched
+    assert_eq!(db::get_run(&db, "r-done").unwrap().unwrap().status, "completed");
 }
 
 #[test]

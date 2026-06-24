@@ -6,6 +6,8 @@ let map = null;
 let activeLayer = null;
 let activePortfolioId = null;
 let activePortfolioName = '';
+let activePortfolioData = null; // full config of the selected portfolio (for editing)
+let editingPortfolioId = null;  // set while the dialog is in edit (PATCH) mode
 let activePolygonsCount = 0;
 let pollTimeoutId = null;
 let runsWereActive = false; // true while a poll cycle has in-flight jobs
@@ -37,6 +39,79 @@ let addPolygonDialog = null;
 let runConfirmDialog = null;
 let deleteConfirmDialog = null;
 let guideDialog = null;
+
+// ---- API auth ----
+// All /v1 calls go through apiFetch, which attaches the saved API key as
+// X-API-Key. When the server runs with auth disabled the header is simply
+// ignored; with auth on, a 401 prompts for the key. The key lives only in this
+// browser's localStorage — never sent anywhere but this origin's API.
+const API_KEY_STORAGE = 'oberon_api_key';
+
+function getApiKey() {
+    try { return localStorage.getItem(API_KEY_STORAGE) || ''; } catch (_) { return ''; }
+}
+
+function apiFetch(url, opts = {}) {
+    const key = getApiKey();
+    const headers = { ...(opts.headers || {}) };
+    if (key) headers['X-API-Key'] = key;
+    return fetch(url, { ...opts, headers }).then(res => {
+        if (res.status === 401) {
+            showToast('API key required or invalid — enter your key to continue.', 'warning');
+            openApiKeyDialog();
+        }
+        return res;
+    });
+}
+
+function openApiKeyDialog() {
+    const dialog = document.getElementById('api-key-dialog');
+    if (!dialog) return;
+    const input = document.getElementById('api-key-input');
+    if (input) input.value = getApiKey();
+    if (!dialog.open) dialog.showModal();
+}
+
+function saveApiKey() {
+    const input = document.getElementById('api-key-input');
+    const val = (input?.value || '').trim();
+    try {
+        if (val) localStorage.setItem(API_KEY_STORAGE, val);
+        else localStorage.removeItem(API_KEY_STORAGE);
+    } catch (_) {}
+    document.getElementById('api-key-dialog')?.close();
+    showToast(val ? 'API key saved.' : 'API key cleared.', 'success');
+    loadPortfolios();
+}
+
+// Artifacts are fetched as blobs (not <img src>/<a href>) so the X-API-Key
+// header rides along when auth is on. Works unchanged when auth is off.
+async function loadArtifactImage(imgId, url) {
+    try {
+        const res = await apiFetch(url);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const img = document.getElementById(imgId);
+        if (img) img.src = URL.createObjectURL(await res.blob());
+    } catch (e) {
+        console.warn('Artifact load failed:', url, e);
+    }
+}
+
+window.downloadArtifact = async function(url, filename) {
+    try {
+        const res = await apiFetch(url);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(await res.blob());
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+    } catch (e) {
+        showToast(`Download failed: ${e.message}`, 'danger');
+    }
+};
 
 // ---- Initialization ----
 document.addEventListener('DOMContentLoaded', () => {
@@ -160,9 +235,17 @@ document.addEventListener('DOMContentLoaded', () => {
         openPortfolioDialog();
     });
 
+    document.getElementById('edit-portfolio-btn').addEventListener('click', () => {
+        if (activePortfolioData) openPortfolioDialog(activePortfolioData);
+    });
+
     document.getElementById('help-toggle-btn').addEventListener('click', () => {
         guideDialog.showModal();
     });
+
+    document.getElementById('api-key-btn')?.addEventListener('click', openApiKeyDialog);
+    document.getElementById('api-key-save-btn')?.addEventListener('click', saveApiKey);
+    registerBackdropDismiss(document.getElementById('api-key-dialog'));
 
     document.getElementById('close-detail').addEventListener('click', () => {
         document.getElementById('detail-panel').classList.add('hidden');
@@ -252,8 +335,35 @@ function registerBackdropDismiss(dialog) {
     }
 }
 
-function openPortfolioDialog() {
-    document.getElementById('create-portfolio-form').reset();
+// Opens the portfolio dialog. Pass a portfolio object to edit it (PATCH);
+// pass nothing to create a new one (POST).
+function openPortfolioDialog(portfolio = null) {
+    const form = document.getElementById('create-portfolio-form');
+    form.reset();
+
+    const title = newPortfolioDialog.querySelector('.dialog-header h3');
+    const kicker = newPortfolioDialog.querySelector('.dialog-kicker');
+    const submit = document.getElementById('portfolio-submit');
+
+    if (portfolio) {
+        editingPortfolioId = portfolio.id;
+        form.elements['name'].value = portfolio.name || '';
+        form.elements['max_cloud_fraction'].value = Math.round((portfolio.max_cloud_fraction || 0) * 100);
+        form.elements['before_from'].value = portfolio.before_from || '';
+        form.elements['before_to'].value = portfolio.before_to || '';
+        form.elements['after_from'].value = portfolio.after_from || '';
+        form.elements['after_to'].value = portfolio.after_to || '';
+        form.elements['use_ai'].checked = !!portfolio.use_ai;
+        if (title) title.textContent = 'Edit Portfolio';
+        if (kicker) kicker.textContent = 'Update the analysis window for this portfolio.';
+        if (submit) submit.textContent = 'Save changes';
+    } else {
+        editingPortfolioId = null;
+        if (title) title.textContent = 'New Portfolio';
+        if (kicker) kicker.textContent = "Define the area's analysis window — draw the map region next.";
+        if (submit) submit.textContent = 'Create & draw area';
+    }
+
     newPortfolioDialog.showModal();
     setTimeout(() => document.getElementById('port-name')?.focus(), 0);
 }
@@ -297,7 +407,7 @@ function setupAttributionToggle() {
 // ---- Portfolios API Operations ----
 async function loadPortfolios() {
     try {
-        const res = await fetch(`${API}/portfolios`);
+        const res = await apiFetch(`${API}/portfolios`);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const portfolios = await res.json();
         
@@ -375,24 +485,41 @@ async function handleCreatePortfolio(event) {
         alert_webhook_url: null
     };
 
-    const promise = fetch(`${API}/portfolios`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-    }).then(async res => {
-        if (!res.ok) throw new Error(await res.text());
-        const data = await res.json();
-        
-        showToast(`Portfolio "${name}" created. Draw the first AOI on the map.`, 'success');
-        loadPortfolios();
-        await selectPortfolio(data.id);
-        // Drop straight into drawing — no redundant GeoJSON-paste step.
-        setTimeout(() => enableDraw('polygon'), 200);
-        return `Portfolio ${name} created with ID ${data.id}`;
-    }).catch(e => {
-        showToast(`Create failed: ${e.message}`, 'danger');
-        return `Failed to create portfolio: ${e.message}`;
-    });
+    // Edit mode → PATCH the existing portfolio; otherwise create a new one.
+    const editId = editingPortfolioId;
+    const promise = editId
+        ? apiFetch(`${API}/portfolios/${editId}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+        }).then(async res => {
+            if (!res.ok) throw new Error(await res.text());
+            showToast(`Portfolio "${name}" updated.`, 'success');
+            loadPortfolios();
+            await selectPortfolio(editId);
+            return `Portfolio ${name} updated`;
+        }).catch(e => {
+            showToast(`Update failed: ${e.message}`, 'danger');
+            return `Failed to update portfolio: ${e.message}`;
+        })
+        : apiFetch(`${API}/portfolios`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload),
+        }).then(async res => {
+            if (!res.ok) throw new Error(await res.text());
+            const data = await res.json();
+
+            showToast(`Portfolio "${name}" created. Draw the first AOI on the map.`, 'success');
+            loadPortfolios();
+            await selectPortfolio(data.id);
+            // Drop straight into drawing — no redundant GeoJSON-paste step.
+            setTimeout(() => enableDraw('polygon'), 200);
+            return `Portfolio ${name} created with ID ${data.id}`;
+        }).catch(e => {
+            showToast(`Create failed: ${e.message}`, 'danger');
+            return `Failed to create portfolio: ${e.message}`;
+        });
 
     if (event.agentInvoked) {
         event.respondWith(promise);
@@ -410,7 +537,7 @@ function deletePortfolioConfirm(id, name) {
     
     newSubmitBtn.addEventListener('click', async () => {
         try {
-            const res = await fetch(`${API}/portfolios/${id}`, { method: 'DELETE' });
+            const res = await apiFetch(`${API}/portfolios/${id}`, { method: 'DELETE' });
             if (!res.ok) throw new Error(`HTTP ${res.status}`);
             
             showToast(`Portfolio deleted successfully.`, 'success');
@@ -475,7 +602,7 @@ async function handleAddPolygon(event) {
     }
 
     const payload = { geometry, label };
-    const promise = fetch(`${API}/portfolios/${portfolioId}/polygons`, {
+    const promise = apiFetch(`${API}/portfolios/${portfolioId}/polygons`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
@@ -499,7 +626,7 @@ async function handleAddPolygon(event) {
 async function runPortfolioConfirm(id) {
     // 1. Verify if there are polygons
     try {
-        const res = await fetch(`${API}/portfolios/${id}/polygons`);
+        const res = await apiFetch(`${API}/portfolios/${id}/polygons`);
         const polygons = await res.json();
         
         if (!polygons || polygons.length === 0) {
@@ -508,7 +635,7 @@ async function runPortfolioConfirm(id) {
         }
 
         // 2. Fetch portfolio configurations to show in parameters confirm box
-        const portRes = await fetch(`${API}/portfolios/${id}`);
+        const portRes = await apiFetch(`${API}/portfolios/${id}`);
         const p = await portRes.json();
 
         document.getElementById('run-confirm-poly-count').textContent = polygons.length;
@@ -526,7 +653,7 @@ async function runPortfolioConfirm(id) {
             runConfirmDialog.close();
             try {
                 showToast(`Spawning ${polygons.length} background analysis job(s)...`, 'info');
-                const runRes = await fetch(`${API}/portfolios/${id}/run`, { method: 'POST' });
+                const runRes = await apiFetch(`${API}/portfolios/${id}/run`, { method: 'POST' });
                 const runData = await runRes.json();
                 
                 showToast(`Started ${runData.count} jobs. Checking STAC/COG in background.`, 'success');
@@ -554,11 +681,12 @@ window.selectPortfolio = async function(id) {
     if (dropdown) dropdown.value = id;
     
     try {
-        const portRes = await fetch(`${API}/portfolios/${id}`);
+        const portRes = await apiFetch(`${API}/portfolios/${id}`);
         if (!portRes.ok) throw new Error(`Portfolio HTTP ${portRes.status}`);
         const portfolio = await portRes.json();
-        
+
         activePortfolioName = portfolio.name;
+        activePortfolioData = portfolio;
         document.getElementById('active-portfolio-title').textContent = portfolio.name;
         const metaPill = document.getElementById('active-portfolio-meta');
         metaPill.textContent = signalLabel(portfolio.task);
@@ -575,9 +703,9 @@ window.selectPortfolio = async function(id) {
 
         // Parallel fetch of polygons, findings, and reviews
         const [polyRes, findingsRes, reviewsRes] = await Promise.all([
-            fetch(`${API}/portfolios/${id}/polygons`),
-            fetch(`${API}/portfolios/${id}/findings`),
-            fetch(`${API}/reviews?portfolio=${id}`),
+            apiFetch(`${API}/portfolios/${id}/polygons`),
+            apiFetch(`${API}/portfolios/${id}/findings`),
+            apiFetch(`${API}/reviews?portfolio=${id}`),
         ]);
         
         const polygons = await polyRes.json();
@@ -690,7 +818,7 @@ async function pollRunHistory(portfolioId) {
     if (activePortfolioId !== portfolioId) return;
 
     try {
-        const res = await fetch(`${API}/portfolios/${portfolioId}/runs`);
+        const res = await apiFetch(`${API}/portfolios/${portfolioId}/runs`);
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const runs = await res.json();
         
@@ -723,8 +851,8 @@ async function reloadFindings(portfolioId) {
     if (activePortfolioId !== portfolioId) return;
     try {
         const [polyRes, findingsRes] = await Promise.all([
-            fetch(`${API}/portfolios/${portfolioId}/polygons`),
-            fetch(`${API}/portfolios/${portfolioId}/findings`),
+            apiFetch(`${API}/portfolios/${portfolioId}/polygons`),
+            apiFetch(`${API}/portfolios/${portfolioId}/findings`),
         ]);
         activePolygons = await polyRes.json();
         latestFindingsData = await findingsRes.json();
@@ -873,9 +1001,9 @@ function showFindingDetail(feature) {
                 </div>
                 <div class="image-tabs-content">
                     <div id="image-loading-indicator" class="image-loading">Loading Sentinel-2 band arrays...</div>
-                    <img id="tab-img-before" class="artifact-img active" src="${beforeUrl}" alt="Before true color" onload="hideImageLoading()">
-                    <img id="tab-img-after" class="artifact-img" src="${afterUrl}" alt="After true color" onload="hideImageLoading()">
-                    <img id="tab-img-overlay" class="artifact-img" src="${overlayUrl}" alt="Overlay change overlay" onload="hideImageLoading()">
+                    <img id="tab-img-before" class="artifact-img active" alt="Before true color">
+                    <img id="tab-img-after" class="artifact-img" alt="After true color">
+                    <img id="tab-img-overlay" class="artifact-img" alt="Overlay change overlay">
                 </div>
             </div>
 
@@ -893,26 +1021,33 @@ function showFindingDetail(feature) {
             <div class="artifact-section">
                 <span class="section-label">Run Artifacts</span>
                 <div class="download-links">
-                    <a href="${beforeUrl}" download="before-${runId}.png" class="btn btn-secondary">
+                    <button type="button" onclick="downloadArtifact('${beforeUrl}', 'before-${runId}.png')" class="btn btn-secondary">
                         Before Image (PNG)
-                    </a>
-                    <a href="${afterUrl}" download="after-${runId}.png" class="btn btn-secondary">
+                    </button>
+                    <button type="button" onclick="downloadArtifact('${afterUrl}', 'after-${runId}.png')" class="btn btn-secondary">
                         After Image (PNG)
-                    </a>
-                    <a href="${overlayUrl}" download="overlay-${runId}.png" class="btn btn-secondary">
+                    </button>
+                    <button type="button" onclick="downloadArtifact('${overlayUrl}', 'overlay-${runId}.png')" class="btn btn-secondary">
                         Change Overlay (PNG)
-                    </a>
-                    <a href="${API}/jobs/${runId}/artifacts/findings.geojson" download="findings-${runId}.geojson" class="btn btn-secondary">
+                    </button>
+                    <button type="button" onclick="downloadArtifact('${API}/jobs/${runId}/artifacts/findings.geojson', 'findings-${runId}.geojson')" class="btn btn-secondary">
                         Findings (GeoJSON)
-                    </a>
-                    <a href="${API}/jobs/${runId}/artifacts/provenance.json" download="provenance-${runId}.json" class="btn btn-secondary">
+                    </button>
+                    <button type="button" onclick="downloadArtifact('${API}/jobs/${runId}/artifacts/provenance.json', 'provenance-${runId}.json')" class="btn btn-secondary">
                         Provenance (JSON)
-                    </a>
+                    </button>
                 </div>
             </div>
         </div>`;
-        
+
     panel.classList.remove('hidden');
+
+    // Blob-load the imagery (carries X-API-Key when auth is on), then hide spinner.
+    Promise.all([
+        loadArtifactImage('tab-img-before', beforeUrl),
+        loadArtifactImage('tab-img-after', afterUrl),
+        loadArtifactImage('tab-img-overlay', overlayUrl),
+    ]).finally(hideImageLoading);
 }
 
 // Handler for switching comparative imagery tabs
@@ -938,7 +1073,7 @@ window.hideImageLoading = function() {
 // Submit review decisions (Human-in-the-loop)
 window.submitReview = async function(runId, findingIdx, state) {
     try {
-        const res = await fetch(`${API}/reviews`, {
+        const res = await apiFetch(`${API}/reviews`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
@@ -1164,7 +1299,7 @@ async function autoCreateDrawnAoi(geometry) {
     
     try {
         showToast(`Saving new AOI...`, "info");
-        const res = await fetch(`${API}/portfolios/${activePortfolioId}/polygons`, {
+        const res = await apiFetch(`${API}/portfolios/${activePortfolioId}/polygons`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
@@ -1188,7 +1323,7 @@ async function saveEditedGeometry(id, geometry) {
     if (!poly) return;
 
     try {
-        const res = await fetch(`${API}/polygons/${id}`, {
+        const res = await apiFetch(`${API}/polygons/${id}`, {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ geometry, label: poly.label })
@@ -1214,7 +1349,7 @@ async function updateAoiLabel(id, newLabel) {
     const payload = { geometry, label: newLabel };
     
     try {
-        const res = await fetch(`${API}/polygons/${id}`, {
+        const res = await apiFetch(`${API}/polygons/${id}`, {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
@@ -1222,7 +1357,7 @@ async function updateAoiLabel(id, newLabel) {
         if (!res.ok) throw new Error(await res.text());
         showToast(`AOI renamed to "${newLabel}"`, "success");
         
-        const polyRes = await fetch(`${API}/portfolios/${activePortfolioId}/polygons`);
+        const polyRes = await apiFetch(`${API}/portfolios/${activePortfolioId}/polygons`);
         activePolygons = await polyRes.json();
         
         renderAoiList(activePolygons);
@@ -1236,7 +1371,7 @@ async function deleteAoiDirect(id) {
     if (!confirm("Delete this AOI and all its runs/reviews?")) return;
     
     try {
-        const res = await fetch(`${API}/polygons/${id}`, { method: 'DELETE' });
+        const res = await apiFetch(`${API}/polygons/${id}`, { method: 'DELETE' });
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         showToast("AOI deleted.", "success");
         
@@ -1244,7 +1379,7 @@ async function deleteAoiDirect(id) {
             disableActiveEditing();
         }
 
-        const polyRes = await fetch(`${API}/portfolios/${activePortfolioId}/polygons`);
+        const polyRes = await apiFetch(`${API}/portfolios/${activePortfolioId}/polygons`);
         activePolygons = await polyRes.json();
 
         renderAoiList(activePolygons);

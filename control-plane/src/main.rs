@@ -48,6 +48,14 @@ async fn main() -> Result<()> {
         Commands::Serve { host } => {
             let db = db::open(&config.db_path)?;
 
+            // A restart orphans in-memory job tasks; fail their stale rows so the
+            // dashboard never shows a run "running" forever.
+            match db::reconcile_stale_runs(&db, &chrono::Utc::now().to_rfc3339()) {
+                Ok(n) if n > 0 => info!(reconciled = n, "startup.stale_runs_failed"),
+                Ok(_) => {}
+                Err(e) => tracing::warn!(error = %e, "startup.stale_runs_error"),
+            }
+
             info!(
                 bind_addr = %host,
                 db_path = %config.db_path.display(),
@@ -62,6 +70,8 @@ async fn main() -> Result<()> {
                 config.python_path.clone(),
                 config.dashboard_dir.clone(),
                 config.output_dir.clone(),
+                config.max_concurrent_runs,
+                config.cors_allow_origin.clone(),
             )
             .layer(TraceLayer::new_for_http());
 
@@ -69,7 +79,12 @@ async fn main() -> Result<()> {
                 .parse::<std::net::SocketAddr>()
                 .unwrap_or("0.0.0.0:8000".parse().unwrap());
             let listener = tokio::net::TcpListener::bind(addr).await?;
-            axum::serve(listener, app).await?;
+            // connect-info gives the rate limiter each request's peer IP.
+            axum::serve(
+                listener,
+                app.into_make_service_with_connect_info::<std::net::SocketAddr>(),
+            )
+            .await?;
         }
         Commands::Auth { action } => {
             let db = db::open(&config.db_path)?;
