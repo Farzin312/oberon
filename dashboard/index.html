@@ -1,372 +1,908 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Oberon Monitor</title>
-    <link rel="icon" type="image/jpeg" href="favicon.jpg">
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-    <link rel="stylesheet" href="style.css">
-</head>
-<body>
-<div id="app">
-    <!-- Base Map Container -->
-    <div id="map"></div>
-    
-    <!-- Map HUD Overlays -->
-    <div id="map-coords-badge" class="map-coords-badge">Lat: 0.00000, Lon: 0.00000</div>
-    <button id="map-attribution-toggle" class="map-attribution-toggle" title="Map attribution" aria-expanded="false" aria-controls="map-attribution-panel">!</button>
-    <div id="map-attribution-panel" class="map-attribution-panel hidden">
-        Leaflet | Tiles (c) Esri, OpenStreetMap, CARTO, and source contributors.
-    </div>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Oberon Monitor | Impeccable UI</title>
+    <link rel="icon" type="image/svg+xml" href="logo.svg" />
+    <!-- Modern Web Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <!-- Leaflet CSS -->
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    />
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <div id="app">
+      <!-- Base Map Container -->
+      <div id="map"></div>
 
-    <!-- Active warning banner when portfolio has no AOIs -->
-    <div id="aoi-missing-alert" class="aoi-warning-banner hidden">
-        <span>⚠️ No AOIs defined. Use the drawing controls or place search to add a target monitoring region.</span>
-    </div>
-
-    <!-- Floating Toggle Button for collapsed Left Sidebar -->
-    <button id="sidebar-toggle-btn" class="btn-floating-toggle hidden" title="Show Sidebar">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
-    </button>
-
-    <!-- Empty State welcome overlay -->
-    <div id="welcome-screen" class="empty-state">
-        <div class="empty-state-panel">
-            <p class="eyebrow">Start here</p>
-            <h2>Select or create a portfolio</h2>
-            <p>Define date windows, add an AOI by drawing on the map or pasting GeoJSON, then run analysis.</p>
-            <button id="welcome-create-btn" class="btn btn-primary">Create Portfolio</button>
+      <!-- Top Global Navigation & Search -->
+      <header id="top-nav" class="glass-panel top-nav">
+        <div class="brand-section">
+        <img src="logo.svg" class="brand-logo" alt="Oberon">
+        <div class="brand-text">
+            <h1>Oberon</h1>
+            <span class="badge hidden" id="active-portfolio-meta">Pending</span>
+          </div>
         </div>
-    </div>
 
-    <!-- Floating HUD Panels -->
-    <div class="hud-overlay-container">
-        <!-- Floating Left Sidebar -->
-        <aside id="sidebar" class="floating-panel" aria-label="Portfolio controls">
-            <header class="brand">
-                <svg class="brand-logo-svg" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <circle cx="12" cy="12" r="4" fill="rgba(14, 165, 233, 0.2)"></circle>
-                    <ellipse cx="12" cy="12" rx="10" ry="3" transform="rotate(-30 12 12)"></ellipse>
-                    <ellipse cx="12" cy="12" rx="10" ry="3" transform="rotate(30 12 12)"></ellipse>
+        <div class="search-container">
+          <div class="search-box">
+            <svg
+              class="search-icon"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <circle cx="11" cy="11" r="8"></circle>
+              <path d="m21 21-4.3-4.3"></path>
+            </svg>
+            <input
+              type="text"
+              id="map-search-input"
+              placeholder="Search for locations, addresses, or places..."
+              autocomplete="off"
+            />
+          </div>
+          <div
+            id="search-results-dropdown"
+            class="search-results hidden glass-panel"
+          ></div>
+        </div>
+
+        <div class="nav-actions">
+          <div class="portfolio-selector">
+            <select
+              id="portfolio-dropdown"
+              class="select-modern"
+              aria-label="Switch portfolio"
+            >
+              <option value="">Select portfolio...</option>
+            </select>
+            <button
+              id="new-portfolio-btn"
+              class="btn btn-primary btn-icon-text"
+            >
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <path d="M12 5v14M5 12h14" />
+              </svg>
+              New
+            </button>
+          </div>
+        </div>
+      </header>
+
+      <!-- Main Sidebar -->
+      <aside id="sidebar" class="glass-panel main-sidebar">
+        <div class="sidebar-header">
+          <div>
+            <h2 id="active-portfolio-title" class="portfolio-title">
+              No Portfolio Selected
+            </h2>
+            <p class="subtitle">Configure and monitor your Area of Interest</p>
+          </div>
+          <button id="sidebar-close-btn" class="btn-icon" title="Hide Sidebar">
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <path d="M15 18l-6-6 6-6" />
+            </svg>
+          </button>
+        </div>
+
+        <div class="sidebar-content">
+          <!-- Parameters Section -->
+          <section class="config-section collapsible">
+            <header
+              class="section-header"
+              onclick="this.parentElement.classList.toggle('collapsed')"
+            >
+              <h3>Analysis Parameters</h3>
+              <button class="collapse-toggle">
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                >
+                  <path d="M18 15l-6-6-6 6" />
                 </svg>
-                <div>
-                    <h1>Oberon</h1>
-                    <p>Land monitoring console</p>
-                </div>
-                <button id="sidebar-close-btn" class="btn-close-panel" title="Hide Sidebar">✕</button>
+              </button>
             </header>
-
-            <button id="new-portfolio-btn" class="btn btn-primary">Create Portfolio</button>
-
-            <!-- Compact Active Portfolio Settings Section -->
-            <section class="sidebar-section active-settings-panel">
-                <h3>Tuning & Params</h3>
-                <div class="settings-grid">
-                    <div>
-                        <span class="label">Date Range Before</span>
-                        <strong id="sidebar-before-range">—</strong>
-                    </div>
-                    <div>
-                        <span class="label">Date Range After</span>
-                        <strong id="sidebar-after-range">—</strong>
-                    </div>
-                    <div>
-                        <span class="label">Cloud Cover (Max)</span>
-                        <strong id="sidebar-cloud-max">—</strong>
-                    </div>
-                    <div>
-                        <span class="label">AI Model (Clay v1.5)</span>
-                        <strong id="sidebar-ai-status">—</strong>
-                    </div>
-                </div>
-            </section>
-
-            <section class="scope-panel">
-                <div>
-                    <span>Analysis</span>
-                    <strong>Vegetation disturbance</strong>
-                    <small>NDVI loss with supporting spectral evidence</small>
-                </div>
-                <div id="aoi-scope-info">
-                    <span id="aoi-scope-count">Locations</span>
-                    <small id="aoi-scope-instructions">Draw on the map or paste GeoJSON</small>
-                    
-                    <div id="aoi-list-container" class="hidden">
-                        <div class="aoi-draw-buttons">
-                            <button type="button" id="sidebar-draw-poly-btn" class="btn btn-secondary btn-small">＋ Polygon</button>
-                            <button type="button" id="sidebar-draw-bbox-btn" class="btn btn-secondary btn-small">＋ Box</button>
-                        </div>
-                        <div id="sidebar-aoi-list" class="sidebar-aoi-list"></div>
-                    </div>
-                </div>
-            </section>
-
-            <!-- Sleek Morphological Calibration panel -->
-            <section class="calibration-panel">
-                <h3>Calibration Gate</h3>
-                <p class="quiet">Calibrate morphological filters to prevent cloud/senescence false positives.</p>
-                <div class="review-counts">
-                    <div class="count-item good">
-                        <span id="cal-approved-count" class="count">0</span>
-                        <span class="label">Approved</span>
-                    </div>
-                    <div class="count-item bad">
-                        <span id="cal-rejected-count" class="count">0</span>
-                        <span class="label">Rejected</span>
-                    </div>
-                </div>
-                <div class="progress-track" aria-hidden="true">
-                    <div id="calibration-progress-bar" class="progress-bar"></div>
-                </div>
-                <p id="calibration-status-text" class="quiet">0/20 labels collected</p>
-                <button id="calibrate-btn" class="btn btn-secondary btn-small" disabled>Recalibrate Engine</button>
-            </section>
-
-            <button id="help-toggle-btn" class="btn btn-ghost">Guide</button>
-        </aside>
-
-        <!-- Floating Top Header Bar -->
-        <header id="top-nav" class="floating-panel">
-            <div class="top-nav-title-group">
-                <div class="portfolio-selector-container">
-                    <select id="portfolio-dropdown" class="select-dropdown" aria-label="Switch portfolio">
-                        <option value="">Select portfolio...</option>
-                    </select>
-                </div>
-                <h2 id="active-portfolio-title" class="hidden">No portfolio selected</h2>
-                <div id="active-portfolio-meta" class="meta-chip hidden">Pending</div>
+            <div class="section-body grid-params">
+              <div class="param-item">
+                <span class="label">Before Window</span>
+                <strong id="sidebar-before-range">—</strong>
+              </div>
+              <div class="param-item">
+                <span class="label">After Window</span>
+                <strong id="sidebar-after-range">—</strong>
+              </div>
+              <div class="param-item">
+                <span class="label">Max Cloud Cover</span>
+                <strong id="sidebar-cloud-max">—</strong>
+              </div>
+              <div class="param-item">
+                <span class="label">AI Model (Clay v1.5)</span>
+                <strong id="sidebar-ai-status" class="status-active">—</strong>
+              </div>
             </div>
+          </section>
 
-            <!-- Sleek geocoder place search -->
-            <div class="search-box">
-                <input type="text" id="map-search-input" placeholder="Search coordinates or places..." autocomplete="off">
-                <div id="search-results-dropdown" class="search-results hidden"></div>
-            </div>
+          <!-- Locations Section -->
+          <section class="config-section active">
+            <header class="section-header">
+              <div class="title-with-badge">
+                <h3>Locations</h3>
+                <span id="aoi-scope-count" class="count-badge">0</span>
+              </div>
+            </header>
+            <div class="section-body">
+              <p id="aoi-scope-instructions" class="helper-text">
+                Add regions to monitor by drawing on the map.
+              </p>
 
-            <div id="workspace-actions" class="hidden">
-                <button id="nav-draw-poly-btn" class="btn btn-secondary btn-small">＋ Polygon</button>
-                <button id="nav-draw-bbox-btn" class="btn btn-secondary btn-small">＋ Box</button>
-                <button id="nav-run-btn" class="btn btn-primary btn-small">▶ Run Analysis</button>
-                <div class="dropdown">
-                    <button id="nav-more-btn" class="btn btn-secondary btn-small" aria-haspopup="listbox" aria-expanded="false">Actions ▾</button>
-                    <div id="nav-more-menu" class="dropdown-menu hidden">
-                        <button id="nav-delete-btn" class="dropdown-item text-danger">Delete Portfolio</button>
-                    </div>
+              <div id="aoi-list-container" class="hidden">
+                <div class="action-buttons row">
+                  <button
+                    type="button"
+                    id="sidebar-draw-poly-btn"
+                    class="btn btn-secondary"
+                  >
+                    <svg
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                    >
+                      <path d="M12 2L2 22h20L12 2z" />
+                    </svg>
+                    Polygon
+                  </button>
+                  <button
+                    type="button"
+                    id="sidebar-draw-bbox-btn"
+                    class="btn btn-secondary"
+                  >
+                    <svg
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                    >
+                      <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
+                    </svg>
+                    Box
+                  </button>
                 </div>
+                <div id="sidebar-aoi-list" class="aoi-scroll-list"></div>
+              </div>
             </div>
+          </section>
+
+          <!-- Calibration Section -->
+          <section class="config-section">
+            <header class="section-header">
+              <h3>Calibration Gate</h3>
+              <span
+                class="info-icon"
+                title="Calibrate filters to prevent false positives"
+              >
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                >
+                  <circle cx="12" cy="12" r="10" />
+                  <path d="M12 16v-4m0-4h.01" />
+                </svg>
+              </span>
+            </header>
+            <div class="section-body">
+              <div class="stats-grid">
+                <div class="stat-card approved">
+                  <span id="cal-approved-count" class="value">0</span>
+                  <span class="label">Approved</span>
+                </div>
+                <div class="stat-card rejected">
+                  <span id="cal-rejected-count" class="value">0</span>
+                  <span class="label">Rejected</span>
+                </div>
+              </div>
+              <div class="progress-container">
+                <div id="calibration-progress-bar" class="progress-fill"></div>
+              </div>
+              <div class="flex-between mt-2 align-center">
+                <span id="calibration-status-text" class="text-small text-muted"
+                  >0/20 labels collected</span
+                >
+                <button
+                  id="calibrate-btn"
+                  class="btn btn-secondary btn-small"
+                  disabled
+                >
+                  Recalibrate
+                </button>
+              </div>
+            </div>
+          </section>
+        </div>
+
+        <div class="sidebar-footer">
+          <div
+            id="workspace-actions"
+            class="hidden full-width flex-column gap-2"
+          >
+            <button
+              id="nav-run-btn"
+              class="btn btn-primary full-width animate-pulse"
+            >
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                class="mr-1"
+              >
+                <path d="M5 3l14 9-14 9V3z" />
+              </svg>
+              Run Analysis
+            </button>
+            <div class="dropdown full-width relative">
+              <button
+                id="nav-more-btn"
+                class="btn btn-ghost full-width justify-between"
+                aria-haspopup="listbox"
+                aria-expanded="false"
+              >
+                Actions
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                >
+                  <path d="M6 9l6 6 6-6" />
+                </svg>
+              </button>
+              <div
+                id="nav-more-menu"
+                class="dropdown-menu hidden top-anchor glass-panel"
+              >
+                <button id="nav-delete-btn" class="dropdown-item danger">
+                  <svg
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                  >
+                    <path
+                      d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"
+                    />
+                  </svg>
+                  Delete Portfolio
+                </button>
+              </div>
+            </div>
+          </div>
+          <!-- Keep hidden elements that app.js expects -->
+          <div class="hidden">
+            <button id="nav-draw-poly-btn"></button>
+            <button id="nav-draw-bbox-btn"></button>
+          </div>
+          <div class="sidebar-utils mt-3">
+            <button
+              id="help-toggle-btn"
+              class="btn-text text-muted hover-white"
+            >
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                class="mr-1"
+              >
+                <circle cx="12" cy="12" r="10" />
+                <path d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3M12 17h.01" />
+              </svg>
+              Guide & Help
+            </button>
+          </div>
+        </div>
+      </aside>
+
+      <!-- Floating Toggle Button for collapsed Left Sidebar -->
+      <button
+        id="sidebar-toggle-btn"
+        class="glass-btn floating-toggle hidden"
+        title="Show Sidebar"
+      >
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+        >
+          <path d="M9 18l6-6-6-6" />
+        </svg>
+      </button>
+
+      <!-- Map HUD Overlays -->
+      <div id="map-coords-badge" class="glass-badge bottom-left">
+        Lat: 0.00000, Lon: 0.00000
+      </div>
+      <button
+        id="map-attribution-toggle"
+        class="glass-btn bottom-right"
+        title="Map attribution"
+      >
+        i
+      </button>
+      <div
+        id="map-attribution-panel"
+        class="glass-panel attribution-panel hidden"
+      >
+        Leaflet | Tiles &copy; Esri, OpenStreetMap, CARTO, and contributors.
+      </div>
+
+      <!-- Active warning banner -->
+      <div id="aoi-missing-alert" class="alert-banner hidden">
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          class="mr-2"
+        >
+          <path
+            d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0zM12 9v4M12 17h.01"
+          />
+        </svg>
+        <span
+          >No AOIs defined. Use the drawing controls or place search to add a
+          target monitoring region.</span
+        >
+      </div>
+
+      <!-- Empty State welcome overlay -->
+      <div id="welcome-screen" class="empty-state-overlay">
+        <div class="empty-state-card glass-panel">
+          <div class="illustration">
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="var(--primary)"
+              stroke-width="1.5"
+            >
+              <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z" />
+              <circle cx="12" cy="10" r="3" />
+            </svg>
+          </div>
+          <h2>Start Monitoring</h2>
+          <p>
+            Select an existing portfolio or create a new one to define date
+            windows and AI settings for change detection.
+          </p>
+          <button
+            id="welcome-create-btn"
+            class="btn btn-primary btn-large w-full mt-4"
+          >
+            Create Portfolio
+          </button>
+        </div>
+      </div>
+
+      <!-- Run History Bottom Panel -->
+      <section id="run-timeline-panel" class="glass-panel bottom-sheet">
+        <header class="sheet-header" id="toggle-run-panel-btn">
+          <div class="sheet-title-row">
+            <div class="flex align-center gap-2">
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                width="18"
+              >
+                <path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <h3>Run History</h3>
+            </div>
+            <div class="sheet-actions">
+              <span id="run-status-indicator" class="status-indicator"
+                >Select a portfolio</span
+              >
+              <button class="btn-icon chevron-icon">
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  id="toggle-run-panel-icon"
+                >
+                  <path d="M6 9l6 6 6-6" />
+                </svg>
+              </button>
+            </div>
+          </div>
         </header>
+        <div id="run-history-body" class="sheet-body horizontal-scroll">
+          <!-- Timeline items go here -->
+        </div>
+      </section>
 
-        <!-- Floating Bottom Horizontal Chronological Timeline Bar -->
-        <section id="run-timeline-panel" class="floating-panel" aria-label="Run History">
-            <header class="panel-header">
-                <h3>Run History</h3>
-                <div class="panel-actions">
-                    <span id="run-status-indicator">Select a portfolio to see status.</span>
-                    <button id="toggle-run-panel-btn" class="btn-icon" title="Toggle run history" aria-label="Toggle run history">
-                        <span id="toggle-run-panel-icon">v</span>
-                    </button>
-                </div>
-            </header>
-            <div id="run-history-body" class="timeline-scroller">
-                <!-- Javascript will render timeline items directly here as cards -->
-            </div>
-        </section>
-
-        <!-- Floating Right Detail Drawer -->
-        <aside id="detail-panel" class="floating-panel hidden" aria-label="Finding details">
-            <button id="close-detail" class="btn-close" aria-label="Close panel">&times;</button>
-            <header class="detail-header">
-                <p class="eyebrow">Review finding</p>
-                <h2>Change Finding</h2>
-                <p id="finding-coordinate-label">Coordinates</p>
-            </header>
-            <div id="detail-content"></div>
-        </aside>
+      <!-- Floating Right Detail Drawer -->
+      <aside id="detail-panel" class="glass-panel side-drawer hidden">
+        <header class="drawer-header">
+          <div class="drawer-title">
+            <span class="eyebrow">Review finding</span>
+            <h2>Change Detected</h2>
+          </div>
+          <button id="close-detail" class="btn-icon">&times;</button>
+        </header>
+        <p id="finding-coordinate-label" class="text-small text-muted mb-4">
+          Coordinates
+        </p>
+        <div id="detail-content" class="drawer-content"></div>
+      </aside>
     </div>
-</div>
 
-<!-- Modal Dialogs -->
-<dialog id="new-portfolio-dialog" closedby="any" aria-labelledby="modal-port-title">
-    <div class="modal-card">
-        <header class="modal-header">
-            <h3 id="modal-port-title">New Portfolio</h3>
-            <button class="modal-close-btn" onclick="document.getElementById('new-portfolio-dialog').close()" aria-label="Close">&times;</button>
+    <!-- Modal Dialogs -->
+    <dialog id="new-portfolio-dialog" class="modern-dialog" closedby="any">
+      <div class="dialog-content">
+        <header class="dialog-header">
+          <h3>New Portfolio</h3>
+          <button
+            class="modal-close-btn"
+            onclick="document.getElementById('new-portfolio-dialog').close()"
+          >
+            &times;
+          </button>
         </header>
-        <form id="create-portfolio-form" method="dialog" toolname="create-portfolio" tooldescription="Create a new Earth observation monitoring portfolio defining the date windows and AI settings" toolautosubmit>
-            <div class="form-group">
-                <label for="port-name">Portfolio name</label>
-                <input type="text" id="port-name" name="name" placeholder="Amazon Deforestation Arc" required toolparamdescription="The descriptive name of the portfolio">
+        <form id="create-portfolio-form" method="dialog">
+          <div class="form-group">
+            <label for="port-name">Portfolio name</label>
+            <input
+              type="text"
+              id="port-name"
+              name="name"
+              class="input-modern"
+              placeholder="e.g. Amazon Deforestation Arc"
+              required
+            />
+          </div>
+          <div class="form-group">
+            <label>Analysis signals</label>
+            <input
+              type="hidden"
+              id="port-task"
+              name="task"
+              value="vegetation_disturbance"
+            />
+            <div class="signal-legend">
+              <div class="signal-chip is-active" style="--sig: var(--sig-ndvi)">
+                <span class="signal-dot"></span>
+                <span class="signal-text">
+                  <span class="signal-name">NDVI</span>
+                  <span class="signal-desc">Vegetation</span>
+                </span>
+                <span class="signal-status">Ranking</span>
+              </div>
+              <div class="signal-chip" style="--sig: var(--sig-nbr)">
+                <span class="signal-dot"></span>
+                <span class="signal-text">
+                  <span class="signal-name">NBR</span>
+                  <span class="signal-desc">Burn severity</span>
+                </span>
+                <span class="signal-status">In results</span>
+              </div>
+              <div class="signal-chip is-pending" style="--sig: var(--sig-ndmi)">
+                <span class="signal-dot"></span>
+                <span class="signal-text">
+                  <span class="signal-name">NDMI</span>
+                  <span class="signal-desc">Moisture</span>
+                </span>
+                <span class="signal-status">Pipeline-ready</span>
+              </div>
+              <div class="signal-chip" style="--sig: var(--sig-clay)">
+                <span class="signal-dot"></span>
+                <span class="signal-text">
+                  <span class="signal-name">Clay v1.5</span>
+                  <span class="signal-desc">AI embeddings</span>
+                </span>
+                <span class="signal-status">Toggle below</span>
+              </div>
             </div>
-            <div class="form-group">
-                <label>Analysis type</label>
-                <input type="hidden" id="port-task" name="task" value="vegetation_disturbance" toolparamdescription="Geospatial monitoring analysis task type">
-                <div class="readonly-field">Vegetation disturbance (NDVI loss)</div>
-                <p class="help-text">Standard NDVI loss tracking. Burn severity is future scope.</p>
-            </div>
-            <div class="form-group">
-                <label for="port-cloud">Max cloud cover (%)</label>
-                <input type="number" id="port-cloud" name="max_cloud_fraction" min="1" max="100" value="15" toolparamdescription="Maximum acceptable cloud coverage percentage for Sentinel-2 scene selection">
-            </div>
-            <fieldset class="form-group">
-                <legend>Before window</legend>
-                <div class="form-grid">
-                    <div>
-                        <label for="port-before-from">From</label>
-                        <input type="date" id="port-before-from" name="before_from" value="2026-01-01" required>
-                    </div>
-                    <div>
-                        <label for="port-before-to">To</label>
-                        <input type="date" id="port-before-to" name="before_to" value="2026-01-31" required>
-                    </div>
+            <p class="helper-text">
+              NDVI ranks findings; NBR burn-severity evidence is computed for
+              every result. NDMI is pipeline-ready, awaiting API exposure. Enable
+              Clay below to add AI features.
+            </p>
+          </div>
+          <div class="form-group">
+            <label for="port-cloud">Max cloud cover (%)</label>
+            <input
+              type="number"
+              id="port-cloud"
+              name="max_cloud_fraction"
+              class="input-modern"
+              min="1"
+              max="100"
+              value="15"
+            />
+          </div>
+          <div class="date-windows-grid">
+            <fieldset class="form-fieldset">
+              <legend>Before window</legend>
+              <div class="grid-2">
+                <div>
+                  <label for="port-before-from">From</label>
+                  <input
+                    type="date"
+                    id="port-before-from"
+                    name="before_from"
+                    class="input-modern"
+                    value="2026-01-01"
+                    required
+                  />
                 </div>
+                <div>
+                  <label for="port-before-to">To</label>
+                  <input
+                    type="date"
+                    id="port-before-to"
+                    name="before_to"
+                    class="input-modern"
+                    value="2026-01-31"
+                    required
+                  />
+                </div>
+              </div>
             </fieldset>
-            <fieldset class="form-group">
-                <legend>After window</legend>
-                <div class="form-grid">
-                    <div>
-                        <label for="port-after-from">From</label>
-                        <input type="date" id="port-after-from" name="after_from" value="2026-06-01" required>
-                    </div>
-                    <div>
-                        <label for="port-after-to">To</label>
-                        <input type="date" id="port-after-to" name="after_to" value="2026-06-30" required>
-                    </div>
+            <fieldset class="form-fieldset">
+              <legend>After window</legend>
+              <div class="grid-2">
+                <div>
+                  <label for="port-after-from">From</label>
+                  <input
+                    type="date"
+                    id="port-after-from"
+                    name="after_from"
+                    class="input-modern"
+                    value="2026-06-01"
+                    required
+                  />
                 </div>
+                <div>
+                  <label for="port-after-to">To</label>
+                  <input
+                    type="date"
+                    id="port-after-to"
+                    name="after_to"
+                    class="input-modern"
+                    value="2026-06-30"
+                    required
+                  />
+                </div>
+              </div>
             </fieldset>
-            <label class="toggle-row">
-                <div class="toggle-label-group">
-                    <span class="toggle-title">Enable Clay v1.5 model (AI)</span>
-                    <span class="toggle-desc">Use experimental 10-band foundation model embeddings for change detection instead of standard NDVI.</span>
-                </div>
-                <input type="checkbox" id="port-use-ai" name="use_ai" value="true" toolparamdescription="True to enable Clay v1.5 Foundation Model embeddings extraction alongside baselines">
+          </div>
+          <div class="form-group mt-4">
+            <label class="toggle-switch">
+              <input
+                type="checkbox"
+                id="port-use-ai"
+                name="use_ai"
+                value="true"
+              />
+              <span class="toggle-slider"></span>
+              <div class="toggle-label flex-column">
+                <strong>Enable Clay v1.5 model (AI)</strong>
+                <span class="text-small text-muted"
+                  >Use foundation model embeddings for change detection</span
+                >
+              </div>
             </label>
-            <div class="next-step-note">
-                <strong>Next step</strong>
-                <span>After creation, add an AOI by drawing on the map or pasting GeoJSON.</span>
-            </div>
-            <footer class="modal-footer">
-                <button type="button" class="btn btn-secondary" onclick="document.getElementById('new-portfolio-dialog').close()">Cancel</button>
-                <button type="submit" class="btn btn-primary">Create</button>
-            </footer>
+          </div>
+          <footer class="dialog-footer">
+            <button
+              type="button"
+              class="btn btn-secondary"
+              onclick="document.getElementById('new-portfolio-dialog').close()"
+            >
+              Cancel
+            </button>
+            <button type="submit" class="btn btn-primary">
+              Create Portfolio
+            </button>
+          </footer>
         </form>
-    </div>
-</dialog>
+      </div>
+    </dialog>
 
-<dialog id="add-polygon-dialog" closedby="any" aria-labelledby="modal-poly-title">
-    <div class="modal-card">
-        <header class="modal-header">
-            <h3 id="modal-poly-title">Add AOI</h3>
-            <button class="modal-close-btn" onclick="document.getElementById('add-polygon-dialog').close()" aria-label="Close">&times;</button>
+    <dialog id="add-polygon-dialog" class="modern-dialog" closedby="any">
+      <div class="dialog-content">
+        <header class="dialog-header">
+          <h3>Add Area of Interest (AOI)</h3>
+          <button
+            class="modal-close-btn"
+            onclick="document.getElementById('add-polygon-dialog').close()"
+          >
+            &times;
+          </button>
         </header>
-        <form id="add-polygon-form" method="dialog" toolname="add-aoi" tooldescription="Add a GeoJSON Area of Interest polygon to an active portfolio" toolautosubmit>
-            <input type="hidden" id="poly-portfolio-id" name="portfolio_id">
-            <div class="form-group">
-                <label for="poly-label">AOI label</label>
-                <input type="text" id="poly-label" name="label" placeholder="Plot A - east sector" required toolparamdescription="Descriptive identifier for this AOI region">
+        <form id="add-polygon-form" method="dialog">
+          <input type="hidden" id="poly-portfolio-id" name="portfolio_id" />
+          <div class="form-group">
+            <label for="poly-label">AOI label</label>
+            <input
+              type="text"
+              id="poly-label"
+              name="label"
+              class="input-modern"
+              placeholder="e.g. Plot A - east sector"
+              required
+            />
+          </div>
+          <div class="form-group">
+            <div class="flex-between mb-2">
+              <label for="poly-geometry">GeoJSON geometry</label>
+              <div class="row gap-2">
+                <button
+                  type="button"
+                  id="draw-poly-btn"
+                  class="btn btn-secondary btn-small"
+                >
+                  Draw Polygon
+                </button>
+                <button
+                  type="button"
+                  id="draw-bbox-btn"
+                  class="btn btn-secondary btn-small"
+                >
+                  Draw Box
+                </button>
+              </div>
             </div>
-            <div class="form-group">
-                <div class="field-header">
-                    <label for="poly-geometry">GeoJSON geometry</label>
-                    <div class="inline-actions">
-                        <button type="button" id="draw-poly-btn" class="btn btn-secondary btn-small">Draw polygon</button>
-                        <button type="button" id="draw-bbox-btn" class="btn btn-secondary btn-small">Draw box</button>
-                    </div>
-                </div>
-                <textarea id="poly-geometry" name="geometry" rows="6" placeholder='{"type": "Polygon", "coordinates": [[[...]]]}' required toolparamdescription="The raw GeoJSON geometry object"></textarea>
-                <p class="help-text">Tip: use the map drawing tools or paste a Polygon/MultiPolygon geometry.</p>
-            </div>
-            <div id="poly-validation-error" class="error-banner hidden"></div>
-            <footer class="modal-footer">
-                <button type="button" class="btn btn-secondary" onclick="document.getElementById('add-polygon-dialog').close()">Cancel</button>
-                <button type="submit" class="btn btn-primary">Add AOI</button>
-            </footer>
+            <textarea
+              id="poly-geometry"
+              name="geometry"
+              class="input-modern textarea-code"
+              rows="6"
+              placeholder='{"type": "Polygon", "coordinates": [[[...]]]}'
+              required
+            ></textarea>
+          </div>
+          <div
+            id="poly-validation-error"
+            class="alert-banner error hidden"
+          ></div>
+          <footer class="dialog-footer">
+            <button
+              type="button"
+              class="btn btn-secondary"
+              onclick="document.getElementById('add-polygon-dialog').close()"
+            >
+              Cancel
+            </button>
+            <button type="submit" class="btn btn-primary">Add AOI</button>
+          </footer>
         </form>
-    </div>
-</dialog>
+      </div>
+    </dialog>
 
-<dialog id="run-confirm-dialog" closedby="any" aria-labelledby="modal-run-title">
-    <div class="modal-card">
-        <header class="modal-header">
-            <h3 id="modal-run-title">Run Analysis</h3>
-            <button class="modal-close-btn" onclick="document.getElementById('run-confirm-dialog').close()" aria-label="Close">&times;</button>
+    <dialog id="run-confirm-dialog" class="modern-dialog" closedby="any">
+      <div class="dialog-content">
+        <header class="dialog-header">
+          <h3>Run Analysis</h3>
+          <button
+            class="modal-close-btn"
+            onclick="document.getElementById('run-confirm-dialog').close()"
+          >
+            &times;
+          </button>
         </header>
-        <div class="modal-body">
-            <p>Launch analysis for <strong id="run-confirm-poly-count">0</strong> AOI(s).</p>
-            <div class="run-params-box">
-                <div><span>Task</span><strong id="run-confirm-task">vegetation_disturbance</strong></div>
-                <div><span>Before</span><strong id="run-confirm-before">2026-01-01 to 2026-01-31</strong></div>
-                <div><span>After</span><strong id="run-confirm-after">2026-06-01 to 2026-06-30</strong></div>
-                <div><span>Cloud max</span><strong id="run-confirm-cloud">15%</strong></div>
-                <div><span>Model</span><strong id="run-confirm-ai">Disabled</strong></div>
+        <div class="dialog-body">
+          <p class="mb-4">
+            Launch analysis for
+            <strong id="run-confirm-poly-count" class="text-highlight"
+              >0</strong
+            >
+            AOI(s).
+          </p>
+          <div class="summary-box">
+            <div class="summary-item">
+              <span>Signal</span
+              ><strong id="run-confirm-task">NDVI · NBR</strong>
             </div>
-            <p class="help-text">Runs usually take 30-90 seconds per AOI depending on imagery availability.</p>
+            <div class="summary-item">
+              <span>Before</span
+              ><strong id="run-confirm-before">2026-01-01 to 2026-01-31</strong>
+            </div>
+            <div class="summary-item">
+              <span>After</span
+              ><strong id="run-confirm-after">2026-06-01 to 2026-06-30</strong>
+            </div>
+            <div class="summary-item">
+              <span>Cloud max</span><strong id="run-confirm-cloud">15%</strong>
+            </div>
+            <div class="summary-item">
+              <span>Model</span><strong id="run-confirm-ai">Disabled</strong>
+            </div>
+          </div>
+          <p class="text-small text-muted mt-4">
+            Runs usually take 30-90 seconds per AOI depending on imagery
+            availability.
+          </p>
         </div>
-        <footer class="modal-footer">
-            <button type="button" class="btn btn-secondary" onclick="document.getElementById('run-confirm-dialog').close()">Cancel</button>
-            <button id="run-confirm-submit-btn" class="btn btn-primary">Launch Jobs</button>
+        <footer class="dialog-footer">
+          <button
+            type="button"
+            class="btn btn-secondary"
+            onclick="document.getElementById('run-confirm-dialog').close()"
+          >
+            Cancel
+          </button>
+          <button id="run-confirm-submit-btn" class="btn btn-primary">
+            Launch Jobs
+          </button>
         </footer>
-    </div>
-</dialog>
+      </div>
+    </dialog>
 
-<dialog id="delete-confirm-dialog" closedby="any" aria-labelledby="modal-del-title">
-    <div class="modal-card">
-        <header class="modal-header">
-            <h3 id="modal-del-title">Delete Portfolio</h3>
-            <button class="modal-close-btn" onclick="document.getElementById('delete-confirm-dialog').close()" aria-label="Close">&times;</button>
+    <dialog
+      id="delete-confirm-dialog"
+      class="modern-dialog danger-dialog"
+      closedby="any"
+    >
+      <div class="dialog-content">
+        <header class="dialog-header">
+          <h3>Delete Portfolio</h3>
+          <button
+            class="modal-close-btn"
+            onclick="document.getElementById('delete-confirm-dialog').close()"
+          >
+            &times;
+          </button>
         </header>
-        <div class="modal-body">
-            <p>Delete <strong id="delete-confirm-name"></strong> and all related AOIs, runs, artifacts, and reviews?</p>
-            <p class="text-danger">This cannot be undone.</p>
+        <div class="dialog-body text-center">
+          <div class="danger-icon mx-auto mb-3 text-danger">
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              width="48"
+              height="48"
+            >
+              <path
+                d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
+              />
+            </svg>
+          </div>
+          <p>
+            Delete <strong id="delete-confirm-name"></strong> and all related
+            AOIs, runs, artifacts, and reviews?
+          </p>
+          <p class="text-danger font-bold mt-2">
+            This action cannot be undone.
+          </p>
         </div>
-        <footer class="modal-footer">
-            <button type="button" class="btn btn-secondary" onclick="document.getElementById('delete-confirm-dialog').close()">Cancel</button>
-            <button id="delete-confirm-submit-btn" class="btn btn-danger">Delete</button>
+        <footer class="dialog-footer center-actions">
+          <button
+            type="button"
+            class="btn btn-secondary w-full"
+            onclick="document.getElementById('delete-confirm-dialog').close()"
+          >
+            Cancel
+          </button>
+          <button id="delete-confirm-submit-btn" class="btn btn-danger w-full">
+            Yes, Delete
+          </button>
         </footer>
-    </div>
-</dialog>
+      </div>
+    </dialog>
 
-<dialog id="guide-dialog" class="guide-dialog" closedby="any" aria-labelledby="modal-guide-title">
-    <div class="modal-card modal-wide">
-        <header class="modal-header">
-            <h3 id="modal-guide-title">Oberon Guide</h3>
-            <button class="modal-close-btn" onclick="document.getElementById('guide-dialog').close()" aria-label="Close">&times;</button>
+    <dialog id="guide-dialog" class="modern-dialog wide-dialog" closedby="any">
+      <div class="dialog-content">
+        <header class="dialog-header">
+          <h3>Oberon Guide</h3>
+          <button
+            class="modal-close-btn"
+            onclick="document.getElementById('guide-dialog').close()"
+          >
+            &times;
+          </button>
         </header>
-        <div class="modal-body guide-body">
-            <h4>Basic workflow</h4>
-            <ol>
-                <li>Create a portfolio for the land area and monitoring task.</li>
-                <li>Add one or more AOIs by drawing on the map or pasting GeoJSON.</li>
-                <li>Run analysis and wait for the run history to complete.</li>
-                <li>Review findings on the map and approve, reject, or mark uncertain.</li>
-            </ol>
-            <h4>Why the reviews matter</h4>
-            <p>Approved and rejected findings become the local feedback set used to tune thresholds for future runs.</p>
-            <h4>Why Oberon over Copernicus?</h4>
-            <ul>
-                <li><strong>Automated Change Detection:</strong> No manual band math needed. Oberon compares before/after temporal composites automatically.</li>
-                <li><strong>Local AOI Cloud Filtering:</strong> Filters cloud coverage locally within your AOI, not the entire Sentinel scene.</li>
-                <li><strong>AI Foundation Models:</strong> Optionally use Clay v1.5 multi-spectral embeddings for ML-based disturbance detection.</li>
-                <li><strong>Morphological Calibration:</strong> Noise reduction filter calibrated continuously through human feedback.</li>
-            </ul>
+        <div class="dialog-body article-style">
+          <h4>Basic workflow</h4>
+          <ol>
+            <li>Create a portfolio for the land area and monitoring task.</li>
+            <li>
+              Add one or more AOIs by drawing on the map or pasting GeoJSON.
+            </li>
+            <li>Run analysis and wait for the run history to complete.</li>
+            <li>
+              Review findings on the map and approve, reject, or mark uncertain.
+            </li>
+          </ol>
+          <h4>Why the reviews matter</h4>
+          <p>
+            Approved and rejected findings become the local feedback set used to
+            tune thresholds for future runs.
+          </p>
+          <h4>Why Oberon over Copernicus?</h4>
+          <ul>
+            <li>
+              <strong>Automated Change Detection:</strong> No manual band math
+              needed. Oberon compares before/after temporal composites
+              automatically.
+            </li>
+            <li>
+              <strong>Local AOI Cloud Filtering:</strong> Filters cloud coverage
+              locally within your AOI, not the entire Sentinel scene.
+            </li>
+            <li>
+              <strong>AI Foundation Models:</strong> Optionally use Clay v1.5
+              multi-spectral embeddings for ML-based change detection.
+            </li>
+            <li>
+              <strong>Morphological Calibration:</strong> Noise reduction filter
+              calibrated continuously through human feedback.
+            </li>
+          </ul>
         </div>
-        <footer class="modal-footer">
-            <button type="button" class="btn btn-primary" onclick="document.getElementById('guide-dialog').close()">Done</button>
+        <footer class="dialog-footer">
+          <button
+            type="button"
+            class="btn btn-primary w-full"
+            onclick="document.getElementById('guide-dialog').close()"
+          >
+            Got it
+          </button>
         </footer>
+      </div>
+    </dialog>
+
+    <div id="toast-container" class="toast-container"></div>
+
+    <div
+      id="drawing-toolbar"
+      class="hidden glass-toolbar floating-center-bottom"
+    >
+      <span id="drawing-instructions" class="font-bold"
+        >Click on map to place vertices</span
+      >
+      <div class="row gap-2">
+        <button id="drawing-cancel-btn" class="btn btn-secondary btn-small">
+          Cancel
+        </button>
+        <button id="drawing-finish-btn" class="btn btn-primary btn-small">
+          Finish Drawing
+        </button>
+      </div>
     </div>
-</dialog>
 
-<div id="toast-container" class="toast-container"></div>
-
-<div id="drawing-toolbar" class="hidden floating-toolbar">
-    <span id="drawing-instructions">Click on map to place vertices</span>
-    <div class="inline-actions">
-        <button id="drawing-finish-btn" class="btn btn-primary btn-small">Finish</button>
-        <button id="drawing-cancel-btn" class="btn btn-secondary btn-small">Cancel</button>
-    </div>
-</div>
-
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script src="app.js"></script>
-</body>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <!-- Assuming app.js will be kept as is, but UI will look amazing -->
+    <script src="app.js"></script>
+  </body>
 </html>

@@ -15,6 +15,14 @@ let editHandles = [];
 let activeEditAoiId = null;
 let latestFindingsData = null;
 
+// Human label for an analysis task. NDVI ranks findings; NBR evidence is computed
+// per finding — so a portfolio is multi-spectral, not "just vegetation".
+// See PRODUCT.md principle #4 (land change, not just vegetation).
+function signalLabel(task) {
+    if (task === 'vegetation_disturbance') return 'NDVI · NBR';
+    return task || '—';
+}
+
 // Track review counts locally for calibration feedback loop visualization
 let approvedCount = 0;
 let rejectedCount = 0;
@@ -173,11 +181,16 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('detail-panel').classList.add('hidden');
     });
 
-    // Drawer Collapse Toggle Action
+    // Run History Collapse Toggle Action
+    // SUPERVISOR-NOTE (review, 2026-06-24): toggled the `collapsed` class on the
+    // panel itself, not a phantom class on <body>. CSS targets `.bottom-sheet.collapsed`
+    // (style.css), so the previous body-class toggle did nothing — the minimize button
+    // appeared dead. Keep the class name in lockstep with the CSS selector.
     const toggleBtn = document.getElementById('toggle-run-panel-btn');
-    if (toggleBtn) {
-        toggleBtn.addEventListener('click', () => {
-            document.body.classList.toggle('run-panel-collapsed');
+    const runPanel = document.getElementById('run-timeline-panel');
+    if (toggleBtn && runPanel) {
+        toggleBtn.addEventListener('click', (e) => {
+            runPanel.classList.toggle('collapsed');
         });
     }
 
@@ -346,7 +359,7 @@ function renderPortfolioList(portfolios) {
                 div.className = 'portfolio-item';
                 if (p.id === activePortfolioId) div.classList.add('active');
                 
-                const taskLabel = p.task === 'vegetation_disturbance' ? 'Vegetation loss' : p.task;
+                const taskLabel = signalLabel(p.task);
                 const aiBadge = p.use_ai ? '<span class="ai-chip">AI</span>' : '';
                 
                 div.innerHTML = `
@@ -535,7 +548,7 @@ async function runPortfolioConfirm(id) {
         const p = await portRes.json();
 
         document.getElementById('run-confirm-poly-count').textContent = polygons.length;
-        document.getElementById('run-confirm-task').textContent = p.task === 'vegetation_disturbance' ? 'Vegetation disturbance (NDVI loss)' : 'Unsupported task';
+        document.getElementById('run-confirm-task').textContent = signalLabel(p.task);
         document.getElementById('run-confirm-before').textContent = `${p.before_from} to ${p.before_to}`;
         document.getElementById('run-confirm-after').textContent = `${p.after_from} to ${p.after_to}`;
         document.getElementById('run-confirm-cloud').textContent = `${Math.round(p.max_cloud_fraction * 100)}%`;
@@ -584,7 +597,7 @@ window.selectPortfolio = async function(id) {
         activePortfolioName = portfolio.name;
         document.getElementById('active-portfolio-title').textContent = portfolio.name;
         const metaPill = document.getElementById('active-portfolio-meta');
-        metaPill.textContent = portfolio.task === 'vegetation_disturbance' ? 'Vegetation loss' : 'Unsupported task';
+        metaPill.textContent = signalLabel(portfolio.task);
         metaPill.classList.remove('hidden');
         document.getElementById('workspace-actions').classList.remove('hidden');
 
@@ -823,15 +836,16 @@ function showFindingDetail(feature) {
                 </div>
             </div>
 
-            <!-- Spectral Evidence Cards -->
+            <!-- Spectral evidence — NDVI ranks findings, NBR is burn severity.
+                 Direction (loss/gain) reads from the sign, never red/green. -->
             <div class="finding-metrics">
-                <div class="metric-pill">
-                    <span class="lbl">NDVI Delta</span>
-                    <span class="val ${ndvi < 0 ? 'text-danger' : 'text-success'}">${ndvi.toFixed(3)}</span>
+                <div class="metric-pill" style="--sig: var(--sig-ndvi)">
+                    <span class="lbl">NDVI</span>
+                    <span class="val">Δ ${ndvi.toFixed(3)}</span>
                 </div>
-                <div class="metric-pill">
-                    <span class="lbl">NBR Delta</span>
-                    <span class="val ${nbr < 0 ? 'text-danger' : 'text-success'}">${nbr.toFixed(3)}</span>
+                <div class="metric-pill" style="--sig: var(--sig-nbr)">
+                    <span class="lbl">NBR</span>
+                    <span class="val">Δ ${nbr.toFixed(3)}</span>
                 </div>
             </div>
 
@@ -1181,9 +1195,11 @@ function renderAoiList(polygons) {
         if (poly.id === activeEditAoiId) div.classList.add('active');
         
         div.innerHTML = `
-            <div class="aoi-info-row">
-                <input type="text" class="aoi-name-input" value="${escapeHtml(poly.label)}" title="Click to rename" onchange="updateAoiLabel('${poly.id}', this.value)" onclick="event.stopPropagation()">
-                <div class="aoi-item-actions">
+            <div class="row justify-between w-full">
+                <input type="text" class="input-modern" style="flex: 1; min-width: 0; margin-right: 8px;" value="${escapeHtml(poly.label)}" 
+                       onchange="updateAoiLabel('${poly.id}', this.value)" 
+                       onclick="event.stopPropagation();" />
+                <div class="row gap-2">
                     <button class="btn-icon btn-small" title="Locate & Edit" onclick="event.stopPropagation(); startEditingAoi('${poly.id}', '${escapeHtml(poly.geometry_json)}')">
                         👁
                     </button>
@@ -1251,18 +1267,22 @@ function startEditingAoi(id, geomJson) {
         editHandles.push(handle);
     });
     
-    const center = editLayer.getBounds().getCenter();
-    let lastCenter = L.latLng(center);
-    
-    const centerHandle = L.marker(center, {
-        draggable: true,
-        icon: createHandleIcon('#2f6fe8', true)
-    }).addTo(map);
-    
-    centerHandle.on('drag', (e) => {
-        const newCenter = e.target.getLatLng();
-        const deltaLat = newCenter.lat - lastCenter.lat;
-        const deltaLng = newCenter.lng - lastCenter.lng;
+    // Native polygon dragging
+    let draggingPolygon = false;
+    let dragStartPoint = null;
+
+    editLayer.on('mousedown', (e) => {
+        L.DomEvent.stopPropagation(e.originalEvent);
+        draggingPolygon = true;
+        dragStartPoint = e.latlng;
+        map.dragging.disable();
+    });
+
+    map.on('mousemove', (e) => {
+        if (!draggingPolygon) return;
+        
+        const deltaLat = e.latlng.lat - dragStartPoint.lat;
+        const deltaLng = e.latlng.lng - dragStartPoint.lng;
         
         editLatlngs.forEach((p, idx) => {
             editLatlngs[idx] = L.latLng(p.lat + deltaLat, p.lng + deltaLng);
@@ -1272,23 +1292,23 @@ function startEditingAoi(id, geomJson) {
         editLayer.setLatLngs(newCoords);
         
         editHandles.forEach((handle, idx) => {
-            if (handle !== centerHandle) {
-                const pos = editLatlngs[idx];
-                handle.setLatLng(pos);
-            }
+            handle.setLatLng(editLatlngs[idx]);
         });
         
-        lastCenter = newCenter;
+        dragStartPoint = e.latlng;
     });
-    
-    centerHandle.on('dragend', () => {
-        const finalCoords = editLatlngs.map(p => [p.lng, p.lat]);
-        finalCoords.push(finalCoords[0]);
-        const geom = { type: 'Polygon', coordinates: [finalCoords] };
-        saveEditedGeometry(id, geom);
+
+    map.on('mouseup', () => {
+        if (draggingPolygon) {
+            draggingPolygon = false;
+            map.dragging.enable();
+            
+            const finalCoords = editLatlngs.map(p => [p.lng, p.lat]);
+            finalCoords.push(finalCoords[0]);
+            const geom = { type: 'Polygon', coordinates: [finalCoords] };
+            saveEditedGeometry(id, geom);
+        }
     });
-    
-    editHandles.push(centerHandle);
 }
 
 function clearEditHandles() {
