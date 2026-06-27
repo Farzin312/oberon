@@ -807,9 +807,15 @@ function displayOnMap(polygons, findings) {
     group.addTo(map);
     activeLayer = group;
 
-    // Fit map view to bounds
-    if (firstBounds && firstBounds.isValid()) {
-        map.fitBounds(firstBounds, { padding: [60, 60], maxZoom: 16 });
+    // Fit map view to findings bounds if present, otherwise AOI bounds.
+    // Findings are tighter — the user sees the actual change, not the whole AOI.
+    let fitBounds = firstBounds;
+    if (findings && findings.features && findings.features.length > 0) {
+        const gj = L.geoJSON(findings);
+        fitBounds = gj.getBounds();
+    }
+    if (fitBounds && fitBounds.isValid()) {
+        map.fitBounds(fitBounds, { padding: [60, 60], maxZoom: 16 });
     }
 }
 
@@ -860,8 +866,15 @@ async function reloadFindings(portfolioId) {
         renderAoiList(activePolygons);
         updateAoiStatusIndicators();
         displayOnMap(activePolygons, latestFindingsData);
-        const n = (latestFindingsData.features || []).length;
-        if (n > 0) showToast(`${n} change finding${n === 1 ? '' : 's'} on the map — click one to view evidence.`, 'success');
+        if (latestFindingsData && latestFindingsData.features && latestFindingsData.features.length > 0) {
+            showToast(`${latestFindingsData.features.length} finding(s) detected — reviewing now.`, 'success');
+            // Auto-select top finding (sorted by score descending).
+            const sorted = [...latestFindingsData.features].sort(
+                (a, b) => (b.properties?.score || b.properties?.change_score || 0)
+                        - (a.properties?.score || a.properties?.change_score || 0)
+            );
+            showFindingDetail(sorted[0]);
+        }
     } catch (e) {
         console.error('Failed to reload findings:', e);
     }
@@ -920,7 +933,29 @@ function renderRunHistory(runs) {
         card.addEventListener('click', () => {
             document.querySelectorAll('.timeline-card').forEach(c => c.classList.remove('active'));
             card.classList.add('active');
-            
+
+            // Completed runs: zoom to findings and show the top one's detail.
+            // This mirrors the auto-show behavior on run completion.
+            if (r.status === 'completed' && latestFindingsData && latestFindingsData.features) {
+                const runFindings = latestFindingsData.features.filter(
+                    f => f.properties?.run_id === r.id
+                );
+                if (runFindings.length > 0) {
+                    const gj = L.geoJSON({
+                        type: "FeatureCollection",
+                        features: runFindings,
+                    });
+                    map.fitBounds(gj.getBounds(), { padding: [40, 40] });
+                    const sorted = [...runFindings].sort(
+                        (a, b) => (b.properties?.score || b.properties?.change_score || 0)
+                                - (a.properties?.score || a.properties?.change_score || 0)
+                    );
+                    showFindingDetail(sorted[0]);
+                    return;
+                }
+            }
+
+            // Fallback: zoom to the AOI polygon.
             const poly = activePolygons.find(p => p.id === r.polygon_id);
             if (poly) {
                 const geom = JSON.parse(poly.geometry_json);

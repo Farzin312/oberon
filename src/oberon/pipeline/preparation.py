@@ -7,13 +7,66 @@ import warnings
 import numpy as np
 import rasterio
 from affine import Affine
+from rasterio.warp import transform as warp_transform
 
-from oberon.core import PreparedPair, RasterWindow
+from oberon.core import Finding, PreparedPair, RasterWindow
 
 TARGET_RESOLUTION_M = 10
 
 # Sentinel-2 bands at 20m native resolution that need upsampling to 10m.
 _20M_BANDS = frozenset({"B05", "B06", "B07", "B11", "B12", "B8A"})
+
+# CRS strings that are already geographic lon/lat — no warp needed.
+_WGS84_ALIASES = frozenset({"EPSG:4326", "OGC:CRS84", "CRS84"})
+
+
+def reproject_findings_to_wgs84(
+    findings: list[Finding],
+    transform: tuple[float, ...],
+    crs: str,
+) -> list[Finding]:
+    """Reproject finding geometries from pixel (col, row) space to EPSG:4326.
+
+    Findings are extracted as connected components of the change mask, so their
+    GeoJSON coordinates are pixel indices in the aligned grid — not lon/lat.
+    Written to GeoJSON as-is they land near (0, 0) and never render on a web
+    map at the AOI. This maps each pixel corner through the aligned-grid affine
+    (`transform`) into the projected `crs`, then warps to WGS84 lon/lat.
+
+    Mutates and returns the findings. No-op (geometry left unchanged) when the
+    grid is unavailable (empty transform/crs — e.g. the abstention path, which
+    carries no real findings anyway).
+    """
+    if not transform or not crs:
+        return findings
+    affine = Affine(*transform[:6])
+    already_wgs84 = crs.upper() in _WGS84_ALIASES
+    for f in findings:
+        f.geometry = _pixel_polygon_to_wgs84(f.geometry, affine, crs, already_wgs84)
+    return findings
+
+
+def _pixel_polygon_to_wgs84(
+    geometry: dict,
+    affine: Affine,
+    crs: str,
+    already_wgs84: bool,
+) -> dict:
+    """Map one GeoJSON Polygon's pixel-coord rings to lon/lat."""
+    if geometry.get("type") != "Polygon":
+        return geometry
+    new_rings = []
+    for ring in geometry["coordinates"]:
+        xs: list[float] = []
+        ys: list[float] = []
+        for col, row in ring:
+            x, y = affine * (col, row)
+            xs.append(x)
+            ys.append(y)
+        if not already_wgs84:
+            xs, ys = warp_transform(crs, "EPSG:4326", xs, ys)
+        new_rings.append([[lon, lat] for lon, lat in zip(xs, ys, strict=True)])
+    return {"type": "Polygon", "coordinates": new_rings}
 
 
 def build_composite(

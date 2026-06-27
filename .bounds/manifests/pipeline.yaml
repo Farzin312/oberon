@@ -37,5 +37,7 @@ exposes:
   kind: function
 - name: read_window
   kind: function
+- name: reproject_findings_to_wgs84
+  kind: function
 - name: search_catalog
   kind: function

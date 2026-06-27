@@ -25,6 +25,7 @@ from oberon.pipeline import (
     build_composite,
     rank_by_scene_quality,
     read_window,
+    reproject_findings_to_wgs84,
     search_catalog,
 )
 
@@ -201,6 +202,10 @@ def run_analysis(
         min_pixels=max(1, int(request.min_change_area_ha / 0.01)),
     )
     findings = deduplicate_and_rank(raw_findings)
+
+    # Findings come out in pixel (col, row) space; reproject to lon/lat so the
+    # GeoJSON renders on the dashboard map at the AOI (not near 0,0).
+    findings = reproject_findings_to_wgs84(findings, pair.transform, pair.crs)
 
     # ----- Phase 3b: Optional AI branch (parallel to baseline) -----
     model_versions: list[str] = ["deterministic-v1"]
